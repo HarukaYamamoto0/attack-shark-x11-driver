@@ -1,8 +1,4 @@
-# Tables
-
-## Dpi change stage
-
-### dpi change stage 1 800dpi
+## dpi change stage 1 800dpi
 
 Request
 
@@ -22,7 +18,7 @@ Reponse:
 0010   01 03 00 08 00 00 02 00 00 00 00 03               ............
 ```
 
-### dpi change stage 2 1600dpi:
+## dpi change stage 2 1600dpi:
 Request:
 
 ```sql
@@ -41,7 +37,7 @@ Response:
 0010   01 03 00 08 00 00 02 00 00 00 00 03               ............
 ```
 
-### dpi change stage 3 2400dpi:
+## dpi change stage 3 2400dpi:
 
 Request:
 
@@ -61,7 +57,7 @@ Response:
 0010   01 03 00 08 00 00 02 00 00 00 00 03               ............
 ```
 
-### dpi change stage 4 3200dpi:
+## dpi change stage 4 3200dpi:
 
 Request:
 
@@ -81,7 +77,7 @@ Response:
 0010   01 03 00 08 00 00 02 00 00 00 00 03               ............
 ```
 
-### dpi change stage 5 5000dpi:
+## dpi change stage 5 5000dpi:
 
 Request:
 
@@ -101,7 +97,7 @@ Response:
 0010   01 03 00 08 00 00 02 00 00 00 00 03               ............
 ```
 
-### dpi change stage 6 5000dpi:
+## dpi change stage 6 5000dpi:
 
 Request:
 
