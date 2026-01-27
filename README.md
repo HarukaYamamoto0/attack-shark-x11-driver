@@ -21,3 +21,37 @@ Power manager - dois slider que permite configurar o tempo de sleep com um step 
 Key response time - um slider com um minimo de 4ms com step de 2 e maximo de 50ms.
 
 Ripple control - apenas on e off angle snap - apenas on e off.
+
+---
+
+### Criar regra udev
+
+Cria o arquivo:
+
+```bash
+sudo nano /etc/udev/rules.d/99-attack-shark-x11.rules
+```
+
+Conteúdo:
+
+```udev
+SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa60", MODE="0666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa55", MODE="0666", GROUP="plugdev"
+```
+
+> `0666` = leitura + escrita para user
+> `plugdev` é padrão em distros desktop (Mint incluso)
+
+
+### Aplicar regras
+
+```bash
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+Ou mais rápido:
+
+```bash
+sudo reboot
+```
