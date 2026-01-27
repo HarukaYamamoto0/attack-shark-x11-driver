@@ -1,66 +1,118 @@
-## Polling rate 125Hz
+# 🧪 Polling Rate Configuration
 
-Request
+## 🆔 Report Information
 
-```txt
-0000   1c 00 a0 39 a6 0b 88 a3 ff ff 00 00 00 00 1b 00   ...9............
-0010   00 03 00 05 00 00 02 11 00 00 00 00 21 09 06 03   ............!...
-0020   02 00 09 00 06 09 01 08 f7 00 00 00 00            .............
+| Field         | Value         |
+| ------------- | ------------- |
+| Report Name   | Polling Rate  |
+| Report ID     | `0x06`        |
+| Report Type   | Feature       |
+| Report Length | 9 bytes       |
+| USB Request   | SET_REPORT    |
+| Interface     | HID Interface |
+
+## 🎯 Purpose
+
+Configures the USB polling rate used by the device to report input data to the host.
+
+This affects latency, power consumption, and CPU usage.
+
+## 📐 Value Encoding
+
+The polling rate is selected using a **bitmask-style encoded value**, where lower values represent higher polling frequencies.
+
+### Supported Values
+
+| Polling Rate | Encoded Value |
+| ------------ | ------------- |
+| 125 Hz       | `0x08`        |
+| 250 Hz       | `0x04`        |
+| 500 Hz       | `0x02`        |
+| 1000 Hz      | `0x01`        |
+
+⚠️ Only one value must be set at a time.
+
+## 🧩 Report Layout
+
+| Byte (1-based) | Index (0-based) | Name               | Description          |
+| -------------- | --------------- | ------------------ | -------------------- |
+| 1              | 0               | Report ID          | Always `0x06`        |
+| 2              | 1               | Length             | Always `0x09`        |
+| 3              | 2               | Command Group      | Fixed (`0x01`)       |
+| 4              | 3               | Polling Rate Value | Encoded polling rate |
+| 5              | 4               | Checksum           | Sum-based checksum   |
+| 6              | 5               | Reserved           | Always `0x00`        |
+| 7              | 6               | Reserved           | Always `0x00`        |
+| 8              | 7               | Reserved           | Always `0x00`        |
+| 9              | 8               | Reserved           | Always `0x00`        |
+
+## 🔐 Checksum
+
+* **Byte:** 5 (1-based) / index 4 (0-based)
+* **Algorithm:** sum of bytes 1–4 (1-based), masked to 8 bits
+
+### Observed Formula
+
+```text
+checksum = (report[0] + report[1] + report[2] + report[3]) & 0xFF
 ```
 
-Reponse:
+### Validation Examples
+
+| Polling Rate | Bytes (ID + Len + Cmd + Value) | Checksum |
+| ------------ | ------------------------------ | -------- |
+| 125 Hz       | `06 09 01 08`                  | `0xF7`   |
+| 250 Hz       | `06 09 01 04`                  | `0xFB`   |
+| 500 Hz       | `06 09 01 02`                  | `0xFD`   |
+| 1000 Hz      | `06 09 01 01`                  | `0xFE`   |
+
+## 🧪 USB Setup Packet
 
 ```txt
-0000   1c 00 a0 39 a6 0b 88 a3 ff ff 00 00 00 00 08 00   ...9............
-0010   01 03 00 05 00 00 02 00 00 00 00 03               ............
+bmRequestType: 0x21 (Host → Device | Class | Interface)
+bRequest: 0x09 (SET_REPORT)
+wValue: 0x0306
+wIndex: HID Interface
+wLength: 9
 ```
 
-## Polling rate 250Hz
-Request:
+## 📤 Examples
+
+### Example — 125 Hz (Power Saving)
 
 ```txt
-0000   1c 00 a0 b9 db 0b 88 a3 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 05 00 00 02 11 00 00 00 00 21 09 06 03   ............!...
-0020   02 00 09 00 06 09 01 04 fb 00 00 00 00            .............
+06 09 01 08 f7 00 00 00 00
 ```
 
-Response:
+### Example — 250 Hz (Office)
 
 ```txt
-0000   1c 00 a0 b9 db 0b 88 a3 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 05 00 00 02 00 00 00 00 03               ............
+06 09 01 04 fb 00 00 00 00
 ```
 
-## Polling rate 500Hz
-
-Request:
+### Example — 500 Hz (Gaming)
 
 ```txt
-0000   1c 00 a0 19 81 0b 88 a3 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 05 00 00 02 11 00 00 00 00 21 09 06 03   ............!...
-0020   02 00 09 00 06 09 01 02 fd 00 00 00 00            .............
+06 09 01 02 fd 00 00 00 00
 ```
 
-Response:
+### Example — 1000 Hz (E-Sports)
 
 ```txt
-0000   1c 00 a0 19 81 0b 88 a3 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 05 00 00 02 00 00 00 00 03               ............
+06 09 01 01 fe 00 00 00 00
 ```
 
-## ## Polling rate 1000Hz:
+## 📌 Device Behavior
 
-Request:
+* No data payload is returned
+* Command success is indicated by:
 
-```txt
-0000   1c 00 a0 09 13 0a 88 a3 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 05 00 00 02 11 00 00 00 00 21 09 06 03   ............!...
-0020   02 00 09 00 06 09 01 01 fe 00 00 00 00            .............
-```
+    * successful completion of the control transfer
+    * absence of USB `STALL`
+* The polling rate change is applied immediately
 
-Response:
+## 🧠 Notes
 
-```txt
-0000   1c 00 a0 09 13 0a 88 a3 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 05 00 00 02 00 00 00 00 03               ............
-```
+* Unsupported values may be ignored silently
+* Reserved bytes must remain unchanged
+* Higher polling rates increase power consumption
