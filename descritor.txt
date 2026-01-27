@@ -1,0 +1,150 @@
+➜  lsusb -d 1d57:fa55 -v
+
+Bus 002 Device 002: ID 1d57:fa55 Xenta USB Gaming Mouse
+Couldn't open device, some information will be missing
+Device Descriptor:
+  bLength                18
+  bDescriptorType         1
+  bcdUSB               1.10
+  bDeviceClass            0 [unknown]
+  bDeviceSubClass         0 [unknown]
+  bDeviceProtocol         0 
+  bMaxPacketSize0        64
+  idVendor           0x1d57 Xenta
+  idProduct          0xfa55 USB Gaming Mouse
+  bcdDevice            1.02
+  iManufacturer           1 Beken
+  iProduct                2 USB Gaming Mouse
+  iSerial                 0 
+  bNumConfigurations      1
+  Configuration Descriptor:
+    bLength                 9
+    bDescriptorType         2
+    wTotalLength       0x006d
+    bNumInterfaces          4
+    bConfigurationValue     1
+    iConfiguration          0 
+    bmAttributes         0xa0
+      (Bus Powered)
+      Remote Wakeup
+    MaxPower              100mA
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        0
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      1 Boot Interface Subclass
+      bInterfaceProtocol      1 Keyboard
+      iInterface              0 
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.00
+          bCountryCode            0 Not supported
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength      75
+          Report Descriptors: 
+            ** UNAVAILABLE **
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x81  EP 1 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0010  1x 16 bytes
+        bInterval               1
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        1
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      1 Boot Interface Subclass
+      bInterfaceProtocol      2 Mouse
+      iInterface              0 
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.00
+          bCountryCode            0 Not supported
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength      73
+          Report Descriptors: 
+            ** UNAVAILABLE **
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x82  EP 2 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0010  1x 16 bytes
+        bInterval               1
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        2
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      0 [unknown]
+      bInterfaceProtocol      0 
+      iInterface              0 
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.00
+          bCountryCode            0 Not supported
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength     236
+          Report Descriptors: 
+            ** UNAVAILABLE **
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x83  EP 3 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0010  1x 16 bytes
+        bInterval               1
+    Interface Descriptor:
+      bLength                 9
+      bDescriptorType         4
+      bInterfaceNumber        3
+      bAlternateSetting       0
+      bNumEndpoints           1
+      bInterfaceClass         3 Human Interface Device
+      bInterfaceSubClass      1 Boot Interface Subclass
+      bInterfaceProtocol      1 Keyboard
+      iInterface              0 
+        HID Device Descriptor:
+          bLength                 9
+          bDescriptorType        33
+          bcdHID               1.00
+          bCountryCode            0 Not supported
+          bNumDescriptors         1
+          bDescriptorType        34 Report
+          wDescriptorLength      39
+          Report Descriptors: 
+            ** UNAVAILABLE **
+      Endpoint Descriptor:
+        bLength                 7
+        bDescriptorType         5
+        bEndpointAddress     0x84  EP 4 IN
+        bmAttributes            3
+          Transfer Type            Interrupt
+          Synch Type               None
+          Usage Type               Data
+        wMaxPacketSize     0x0010  1x 16 bytes
+        bInterval               1
