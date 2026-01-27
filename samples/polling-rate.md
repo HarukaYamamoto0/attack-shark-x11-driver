@@ -3,7 +3,7 @@
 ## 🆔 Report Information
 
 | Field         | Value         |
-| ------------- | ------------- |
+|---------------|---------------|
 | Report Name   | Polling Rate  |
 | Report ID     | `0x06`        |
 | Report Type   | Feature       |
@@ -24,7 +24,7 @@ The polling rate is selected using a **bitmask-style encoded value**, where lowe
 ### Supported Values
 
 | Polling Rate | Encoded Value |
-| ------------ | ------------- |
+|--------------|---------------|
 | 125 Hz       | `0x08`        |
 | 250 Hz       | `0x04`        |
 | 500 Hz       | `0x02`        |
@@ -35,7 +35,7 @@ The polling rate is selected using a **bitmask-style encoded value**, where lowe
 ## 🧩 Report Layout
 
 | Byte (1-based) | Index (0-based) | Name               | Description          |
-| -------------- | --------------- | ------------------ | -------------------- |
+|----------------|-----------------|--------------------|----------------------|
 | 1              | 0               | Report ID          | Always `0x06`        |
 | 2              | 1               | Length             | Always `0x09`        |
 | 3              | 2               | Command Group      | Fixed (`0x01`)       |
@@ -49,7 +49,7 @@ The polling rate is selected using a **bitmask-style encoded value**, where lowe
 ## 🔐 Checksum
 
 * **Byte:** 5 (1-based) / index 4 (0-based)
-* **Algorithm:** sum of bytes 1–4 (1-based), masked to 8 bits
+* **Algorithm:** sum of bytes 1–4 (1-based), masked to eight bits
 
 ### Observed Formula
 
@@ -60,7 +60,7 @@ checksum = (report[0] + report[1] + report[2] + report[3]) & 0xFF
 ### Validation Examples
 
 | Polling Rate | Bytes (ID + Len + Cmd + Value) | Checksum |
-| ------------ | ------------------------------ | -------- |
+|--------------|--------------------------------|----------|
 | 125 Hz       | `06 09 01 08`                  | `0xF7`   |
 | 250 Hz       | `06 09 01 04`                  | `0xFB`   |
 | 500 Hz       | `06 09 01 02`                  | `0xFD`   |
