@@ -114,6 +114,209 @@ export class AttackSharkX11 {
         }
     }
 
+    async reset() {
+        let report = Buffer.alloc(6)
+
+        report[0] = 0x0C
+        report[1] = 0x0A
+        report[2] = 0x01
+        report[3] = 0xFE
+        report[4] = 0x01
+        report[5] = 0xFE
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x030C,
+            2
+        );
+
+        report = Buffer.alloc(52)
+
+        report[0] = 0x04
+        report[1] = 0x38
+        report[2] = 0x01
+        report[3] = 0x00
+        report[4] = 0x01
+        report[5] = 0x3F
+        report[6] = 0x20
+        report[7] = 0x20
+        report[8] = 0x12
+        report[9] = 0x25
+        report[10] = 0x38
+        report[11] = 0x4B
+        report[12] = 0x75
+        report[13] = 0x81
+        report[14] = 0x00
+        report[15] = 0x00
+
+        report[16] = 0x00
+        report[17] = 0x00
+        report[18] = 0x00
+        report[19] = 0x00
+        report[20] = 0x00
+        report[21] = 0x01
+        report[22] = 0x00
+        report[23] = 0x00
+        report[24] = 0x02
+        report[25] = 0xFF
+        report[26] = 0x00
+        report[27] = 0x00
+        report[28] = 0x00
+        report[29] = 0xFF
+        report[30] = 0x00
+        report[31] = 0x00
+
+        report[32] = 0x00
+        report[33] = 0xFF
+        report[34] = 0xFF
+        report[35] = 0xFF
+        report[36] = 0x00
+        report[37] = 0x00
+        report[38] = 0xFF
+        report[39] = 0xFF
+        report[40] = 0xFF
+        report[41] = 0x00
+        report[42] = 0xFF
+        report[43] = 0xFF
+        report[44] = 0x40
+        report[45] = 0x00
+        report[46] = 0xFF
+        report[47] = 0xFF
+
+        report[48] = 0xFF
+        report[49] = 0x02
+        report[50] = 0x0F
+        report[51] = 0x68
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x0304,
+            2
+        );
+
+        report = Buffer.alloc(13)
+
+        report[0] = 0x05
+        report[1] = 0x0F
+        report[2] = 0x01
+        report[3] = 0x00
+        report[4] = 0x03
+        report[5] = 0xA8
+        report[6] = 0x00
+        report[7] = 0xFF
+        report[8] = 0x00
+        report[9] = 0x01
+        report[10] = 0x04
+        report[11] = 0x01
+        report[12] = 0xAF
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x0305,
+            2
+        );
+
+        report = Buffer.alloc(9)
+
+        report[0] = 0x06
+        report[1] = 0x09
+        report[2] = 0x01
+        report[3] = 0x01
+        report[4] = 0xFE
+        report[5] = 0x00
+        report[6] = 0x00
+        report[7] = 0x00
+        report[8] = 0x00
+        report[9] = 0x00
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x0306,
+            2
+        );
+
+        report = Buffer.alloc(59)
+
+        report[0] = 0x08
+        report[1] = 0x3b
+        report[2] = 0x01
+        report[3] = 0x02
+        report[4] = 0x00
+        report[5] = 0x00
+        report[6] = 0x03
+        report[7] = 0x00
+        report[8] = 0x00
+        report[9] = 0x04
+        report[10] = 0x00
+        report[11] = 0x00
+        report[12] = 0x01
+        report[13] = 0x00
+        report[14] = 0x00
+        report[15] = 0x01
+
+        report[16] = 0x00
+        report[17] = 0x00
+        report[18] = 0x0d
+        report[19] = 0x00
+        report[20] = 0x00
+        report[21] = 0x06
+        report[22] = 0x00
+        report[23] = 0x00
+        report[24] = 0x05
+        report[25] = 0x00
+        report[26] = 0x00
+        report[27] = 0x01
+        report[28] = 0x00
+        report[29] = 0x00
+        report[30] = 0x01
+        report[31] = 0x00
+
+        report[32] = 0x00
+        report[33] = 0x01
+        report[34] = 0x00
+        report[35] = 0x00
+        report[36] = 0x01
+        report[37] = 0x00
+        report[38] = 0x00
+        report[39] = 0x01
+        report[40] = 0x00
+        report[41] = 0x00
+        report[42] = 0x01
+        report[43] = 0x00
+        report[44] = 0x00
+        report[45] = 0x01
+        report[46] = 0x00
+        report[47] = 0x00
+
+        report[48] = 0x01
+        report[49] = 0x00
+        report[50] = 0x00
+        report[51] = 0x09
+        report[52] = 0x00
+        report[53] = 0x00
+        report[54] = 0x0a
+        report[55] = 0x00
+        report[56] = 0x00
+        report[57] = 0x00
+        report[58] = 0x3E
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x0308,
+            2
+        );
+    }
+
     encodeDpi(dpi: number): number {
         if (dpi >= 22000) return 0x81;
         if (dpi < 50) return 0x01;
