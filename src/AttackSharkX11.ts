@@ -209,6 +209,43 @@ export class AttackSharkX11 {
         );
     }
 
+    async setSleepAndDeepSleep(
+        sleepMinutes: number,
+        deepSleepMinutes: number = 10
+    ) {
+        if (deepSleepMinutes < 1 || deepSleepMinutes > 63) {
+            throw new Error("Deep sleep inválido (1–63 min)");
+        }
+
+        const report = Buffer.alloc(13);
+
+        report[0] = 0x05;
+        report[1] = 0x0F;
+        report[2] = 0x01;
+        report[3] = 0x00;
+        report[4] = 0x03;
+
+        report[5] = 0x18; // deep sleep time index
+
+        report[6] = 0x00;
+        report[7] = 0xFF;
+        report[8] = 0x00;
+        report[9] = 0x01;
+        report[10] = 0x04;
+
+        report[11] = 0x01; // sleep time index
+
+        report[12] = 0x1F; // checksum
+
+        await this.commandTransfer(
+            report,
+            0x21,
+            0x09,
+            0x0305,
+            2
+        );
+    }
+
     async setDpiStages(
         stages: [number, number, number, number, number, number],
         activeStage: number

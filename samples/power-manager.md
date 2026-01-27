@@ -1,160 +1,156 @@
-## power manager sleep time 0.5min
+# Power Manager
+Ele é dois slider um para o tempo de sleep e outro para o tempo de deep sleep.
+
+O tempo de sleep vai de 0.50 min a 30 min e seu step alterna entre +10s e +50s.
+O tempo de deep sleep vai de 1 min a 60 min e seu step é de 1 min.
+
+na hora do envio ele envia os valores dos dois slider o slider 1 fica em 0x09 e o slider 2 em 0x01.
+
+## Setup data
+
+```txt
+Setup Data
+    bmRequestType: 0x21
+    bRequest: SET_REPORT (0x09)
+    wValue: 0x0305
+    wIndex: 2
+    wLength: 13
+    Data Fragment: 050f0100330800ff000104013f
+```
+
+## Sleep Time 0.5 min  (default value)
 
 Request
 
 ```txt
-0000   1c 00 a0 69 bf dd 08 92 ff ff 00 00 00 00 1b 00   ...i............
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 c8 00 ff 00 01 04 01   ................
-0030   cf                                                .
-```
-
-Reponse:
-
-```txt
-0000   1c 00 a0 69 bf dd 08 92 ff ff 00 00 00 00 08 00   ...i............
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager sleep time 1.5min (default value)
-Request:
-
-```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 c8 00 ff 00 03 04 01   ................
-0030   d1                                                .
+0000   05 0f 01 00 03 a8 00 ff 00 01 04 01 af
 ```
 
 Response:
 
 ```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
+USB URB
+    [Source: 3.4.0]
+    [Destination: host]
+    USBPcap pseudoheader length: 28
+    IRP ID: 0xffffcb8bc24eb920
+    IRP USBD_STATUS: USBD_STATUS_SUCCESS (0x00000000)
+    URB Function: URB_FUNCTION_CONTROL_TRANSFER (0x0008)
+    IRP information: 0x01, Direction: PDO -> FDO
+        0000 000. = Reserved: 0x00
+        .... ...1 = Direction: PDO -> FDO (0x1)
+    URB bus id: 3
+    Device address: 4
+    Endpoint: 0x00, Direction: OUT
+        0... .... = Direction: OUT (0)
+        .... 0000 = Endpoint number: 0
+    URB transfer type: URB_CONTROL (0x02)
+    Packet Data Length: 0
+    [Request in: 317669]
+    [Time from request: 341.000 microseconds]
+    Control transfer stage: Complete (3)
+    [bInterfaceClass: HID (0x03)]
 ```
 
-## power manager sleep time 30min
+## Sleep Time 1 min
+Request:
+
+```txt
+0000   05 0f 01 00 03 a8 00 ff 00 02 04 01 b0
+```
+
+## Sleep Time 1.50 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 79 ed e1 08 92 ff ff 00 00 00 00 1b 00   ...y............
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 c8 00 ff 00 3c 04 02   .............<..
-0030   0a                                                .
+0000   05 0f 01 00 03 a8 00 ff 00 03 04 01 b1
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 79 ed e1 08 92 ff ff 00 00 00 00 08 00   ...y............
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 1min
+## Sleep Time 2 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 18 00 ff 00 01 04 01   ................
-0030   1f                                                .
+0000   05 0f 01 00 03 a8 00 ff 00 04 04 01 b2
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 10min (default value)
+## Sleep Time 30 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 19 2f e3 08 92 ff ff 00 00 00 00 1b 00   ..../...........
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 a8 00 ff 00 01 04 01   ................
-0030   af                                                .
+0000   05 0f 01 00 03 a8 00 ff 00 3c 04 01 ea
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 19 2f e3 08 92 ff ff 00 00 00 00 08 00   ..../...........
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 5min
+## Deep Sleep Time 1 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 03 58 00 ff 00 01 04 01   .........X......
-0030   5f                                                _
+0000   05 0f 01 00 03 18 00 ff 00 01 04 01 1f
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 20min
+## Deep Sleep Time 1 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 79 2e db 08 92 ff ff 00 00 00 00 1b 00   ...y............
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 13 48 00 ff 00 01 04 01   .........H......
-0030   5f                                                _
+0000   05 0F 01 00 03 18 00 FF 00 01 04 01 1F
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 79 2e db 08 92 ff ff 00 00 00 00 08 00   ...y............
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 40min
+## Deep Sleep Time 2 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 69 ac e6 08 92 ff ff 00 00 00 00 1b 00   ...i............
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 23 88 00 ff 00 01 04 01   ........#.......
-0030   af                                                .
+0000   05 0f 01 00 03 28 00 ff 00 01 04 01 2f
 ```
 
-Response:
-
-```txt
-0000   1c 00 a0 69 ac e6 08 92 ff ff 00 00 00 00 08 00   ...i............
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
-```
-
-## power manager deep sleep time 60min
+## Deep Sleep Time 3 min
 
 Request:
 
 ```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 1b 00   ................
-0010   00 03 00 06 00 00 02 15 00 00 00 00 21 09 05 03   ............!...
-0020   02 00 0d 00 05 0f 01 00 33 c8 00 ff 00 01 04 01   ........3.......
-0030   ff                                                .
+0000   05 0f 01 00 03 38 00 ff 00 01 04 01 3f
 ```
 
-Response:
+## Deep Sleep Time 4 min
+
+Request:
 
 ```txt
-0000   1c 00 a0 99 ed e1 08 92 ff ff 00 00 00 00 08 00   ................
-0010   01 03 00 06 00 00 02 00 00 00 00 03               ............
+0000   05 0f 01 00 03 48 00 ff 00 01 04 01 4f
+```
+
+## Deep Sleep Time 16 min
+
+Request:
+
+```txt
+0000   05 0f 01 00 13 08 00 ff 00 01 04 01 1f
+```
+
+## Deep Sleep Time 32 min
+
+Request:
+
+```txt
+0000   05 0f 01 00 23 08 00 ff 00 01 04 01 2f
+```
+
+## Deep Sleep Time 48 min
+
+Request:
+
+```txt
+0000   05 0f 01 00 33 08 00 ff 00 01 04 01 3f
+```
+
+## Deep Sleep Time 60 min
+
+Request:
+
+```txt
+0000   05 0f 01 00 33 c8 00 ff 00 01 04 01 ff
 ```
