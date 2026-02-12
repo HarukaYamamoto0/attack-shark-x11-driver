@@ -327,7 +327,8 @@ export class AttackSharkX11 {
         let mask = 0;
 
         for (let i = 0; i < 6; i++) {
-            if (dpis[i] >= 22000) {
+            const dpi = dpis[i];
+            if (dpi !== undefined && dpi >= 22000) {
                 mask |= (1 << i);
             }
         }
@@ -399,7 +400,7 @@ export class AttackSharkX11 {
         let checksum = 0;
 
         for (let i = 3; i <= report.length - 3; i++) {
-            checksum = (checksum + report[i]) & 0xFF;
+            checksum = (checksum + report[i]!) & 0xFF;
         }
         report[12] = checksum;
 
@@ -413,7 +414,7 @@ export class AttackSharkX11 {
     }
 
     async setSleepAndDeepSleep(
-        sleepMinutes: number,
+        _sleepMinutes: number,
         deepSleepMinutes: number = 10
     ) {
         if (deepSleepMinutes < 1 || deepSleepMinutes > 63) {
@@ -472,7 +473,7 @@ export class AttackSharkX11 {
 
         // === DPI encoding ===
         for (let i = 0; i < 6; i++) {
-            report[8 + i] = this.encodeDpi(stages[i]);
+            report[8 + i] = this.encodeDpi(stages[i]!);
         }
 
         // === High DPI bitmask ===
@@ -483,7 +484,7 @@ export class AttackSharkX11 {
 
         // === Flags individuais por stage ===
         for (let i = 0; i < 6; i++) {
-            report[21 + i] = stages[i] >= 22000 ? 0x01 : 0x00;
+            report[21 + i] = stages[i]! >= 22000 ? 0x01 : 0x00;
         }
 
         // Stage atual
@@ -496,7 +497,7 @@ export class AttackSharkX11 {
         // === Checksum ===
         let checksum = 0;
         for (let i = 3; i <= 49; i++) {
-            checksum = (checksum + report[i]) & 0xFF;
+            checksum = (checksum + report[i]!) & 0xFF;
         }
         report[51] = checksum;
 
