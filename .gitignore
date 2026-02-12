@@ -12,3 +12,5 @@ yarn-error.log*
 ./dist
 .DS_Store
 .idea
+dist
+/tests.ts
