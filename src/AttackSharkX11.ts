@@ -1,5 +1,6 @@
 import * as usb from "usb";
 import type {Device, Endpoint, Interface} from "usb";
+import {PollingRateBuilder, PollingRateOptions} from "./protocols/PollingRateBuilder.js";
 
 const VID = 0x1d57
 const PID = 0xfa55
@@ -9,12 +10,7 @@ const INTERRUPT_ENDPOINT = 0x83
 
 const TIMEOUT = 1000
 
-export enum PollingRateOptions {
-    powerSaving = 125,
-    office = 250,
-    gaming = 500,
-    eSports = 1000
-}
+
 
 export class AttackSharkX11 {
     device: Device
@@ -114,207 +110,83 @@ export class AttackSharkX11 {
         }
     }
 
-    async reset() {
-        let report = Buffer.alloc(6)
-
-        report[0] = 0x0C
-        report[1] = 0x0A
-        report[2] = 0x01
-        report[3] = 0xFE
-        report[4] = 0x01
-        report[5] = 0xFE
+    async resetUUUUUUUUUUURate() {
+        let UUUUUUUUUUUBuffer = Buffer.from("0c0a01fe01fe", "hex")
 
         await this.commandTransfer(
-            report,
+            UUUUUUUUUUUBuffer,
             0x21,
             0x09,
             0x030C,
             2
         );
+    }
 
-        report = Buffer.alloc(52)
-
-        report[0] = 0x04
-        report[1] = 0x38
-        report[2] = 0x01
-        report[3] = 0x00
-        report[4] = 0x01
-        report[5] = 0x3F
-        report[6] = 0x20
-        report[7] = 0x20
-        report[8] = 0x12
-        report[9] = 0x25
-        report[10] = 0x38
-        report[11] = 0x4B
-        report[12] = 0x75
-        report[13] = 0x81
-        report[14] = 0x00
-        report[15] = 0x00
-
-        report[16] = 0x00
-        report[17] = 0x00
-        report[18] = 0x00
-        report[19] = 0x00
-        report[20] = 0x00
-        report[21] = 0x01
-        report[22] = 0x00
-        report[23] = 0x00
-        report[24] = 0x02
-        report[25] = 0xFF
-        report[26] = 0x00
-        report[27] = 0x00
-        report[28] = 0x00
-        report[29] = 0xFF
-        report[30] = 0x00
-        report[31] = 0x00
-
-        report[32] = 0x00
-        report[33] = 0xFF
-        report[34] = 0xFF
-        report[35] = 0xFF
-        report[36] = 0x00
-        report[37] = 0x00
-        report[38] = 0xFF
-        report[39] = 0xFF
-        report[40] = 0xFF
-        report[41] = 0x00
-        report[42] = 0xFF
-        report[43] = 0xFF
-        report[44] = 0x40
-        report[45] = 0x00
-        report[46] = 0xFF
-        report[47] = 0xFF
-
-        report[48] = 0xFF
-        report[49] = 0x02
-        report[50] = 0x0F
-        report[51] = 0x68
+    async resetPollingRate() {
+        let pollingRateBuffer = Buffer.from("06090101fe00000000", "hex")
 
         await this.commandTransfer(
-            report,
-            0x21,
-            0x09,
-            0x0304,
-            2
-        );
-
-        report = Buffer.alloc(13)
-
-        report[0] = 0x05
-        report[1] = 0x0F
-        report[2] = 0x01
-        report[3] = 0x00
-        report[4] = 0x03
-        report[5] = 0xA8
-        report[6] = 0x00
-        report[7] = 0xFF
-        report[8] = 0x00
-        report[9] = 0x01
-        report[10] = 0x04
-        report[11] = 0x01
-        report[12] = 0xAF
-
-        await this.commandTransfer(
-            report,
-            0x21,
-            0x09,
-            0x0305,
-            2
-        );
-
-        report = Buffer.alloc(9)
-
-        report[0] = 0x06
-        report[1] = 0x09
-        report[2] = 0x01
-        report[3] = 0x01
-        report[4] = 0xFE
-        report[5] = 0x00
-        report[6] = 0x00
-        report[7] = 0x00
-        report[8] = 0x00
-        report[9] = 0x00
-
-        await this.commandTransfer(
-            report,
+            pollingRateBuffer,
             0x21,
             0x09,
             0x0306,
             2
         );
+    }
 
-        report = Buffer.alloc(59)
-
-        report[0] = 0x08
-        report[1] = 0x3b
-        report[2] = 0x01
-        report[3] = 0x02
-        report[4] = 0x00
-        report[5] = 0x00
-        report[6] = 0x03
-        report[7] = 0x00
-        report[8] = 0x00
-        report[9] = 0x04
-        report[10] = 0x00
-        report[11] = 0x00
-        report[12] = 0x01
-        report[13] = 0x00
-        report[14] = 0x00
-        report[15] = 0x01
-
-        report[16] = 0x00
-        report[17] = 0x00
-        report[18] = 0x0d
-        report[19] = 0x00
-        report[20] = 0x00
-        report[21] = 0x06
-        report[22] = 0x00
-        report[23] = 0x00
-        report[24] = 0x05
-        report[25] = 0x00
-        report[26] = 0x00
-        report[27] = 0x01
-        report[28] = 0x00
-        report[29] = 0x00
-        report[30] = 0x01
-        report[31] = 0x00
-
-        report[32] = 0x00
-        report[33] = 0x01
-        report[34] = 0x00
-        report[35] = 0x00
-        report[36] = 0x01
-        report[37] = 0x00
-        report[38] = 0x00
-        report[39] = 0x01
-        report[40] = 0x00
-        report[41] = 0x00
-        report[42] = 0x01
-        report[43] = 0x00
-        report[44] = 0x00
-        report[45] = 0x01
-        report[46] = 0x00
-        report[47] = 0x00
-
-        report[48] = 0x01
-        report[49] = 0x00
-        report[50] = 0x00
-        report[51] = 0x09
-        report[52] = 0x00
-        report[53] = 0x00
-        report[54] = 0x0a
-        report[55] = 0x00
-        report[56] = 0x00
-        report[57] = 0x00
-        report[58] = 0x3E
+    async resetDpiSystem() {
+        let dpiSystemBuffer = Buffer.from(
+            "04380100013f20201225384b75810000000000000001000002ff000000ff000000ffffff0000ffffff00ffff4000ffffff020f6800000000",
+            "hex"
+        )
 
         await this.commandTransfer(
-            report,
+            dpiSystemBuffer,
+            0x21,
+            0x09,
+            0x0304,
+            2
+        );
+    }
+
+    async resetMacro() {
+        const macroBuffer = Buffer.from(
+            "083b010200000300000400000100000100000d00000600000500000100000100000100000100000100000100000100000100000900000a0000003e",
+            "hex"
+        )
+
+        await this.commandTransfer(
+            macroBuffer,
             0x21,
             0x09,
             0x0308,
             2
-        );
+        )
+    }
+
+    async resetKeyResponse() {
+        // and power manager e brilho
+        const macroBuffer = Buffer.from(
+            "050f010003a800ff00010401af0000",
+            "hex"
+        )
+
+        const sla = await this.commandTransfer(
+            macroBuffer,
+            0x21,
+            0x09,
+            0x0305,
+            2
+        )
+        console.log(sla)
+    }
+
+    async reset() {
+        await this.resetUUUUUUUUUUURate()
+        await this.resetDpiSystem()
+        await this.resetKeyResponse()
+        await this.resetPollingRate()
+        await this.resetMacro()
     }
 
     encodeDpi(dpi: number): number {
@@ -337,47 +209,21 @@ export class AttackSharkX11 {
     }
 
     async setPollingRate(rate: PollingRateOptions) {
-        const report = Buffer.alloc(9)
-
-        report[0] = 0x06
-        report[1] = 0x09
-        report[2] = 0x01
-
-        switch (rate) {
-            case PollingRateOptions.powerSaving: {
-                report[3] = 0x08
-                report[4] = 0xF7
-                break;
-            }
-            case PollingRateOptions.office: {
-                report[3] = 0x04
-                report[4] = 0xFB
-                break;
-            }
-            case PollingRateOptions.gaming: {
-                report[3] = 0x02
-                report[4] = 0xFD
-                break;
-            }
-            case PollingRateOptions.eSports: {
-                report[3] = 0x01
-                report[4] = 0xFE
-                break;
-            }
-        }
+        const pollingRateProtocol = new PollingRateBuilder()
+            .setPollingRate(rate)
 
         await this.commandTransfer(
-            report,
-            0x21,
-            0x09,
-            0x0306,
-            2
+            pollingRateProtocol.build(),
+            pollingRateProtocol.bmRequestType,
+            pollingRateProtocol.bRequest,
+            pollingRateProtocol.wValue,
+            pollingRateProtocol.wIndex
         );
     }
 
     async setKeyResponseTime(ms: number) {
         if (ms < 4 || ms > 50 || ms % 2 !== 0) {
-            throw new Error("Valor inválido (use 4–50ms, step 2)");
+            throw new Error("Invalid value (use 4–50ms, step 2)");
         }
 
         const value = ((ms - 4) / 2) + 0x02;
@@ -418,7 +264,7 @@ export class AttackSharkX11 {
         deepSleepMinutes: number = 10
     ) {
         if (deepSleepMinutes < 1 || deepSleepMinutes > 63) {
-            throw new Error("Deep sleep inválido (1–63 min)");
+            throw new Error("Invalid deep sleep value (1–63 min)");
         }
 
         const report = Buffer.alloc(13);
@@ -455,17 +301,17 @@ export class AttackSharkX11 {
         activeStage: number
     ) {
         if (activeStage < 1 || activeStage > 6) {
-            throw new Error("Stage ativo inválido (1–6)");
+            throw new Error("Invalid active stage (1–6)");
         }
 
         const report = Buffer.alloc(52, 0x00);
 
-        // Header fixo
+        // Fixed header
         report[0] = 0x04;
         report[1] = 0x38;
         report[2] = 0x01;
 
-        // angle snap / ripple (mantidos off)
+        // angle snap / ripple (kept off)
         report[3] = 0x00;
         report[4] = 0x00;
 
@@ -482,15 +328,15 @@ export class AttackSharkX11 {
         report[6] = mask;
         report[7] = mask;
 
-        // === Flags individuais por stage ===
+        // === Individual flags per stage ===
         for (let i = 0; i < 6; i++) {
             report[21 + i] = stages[i]! >= 22000 ? 0x01 : 0x00;
         }
 
-        // Stage atual
+        // Current stage
         report[24] = activeStage;
 
-        // Trailer fixo observado
+        // Observed fixed trailer
         report[49] = 0x02;
         report[50] = 0x0F;
 
