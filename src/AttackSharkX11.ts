@@ -82,7 +82,7 @@ export class AttackSharkX11 {
         bRequest: number,
         wValue: number,
         wIndex: number
-    ) {
+    ): Promise<number | Buffer<ArrayBufferLike> | undefined> {
         return new Promise((resolve, reject) => {
             this.device.controlTransfer(
                 bmRequestType,
@@ -90,9 +90,10 @@ export class AttackSharkX11 {
                 wValue,
                 wIndex,
                 data,
-                (err) => {
+                (err, buffer) => {
+                    console.log(typeof buffer)
                     if (err) reject(err);
-                    else resolve(true);
+                    else resolve(buffer);
                 }
             );
         });
@@ -121,7 +122,7 @@ export class AttackSharkX11 {
         const pollingRateProtocol = new PollingRateBuilder()
             .setPollingRate(rate)
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             pollingRateProtocol.build(this.connectionMode),
             pollingRateProtocol.bmRequestType,
             pollingRateProtocol.bRequest,
@@ -148,7 +149,7 @@ export class AttackSharkX11 {
             .setDeepSleep(opts.deepSleepTime)
             .setKeyResponse(opts.keyResponse);
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             builder.build(this.connectionMode),
             builder.bmRequestType,
             builder.bRequest,
@@ -160,7 +161,7 @@ export class AttackSharkX11 {
     async resetUUUUUUUUUUURate() {
         let UUUUUUUUUUUBuffer = Buffer.from("0c0a01fe01fe", "hex")
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             UUUUUUUUUUUBuffer,
             0x21,
             0x09,
@@ -173,7 +174,7 @@ export class AttackSharkX11 {
         const pollingRateProtocol = new PollingRateBuilder()
             .setPollingRate(PollingRateOptions.eSports)
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             pollingRateProtocol.build(this.connectionMode),
             pollingRateProtocol.bmRequestType,
             pollingRateProtocol.bRequest,
@@ -188,7 +189,7 @@ export class AttackSharkX11 {
             "hex"
         )
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             dpiSystemBuffer,
             0x21,
             0x09,
@@ -203,7 +204,7 @@ export class AttackSharkX11 {
             "hex"
         )
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             macroBuffer,
             0x21,
             0x09,
@@ -216,7 +217,7 @@ export class AttackSharkX11 {
         // Sets default key response (8ms) and other power settings
         const builder = new UserPreferencesBuilder().setKeyResponse(8);
 
-        await this.commandTransfer(
+        return await this.commandTransfer(
             builder.build(this.connectionMode),
             builder.bmRequestType,
             builder.bRequest,
