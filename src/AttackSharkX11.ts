@@ -91,7 +91,6 @@ export class AttackSharkX11 {
                 wIndex,
                 data,
                 (err, buffer) => {
-                    console.log(typeof buffer)
                     if (err) reject(err);
                     else resolve(buffer);
                 }
