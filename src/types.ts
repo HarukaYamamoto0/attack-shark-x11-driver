@@ -1,4 +1,5 @@
 import {LightMode} from "./protocols/UserPreferencesBuilder.js";
+import type {MacroTuple} from "./protocols/MacrosBuilder.js";
 
 export interface ProtocolBuilder {
     readonly buffer: Buffer;
@@ -58,3 +59,8 @@ export type KeyResponse =
     | 20 | 22 | 24 | 26 | 28 | 30
     | 32 | 34 | 36 | 38 | 40
     | 42 | 44 | 46 | 48 | 50
+
+export type MacroConfig = Record<
+    "left" | "right" | "middle" | "extra4" | "extra5",
+    MacroTuple
+>

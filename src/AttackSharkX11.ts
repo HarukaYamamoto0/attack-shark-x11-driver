@@ -2,8 +2,9 @@ import type {Device, Endpoint, Interface} from "usb";
 import * as usb from "usb";
 import {PollingRateBuilder, PollingRateOptions} from "./protocols/PollingRateBuilder.js";
 import {UserPreferencesBuilder} from "./protocols/UserPreferencesBuilder.js";
-import {ConnectionMode, type UserPreferenceOptions} from "./types.js";
-import {Buttons, type Macro, type MacroRaw, MacrosBuilder, type MacroTuple} from "./protocols/MacrosBuilder.js";
+import {ConnectionMode, type MacroConfig, type UserPreferenceOptions} from "./types.js";
+import {Buttons, MacrosBuilder, MacroTemplate} from "./protocols/MacrosBuilder.js";
+import {InternalStateResetReportBuilder} from "./protocols/InternalStateResetReportBuilder.js";
 
 const VID = 0x1d57;
 const PID_WIRELESS = 0xfa60;
@@ -131,37 +132,29 @@ export class AttackSharkX11 {
         );
     }
 
-    setMacroRaw(button: Buttons, raw: MacroRaw) {
-        const tuple: MacroTuple = [
-            raw.firmwareAction,
-            raw.modifier,
-            raw.keyCode
-        ]
+    async setMacro(config: MacroConfig) {
+        const {
+            left = MacroTemplate["global-left-click"],
+            right = MacroTemplate["global-right-click"],
+            middle = MacroTemplate["global-middle"],
+            extra4 = MacroTemplate["global-forward"],
+            extra5 = MacroTemplate["global-backward"],
+        } = config;
 
-        return this.setMacro(button, tuple)
-    }
-
-    setMacroTemplate(button: Buttons, template: MacroTuple) {
-        return this.setMacro(button, template)
-    }
-
-    setMacro(button: Buttons, tuple: MacroTuple) {
         const macroProtocol = new MacrosBuilder()
+            .setMacro(Buttons.LEFT_BUTTON, left)
+            .setMacro(Buttons.RIGHT_BUTTON, right)
+            .setMacro(Buttons.MIDDLE_BUTTON, middle)
+            .setMacro(Buttons.BUTTON_4, extra4)
+            .setMacro(Buttons.BUTTON_5, extra5);
 
-        if (macro.type === "raw") {
-            macroProtocol.setMacro(macro.value)
-        } else {
-            if (button) macroProtocol.setMacroTemplate(button, macro.value)
-            else throw new Error("The button for the macro has not been defined!")
-        }
-
-        return await this.commandTransfer(
+        return this.commandTransfer(
             macroProtocol.build(this.connectionMode),
             macroProtocol.bmRequestType,
             macroProtocol.bRequest,
             macroProtocol.wValue,
             macroProtocol.wIndex
-        )
+        );
     }
 
     async setUserPreferences(options: Partial<UserPreferenceOptions> = {}) {
@@ -191,11 +184,11 @@ export class AttackSharkX11 {
         );
     }
 
-    async resetUUUUUUUUUUURate() {
-        let UUUUUUUUUUUBuffer = Buffer.from("0c0a01fe01fe", "hex")
+    async sendInternalStateResetReportBuilder() {
+        let internalStateResetReportBuffer = new InternalStateResetReportBuilder()
 
         return await this.commandTransfer(
-            UUUUUUUUUUUBuffer,
+            internalStateResetReportBuffer.build(this.connectionMode),
             0x21,
             0x09,
             0x030C,
@@ -256,7 +249,7 @@ export class AttackSharkX11 {
     }
 
     async reset() {
-        await this.resetUUUUUUUUUUURate()
+        await this.sendInternalStateResetReportBuilder()
         await this.resetDpiSystem()
         await this.resetUserPreferences()
         await this.resetPollingRate()

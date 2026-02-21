@@ -307,17 +307,6 @@ export enum Buttons {
     BUTTON_5,
 }
 
-export interface MacroRaw {
-    button: Buttons,
-    firmwareAction: FirmwareAction,
-    modifier: Modifiers,
-    keyCode: KeyCode
-}
-
-export type Macro =
-    | { type: "raw"; value: MacroRaw }
-    | { type: "template"; value: MacroTuple };
-
 const BUTTON_OFFSET: Record<Buttons, number> = {
     [Buttons.LEFT_BUTTON]: 3,
     [Buttons.RIGHT_BUTTON]: 6,
@@ -417,25 +406,12 @@ export class MacrosBuilder implements ProtocolBuilder {
         this.buffer[58] = 0x3b // checksum
     }
 
-    setMacroTemplate(button: Buttons, template: MacroTuple) {
+    setMacro(button: Buttons, macro: MacroTuple): MacrosBuilder {
         const [
             firmwareAction = FirmwareAction.DISABLE_BUTTON,
             modifier = Modifiers.NONE,
             keyCode = KeyCode.NONE
-        ] = template
-
-        this.setMacro({button, firmwareAction, modifier, keyCode})
-        return this
-    }
-
-    setMacro(macro: MacroRaw): MacrosBuilder {
-        const {
-            button = Buttons.BUTTON_5,
-            firmwareAction = FirmwareAction.DISABLE_BUTTON,
-            modifier = Modifiers.NONE,
-            keyCode = KeyCode.NONE
-        } = macro
-
+        ] = macro
 
         const offset = BUTTON_OFFSET[button];
 
