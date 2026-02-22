@@ -16,6 +16,7 @@ export enum Modifiers {
 
 export enum KeyCode {
     NONE = 0x00,
+    UNKNOWN = 0x03, // used by easy-aim
 
     // Letters
     A = 0x04,
@@ -253,7 +254,7 @@ export const MacroTemplate: Record<MacroName, MacroTuple> = {
     [MacroName.GLOBAL_DOUBLE_CLICK]: [FirmwareAction.DOUBLE_CLICK, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_FIRE_BUTTON]: [FirmwareAction.FIRE, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_SCROLL_UP]: [FirmwareAction.SCROLL_UP, Modifiers.NONE, KeyCode.NONE],
-    [MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.NONE],
+    [MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.UNKNOWN],
     [MacroName.GLOBAL_SCROLL_DOWN]: [FirmwareAction.SCROLL_DOWN, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.GLOBAL_DPI_CYCLE, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.GLOBAL_DPI_PLUS, Modifiers.NONE, KeyCode.NONE],
@@ -403,7 +404,7 @@ export class MacrosBuilder implements ProtocolBuilder {
         this.buffer[56] = 0x00
 
         this.buffer[57] = 0x00
-        this.buffer[58] = 0x3b // checksum
+        this.buffer[58] = 0x3e // checksum
     }
 
     setMacro(button: Buttons, macro: MacroTuple): MacrosBuilder {
@@ -422,12 +423,23 @@ export class MacrosBuilder implements ProtocolBuilder {
         return this
     }
 
+    /**
+     * Calculates firmware checksum.
+     * Range: bytes 2..56
+     * Formula: (sum - 1) & 0xff
+     */
     calculateChecksum(): number {
-        let checksum = 0;
-        for (let i = 2; i < this.buffer.length - 1; i++) {
-            checksum += this.buffer[i]!
+        if (this.buffer.length !== 59) {
+            throw new Error("Invalid buffer size. Expected 59 bytes.")
         }
-        return (checksum - 1) & 0xFF;
+
+        let sum = 0
+
+        for (let i = 2; i <= 56; i++) {
+            sum = (sum + this.buffer[i]!) & 0xff
+        }
+
+        return (sum - 1) & 0xff
     }
 
     build(_mode: ConnectionMode): Buffer {

@@ -148,8 +148,10 @@ export class AttackSharkX11 {
             .setMacro(Buttons.BUTTON_4, extra4)
             .setMacro(Buttons.BUTTON_5, extra5);
 
+        const buffer = macroProtocol.build(this.connectionMode)
+
         return this.commandTransfer(
-            macroProtocol.build(this.connectionMode),
+            buffer,
             macroProtocol.bmRequestType,
             macroProtocol.bRequest,
             macroProtocol.wValue,
