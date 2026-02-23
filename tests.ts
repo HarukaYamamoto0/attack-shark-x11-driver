@@ -6,13 +6,13 @@ const driver = new AttackSharkX11()
 try {
     const builder = new DpiBuilder()
         .setDpiValue(StageIndex.FIRST, 800)   // stage1 = 800 DPI
-        .setDpiValue(StageIndex.SECOND, 1600) // stage2 = 1600 DPI
-        .setActiveStage(StageIndex.FIRST);    // stage1 ativo
+        .setDpiValue(StageIndex.SECOND, 12000) // stage2 = 1600 DPI
+        .setCurrentStage(StageIndex.SECOND)
 
     const buffer = builder.build(ConnectionMode.Wired);
     console.log(buffer.toString('hex'));
 
-    // await driver.setDpi(dpiBuffer)
+    await driver.setDpi(builder)
 } finally {
     driver.close()
 }

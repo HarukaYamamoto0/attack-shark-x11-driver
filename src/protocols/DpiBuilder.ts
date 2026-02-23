@@ -361,9 +361,29 @@ export class DpiBuilder implements ProtocolBuilder {
     }
 
     build(mode: ConnectionMode): Buffer {
+        const stages = this.buffer.subarray(8, 14); // 6 bytes
+
+        let mask = 0;
+
+        for (let i = 0; i < 6; i++) {
+            if (stages[i]! >= 0x80) {
+                mask |= (1 << i);
+            }
+        }
+
+        this.buffer[6] = mask;
+        this.buffer[7] = mask;
+
+        // expanded mask
+        for (let i = 0; i < 6; i++) {
+            this.buffer[16 + i] = (mask & (1 << i)) ? 0x01 : 0x00;
+        }
+
         this.buffer[51] = this.calculateChecksum();
-        if (mode == ConnectionMode.Wired) return this.buffer.subarray(0, 52);
-        else return this.buffer;
+
+        return mode === ConnectionMode.Wired
+            ? this.buffer.subarray(0, 52)
+            : this.buffer;
     }
 
     toString(): string {
