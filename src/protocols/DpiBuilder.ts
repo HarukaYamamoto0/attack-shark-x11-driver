@@ -106,21 +106,47 @@ class DpiBuilder implements ProtocolBuilder {
         this.buffer[55] = 0x00 // padding wireless mode
     }
 
+    /**
+     * Sets the angle snapping behavior for the object.
+     *
+     * @param {boolean} [active=false] - Determines whether angle snapping should be enabled.
+     *                                   If `true`, angle snapping is activated; if `false`, it is disabled.
+     * @return {this} The current instance for method chaining.
+     */
     setAngleSnap(active = false): this {
         this.buffer[OFFSET.ANGLE_SNAP] = active ? 0x01 : 0x00;
         return this;
     }
 
+    /**
+     * Sets the rippler control state.
+     *
+     * @param {boolean} [active=true] - A boolean value indicating whether the rippler control is active or inactive. Defaults to `true`.
+     * @return {this} The current instance for method chaining.
+     */
     setRipplerControl(active = true): this {
         this.buffer[OFFSET.RIPPLER_CONTROL] = active ? 0x01 : 0x00;
         return this;
     }
 
+    /**
+     * Sets the current stage of the process.
+     *
+     * @param {StageIndex} stage - The stage index to set as the current stage.
+     * @return {this} The instance of the current object for method chaining.
+     */
     setCurrentStage(stage: StageIndex): this {
         this.buffer[OFFSET.CURRENT_STAGE] = stage;
         return this;
     }
 
+    /**
+     * Sets the DPI (dots per inch) value for a specific stage.
+     *
+     * @param {StageIndex} stage - The index of the stage for which the DPI value is being set.
+     * @param {number} dpi - The DPI value to assign to the specified stage.
+     * @return {this} The instance of the class for method chaining.
+     */
     setDpiValue(stage: StageIndex, dpi: number): this {
         const index = (stage - 1) as StageArrayIndex;
 

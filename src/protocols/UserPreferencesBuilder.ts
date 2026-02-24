@@ -1,5 +1,20 @@
 import {ConnectionMode, type ProtocolBuilder, type RGB, type UserPreferenceOptions} from "../types.js";
 
+/**
+ * Enum representing different light modes for a device or application.
+ *
+ * Each mode is associated with a unique hexadecimal value to facilitate
+ * identification and control.
+ *
+ * Enum Members:
+ * - `Off`: Represents the state where the light is turned off.
+ * - `Static`: Represents a constant, unchanging light mode.
+ * - `Breathing`: Represents a light mode that dims and brightens cyclically.
+ * - `Neon`: Represents a neon-style light mode with specific effects.
+ * - `ColorBreathing`: Represents a breathing light mode with changing colors.
+ * - `StaticDpi`: Represents a static light mode associated with DPI settings.
+ * - `BreathingDpi`: Represents a breathing light mode associated with DPI settings.
+ */
 export enum LightMode {
     Off = 0x00,
     Static = 0x10,
@@ -49,6 +64,12 @@ export class UserPreferencesBuilder implements ProtocolBuilder {
         this.buffer[12] = 0xAF; // Initial checksum
     }
 
+    /**
+     * Sets the light mode for the current object and updates the internal state accordingly.
+     *
+     * @param {LightMode} mode - The desired light mode to be set.
+     * @return {this} The instance of the current object for method chaining.
+     */
     setLightMode(mode: LightMode): this {
         this.buffer[3] = mode;
         this.updateIndex11();
@@ -90,6 +111,12 @@ export class UserPreferencesBuilder implements ProtocolBuilder {
         this.buffer[4] = ((bucket << 4) | (hardwareSpeed & 0x0F)) & 0xFF;
     }
 
+    /**
+     * Sets the RGB color values for the current buffer.
+     *
+     * @param {RGB} rgb - An object containing the red (r), green (g), and blue (b) color values to be set, where each value is an integer in the range 0-255.
+     * @return {this} The current instance, allowing for method chaining.
+     */
     setRgb(rgb: RGB): this {
         this.buffer[6] = rgb.r & 0xFF;
         this.buffer[7] = rgb.g & 0xFF;
