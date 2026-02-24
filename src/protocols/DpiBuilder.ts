@@ -223,6 +223,24 @@ const DPI_STEP_MAP: Record<number, number> = {
     12000: 0x8d,
 };
 
+const OFFSET = {
+    ANGLE_SNAP: 3,
+    RIPPLER_CONTROL: 4,
+    STAGE_MASK_A: 6,
+    STAGE_MASK_B: 7,
+    EXPANDED_MASK: 16,
+    CURRENT_STAGE: 24,
+    UNKNOWN: 50,
+    CHECKSUM: 51,
+    STAGE_OFFSET_BASE: 7,
+    STAGES_START:      8,
+    STAGES_END:        13,
+} as const;
+
+const CHECKSUM_RANGE = {START: 3, END: 49} as const;
+const STAGE_COUNT = 6;
+const HIGH_BYTE_THRESHOLD = 0x80;
+
 export enum StageIndex {
     FIRST = 0x01,
     SECOND = 0x02,
@@ -303,34 +321,25 @@ export class DpiBuilder implements ProtocolBuilder {
         this.buffer[53] = 0x00 // padding
         this.buffer[54] = 0x00 // padding
         this.buffer[55] = 0x00 // padding
-
-        // this.setDpiValue(StageIndex.FIRST, 800) // stage 1 step
-        // this.setDpiValue(StageIndex.SECOND, 1600) // stage 2 step
-        // this.setDpiValue(StageIndex.THIRD, 2400) // stage 3 step
-        // this.setDpiValue(StageIndex.FOURTH, 3200) // stage 4 step
-        // this.setDpiValue(StageIndex.FIFTH, 5000) // stage 5 step
-        // this.setDpiValue(StageIndex.SIXTH, 12000)
     }
 
     setAngleSnap(active: boolean = false): this {
-        this.buffer[3] = active ? 0x01 : 0x00;
-        return this
+        this.buffer[OFFSET.ANGLE_SNAP] = active ? 0x01 : 0x00;
+        return this;
     }
 
     setRipplerControl(active: boolean = true): this {
-        this.buffer[4] = active ? 0x01 : 0x00;
-        return this
+        this.buffer[OFFSET.RIPPLER_CONTROL] = active ? 0x01 : 0x00;
+        return this;
     }
 
     setCurrentStage(currentStage: StageIndex): this {
-        this.buffer[24] = currentStage
-        return this
+        this.buffer[OFFSET.CURRENT_STAGE] = currentStage;
+        return this;
     }
 
     setDpiValue(stage: StageIndex, dpi: number): this {
-        const value = this.dpiToFirmwareStep(dpi);
-        const offset = 7 + stage; // 8..13
-        this.buffer[offset] = value;
+        this.buffer[OFFSET.STAGE_OFFSET_BASE + stage] = this.dpiToFirmwareStep(dpi);
         return this;
     }
 
@@ -339,54 +348,48 @@ export class DpiBuilder implements ProtocolBuilder {
         const MIN = 50;
         const MAX = 12000;
 
-        const normalized = Math.ceil(dpi / STEP) * STEP;
-        const clamped = Math.min(Math.max(normalized, MIN), MAX);
-
+        const clamped = Math.min(Math.max(Math.ceil(dpi / STEP) * STEP, MIN), MAX);
         const value = DPI_STEP_MAP[clamped];
 
-        if (value === undefined) {
-            throw new Error(`Unsupported DPI value: ${clamped}`);
-        }
+        if (value === undefined) throw new Error(`Unsupported DPI value: ${clamped}`);
 
         return value;
     }
 
     calculateChecksum(): number {
         let checksum = 0;
-        for (let i = 3; i <= 49; i++) {
+        for (let i = CHECKSUM_RANGE.START; i <= CHECKSUM_RANGE.END; i++) {
             checksum = (checksum + this.buffer[i]!) & 0xFF;
         }
-
         return checksum;
     }
 
     build(mode: ConnectionMode): Buffer {
-        const stages = this.buffer.subarray(8, 14); // 6 bytes
-
-        let mask = 0;
-
-        for (let i = 0; i < 6; i++) {
-            if (stages[i]! >= 0x80) {
-                mask |= (1 << i);
-            }
-        }
-
-        this.buffer[6] = mask;
-        this.buffer[7] = mask;
-
-        // expanded mask
-        for (let i = 0; i < 6; i++) {
-            this.buffer[16 + i] = (mask & (1 << i)) ? 0x01 : 0x00;
-        }
-
-        this.buffer[51] = this.calculateChecksum();
+        this.applyMask();
+        this.buffer[OFFSET.CHECKSUM] = this.calculateChecksum();
 
         return mode === ConnectionMode.Wired
-            ? this.buffer.subarray(0, 52)
+            ? this.buffer.subarray(0, OFFSET.CHECKSUM + 1) // exclui padding
             : this.buffer;
     }
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    private applyMask(): void {
+        const stages = this.buffer.subarray(OFFSET.STAGES_START, OFFSET.STAGES_END);
+
+        let mask = 0;
+        for (let i = 0; i < STAGE_COUNT; i++) {
+            if (stages[i]! >= HIGH_BYTE_THRESHOLD) mask |= (1 << i);
+        }
+
+        this.buffer[OFFSET.STAGE_MASK_A] = mask;
+        this.buffer[OFFSET.STAGE_MASK_B] = mask;
+
+        for (let i = 0; i < STAGE_COUNT; i++) {
+            this.buffer[OFFSET.EXPANDED_MASK + i] = (mask >> i) & 1;
+        }
     }
 }

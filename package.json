@@ -8,6 +8,7 @@
     "build": "tsc"
   },
   "dependencies": {
+    "pcap-ng-parser": "^1.0.0",
     "usb": "^2.17.0"
   },
   "devDependencies": {
