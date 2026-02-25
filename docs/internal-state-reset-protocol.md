@@ -1,4 +1,4 @@
-Attack Shark X11 - Internal State Reset Protocol (Report 0x030C)
+Attack Shark X11 – Internal State Reset Protocol (Report 0x030C)
 
 This document describes the USB HID report used by the class InternalStateResetReportBuilder to reset the active configuration stored in the mouse RAM.
 
@@ -75,7 +75,7 @@ Safe Usage Guidelines
 
 - Never send this report on its own.
 - Never send it twice in a row.
-- Only send it as the first step in a complete configuration update, and immediately follow with all configuration blocks (DPI, user preferences, button mappings or macros, lighting, etc.).
+- Only send it as the first step in a complete configuration update and immediately follow with all configuration blocks (DPI, user preferences, button mappings or macros, lighting, etc.).
 - If a complete sequence is not sent, the device may require a physical power cycle to recover.
 
 Example Sequence (pseudocode)
@@ -90,4 +90,4 @@ send UserPreferencesBuilder.build(mode)
 
 Troubleshooting
 
-- After sending the reset, if the mouse stops responding or buttons do not work, ensure you have sent all subsequent configuration reports in the correct order. If still unresponsive, perform a power cycle (unplug and replug or toggle power) to restore normal behavior.
+- After sending the reset, if the mouse stops responding or buttons do not work, ensure you have sent all later configuration reports in the correct order. If still unresponsive, perform a power cycle (unplug and replug or toggle power) to restore normal behavior.
