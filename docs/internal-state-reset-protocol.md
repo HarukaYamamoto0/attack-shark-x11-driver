@@ -1,4 +1,4 @@
-Attack Shark X11 – Internal State Reset Protocol (Report 0x030C)
+# Internal State Reset Protocol (Report 0x030C)
 
 This document describes the USB HID report used by the class InternalStateResetReportBuilder to reset the active configuration stored in the mouse RAM.
 

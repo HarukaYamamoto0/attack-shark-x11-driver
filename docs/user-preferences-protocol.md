@@ -1,4 +1,4 @@
-# Attack Shark X11 - User Preferences Protocol (Report 0x0305)
+# User Preferences Protocol (Report 0x0305)
 
 This document details the configuration protocol for user preferences on the Attack Shark X11, specifically focusing on the `0x0305` report.
 
@@ -13,22 +13,22 @@ This document details the configuration protocol for user preferences on the Att
 
 The payload consists of 13 bytes for Wired mode or 15 bytes for Wireless (Adapter) mode.
 
-| Index | Name | Description |
-| :--- | :--- | :--- |
-| 0 | Header 1 | `0x05` |
-| 1 | Header 2 | `0x0F` |
-| 2 | Header 3 | `0x01` |
-| 3 | Light Mode | Selects the LED animation mode. |
-| 4 | Configuration | Combined byte: `(Deep Sleep Bucket << 4) | (LED Speed & 0x0F)` |
-| 5 | Deep Sleep | Encoded deep sleep timer: `0x08 + (Minutes * 0x10)`. |
-| 6 | Red | RGB Red component (0-255). |
-| 7 | Green | RGB Green component (0-255). |
-| 8 | Blue | RGB Blue component (0-255). |
-| 9 | Sleep Timer | Sleep timer in half-minutes: `Minutes * 2`. |
-| 10 | Debounce | Encoded key response time: `((ms - 4) / 2) + 2`. |
-| 11 | State Flag | Dynamic flag based on colors and mode. |
-| 12 | Checksum | Sum of bytes from index 3 to 10 (modulo 256). |
-| 13-14| Padding | `0x00 0x00` (Wireless mode only). |
+| Index | Name          | Description                                          |
+|:------|:--------------|:-----------------------------------------------------|
+| 0     | Header 1      | `0x05`                                               |
+| 1     | Header 2      | `0x0F`                                               |
+| 2     | Header 3      | `0x01`                                               |
+| 3     | Light Mode    | Selects the LED animation mode.                      |
+| 4     | Configuration | Combined byte: `(Deep Sleep Bucket << 4)             | (LED Speed & 0x0F)` |
+| 5     | Deep Sleep    | Encoded deep sleep timer: `0x08 + (Minutes * 0x10)`. |
+| 6     | Red           | RGB Red component (0-255).                           |
+| 7     | Green         | RGB Green component (0-255).                         |
+| 8     | Blue          | RGB Blue component (0-255).                          |
+| 9     | Sleep Timer   | Sleep timer in half-minutes: `Minutes * 2`.          |
+| 10    | Debounce      | Encoded key response time: `((ms - 4) / 2) + 2`.     |
+| 11    | State Flag    | Dynamic flag based on colors and mode.               |
+| 12    | Checksum      | Sum of bytes from index 3 to 10 (modulo 256).        |
+| 13-14 | Padding       | `0x00 0x00` (Wireless mode only).                    |
 
 ---
 
@@ -36,15 +36,15 @@ The payload consists of 13 bytes for Wired mode or 15 bytes for Wireless (Adapte
 
 ### 1. Light Modes (Index 3)
 
-| Mode | Hex Value | Description |
-| :--- | :--- | :--- |
-| Off | `0x00` | LEDs disabled. |
-| Static | `0x10` | Fixed color. |
-| Breathing | `0x20` | Pulse animation with single color. |
-| Neon | `0x30` | Cycling rainbow effect. |
-| Color Breathing | `0x40` | Pulse animation cycling through colors. |
-| Static DPI | `0x50` | Color based on current DPI stage (Fixed). |
-| Breathing DPI | `0x60` | Pulsing color based on current DPI stage. |
+| Mode            | Hex Value | Description                               |
+|:----------------|:----------|:------------------------------------------|
+| Off             | `0x00`    | LEDs disabled.                            |
+| Static          | `0x10`    | Fixed color.                              |
+| Breathing       | `0x20`    | Pulse animation with single color.        |
+| Neon            | `0x30`    | Cycling rainbow effect.                   |
+| Color Breathing | `0x40`    | Pulse animation cycling through colors.   |
+| Static DPI      | `0x50`    | Color based on current DPI stage (Fixed). |
+| Breathing DPI   | `0x60`    | Pulsing color based on current DPI stage. |
 
 ### 2. Deep Sleep Configuration (Index 4 & 5)
 
@@ -53,10 +53,10 @@ The mouse enters a deep power-saving mode after a period of inactivity.
 - **Minutes Range**: 1 to 60.
 - **Index 5 Formula**: `0x08 + (Minutes * 0x10)`
 - **Bucket (Index 4 High Nibble)**:
-    - `0`: 1 - 16 minutes
-    - `1`: 17 - 32 minutes
-    - `2`: 33 - 48 minutes
-    - `3`: 49 - 60 minutes
+    - `0`: 1–16 minutes
+    - `1`: 17–32 minutes
+    - `2`: 33–48 minutes
+    - `3`: 49–60 minutes
     - Formula: `floor((minutes - 1) / 16)`
 
 ### 3. LED Speed (Index 4 Low Nibble)
@@ -80,7 +80,7 @@ Normal sleep (standby) before deep sleep.
 
 ### 6. Debounce / Key Response (Index 10)
 
-- **Range**: 4ms to 50ms (Must be an even number).
+- **Range**: 4 ms to 50 ms (Must be an even number).
 - **Formula**: `((ms - 4) / 2) + 2`
     - 4ms -> `2`
     - 8ms -> `4`
