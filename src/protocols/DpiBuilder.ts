@@ -42,8 +42,8 @@ class DpiBuilder implements ProtocolBuilder {
         this.buffer[1] = 0x38 // header
         this.buffer[2] = 0x01 // header
 
-        this.buffer[3] = 0x01 // angle snap
-        this.buffer[4] = 0x00 // ripple control
+        this.buffer[3] = 0x00 // angle snap
+        this.buffer[4] = 0x01 // ripple control
 
         this.buffer[5] = 0x3F // fixed
 
@@ -98,7 +98,7 @@ class DpiBuilder implements ProtocolBuilder {
         this.buffer[48] = 0xFF // fixed
         this.buffer[49] = 0x02 // fixed
         this.buffer[50] = 0x0F // checksum high byte
-        this.buffer[51] = 0x67 // checksum low byte
+        this.buffer[51] = 0x68 // checksum low byte
 
         this.buffer[52] = 0x00 // padding wireless mode
         this.buffer[53] = 0x00 // padding wireless mode

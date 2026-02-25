@@ -50,6 +50,20 @@ describe("PollingRateBuilder", () => {
         expect(buffer.length).toBe(9);
     });
 
+    it("should correctly handle padding bytes", () => {
+        const builder = new PollingRateBuilder();
+        // Bytes 5, 6, 7, 8 should be 0x00
+        expect(builder.buffer[5]).toBe(0x00);
+        expect(builder.buffer[6]).toBe(0x00);
+        expect(builder.buffer[7]).toBe(0x00);
+        expect(builder.buffer[8]).toBe(0x00);
+    });
+
+    it("should create an instance for a specific rate using forRate", () => {
+        const builder = PollingRateBuilder.forRate(PollingRate.gaming);
+        expect(builder.buffer[3]).toBe(0x02); // 500Hz
+    });
+
     it("should re-calculate checksum when polling rate is changed", () => {
         const builder = new PollingRateBuilder();
         

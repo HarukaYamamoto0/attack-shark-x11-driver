@@ -104,6 +104,30 @@ describe("UserPreferencesBuilder", () => {
         expect(buffer.toString("hex")).toBe("050f015003a800ff00010401ff");
     });
 
+    it("should have correct USB control transfer parameters", () => {
+        const builder = new UserPreferencesBuilder();
+        expect(builder.bmRequestType).toBe(0x21);
+        expect(builder.bRequest).toBe(0x09);
+        expect(builder.wValue).toBe(0x0305);
+        expect(builder.wIndex).toBe(2);
+    });
+
+    it("should initialize with default buffer values", () => {
+        const builder = new UserPreferencesBuilder();
+        // Index 0, 1, 2 are headers
+        expect(builder.buffer[0]).toBe(0x05);
+        expect(builder.buffer[1]).toBe(0x0f);
+        expect(builder.buffer[2]).toBe(0x01);
+        
+        // Default mode is Off (0x00) at index 3
+        expect(builder.buffer[3]).toBe(LightMode.Off);
+        
+        // Default RGB is Green (0, 255, 0)
+        expect(builder.buffer[6]).toBe(0x00);
+        expect(builder.buffer[7]).toBe(0xff);
+        expect(builder.buffer[8]).toBe(0x00);
+    });
+
     describe("Boundary and Validation Tests", () => {
         it("should validate all light modes", () => {
             const modes = [

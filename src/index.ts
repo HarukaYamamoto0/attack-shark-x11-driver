@@ -11,4 +11,5 @@ export {
     PollingRate,
     DpiBuilder
 };
+
 export * from "./types.js";
