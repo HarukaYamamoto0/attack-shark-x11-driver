@@ -23,7 +23,7 @@ The official configuration panel provides the following features:
 |-----------------------|----------------------------------------------------------|----------------|
 | Button settings       | Change button behavior and mappings                      | ✅              |
 | Macro Manager         | Configure and manage custom macros.                      | ❌              |
-| Power                 | Displays mouse battery status                            | ✅              |
+| Power                 | Displays mouse battery status                            | ❌              |
 | Reset profile         | Resets the current profile                               | ✅              |
 | DPI settings          | Configure DPI stages and values per stage                | ✅              |
 | Light settings        | Configure the mouse LED                                  | ✅              |
@@ -32,7 +32,6 @@ The official configuration panel provides the following features:
 | Key response time     | Slider from 4ms (step 2ms) up to 50ms                    | ✅              |
 | Ripple control        | On / Off                                                 | ✅              |
 | Angle snap            | On / Off                                                 | ✅              |
-| Battery status        | The original panel allows you to see the battery charge. | ❌              |
 
 ## Linux Access (udev Rules)
 
