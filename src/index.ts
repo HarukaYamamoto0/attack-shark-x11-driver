@@ -1,7 +1,14 @@
-import {AttackSharkX11} from "./AttackSharkX11.js";
+import {AttackSharkX11} from "./core/AttackSharkX11.js";
 import {LightMode, UserPreferencesBuilder} from "./protocols/UserPreferencesBuilder.js";
 import {PollingRateBuilder, PollingRate} from "./protocols/PollingRateBuilder.js";
 import DpiBuilder from "./protocols/DpiBuilder.js";
+import {
+    Buttons,
+    FirmwareAction, KeyCode,
+    MacroName,
+    MacrosBuilder,
+    macroTemplates, Modifiers
+} from "./protocols/MacrosBuilder.js";
 
 export {
     AttackSharkX11,
@@ -9,7 +16,14 @@ export {
     LightMode,
     PollingRateBuilder,
     PollingRate,
-    DpiBuilder
+    DpiBuilder,
+    MacroName, MacrosBuilder,
+    Buttons,
+    macroTemplates,
+    FirmwareAction,
+    Modifiers,
+    KeyCode,
+
 };
 
 export * from "./types.js";

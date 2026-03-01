@@ -1,12 +1,18 @@
 import type {Device, Endpoint, Interface} from "usb";
 import * as usb from "usb";
-import {PollingRateBuilder, PollingRate} from "./protocols/PollingRateBuilder.js";
-import {UserPreferencesBuilder} from "./protocols/UserPreferencesBuilder.js";
-import {ConnectionMode, type MacroConfig, type UserPreferenceOptions} from "./types.js";
-import {Buttons, MacrosBuilder, MacroTemplate} from "./protocols/MacrosBuilder.js";
-import {InternalStateResetReportBuilder} from "./protocols/InternalStateResetReportBuilder.js";
-import {delay} from "./utils/delay.js";
-import DpiBuilder from "./protocols/DpiBuilder.js";
+import {PollingRateBuilder, PollingRate} from "../protocols/PollingRateBuilder.js";
+import {UserPreferencesBuilder} from "../protocols/UserPreferencesBuilder.js";
+import {ConnectionMode, type UserPreferenceOptions} from "../types.js";
+import {
+    Buttons,
+    type MacroBuilderOptions,
+    MacroName,
+    MacrosBuilder,
+    macroTemplates
+} from "../protocols/MacrosBuilder.js";
+import {InternalStateResetReportBuilder} from "../protocols/InternalStateResetReportBuilder.js";
+import {delay} from "../utils/delay.js";
+import DpiBuilder from "../protocols/DpiBuilder.js";
 
 const VID = 0x1d57;
 const PID_WIRELESS = 0xfa60;
@@ -134,21 +140,13 @@ export class AttackSharkX11 {
         );
     }
 
-    async setMacro(config: MacroConfig) {
-        const {
-            left = MacroTemplate["global-left-click"],
-            right = MacroTemplate["global-right-click"],
-            middle = MacroTemplate["global-middle"],
-            extra4 = MacroTemplate["global-forward"],
-            extra5 = MacroTemplate["global-backward"],
-        } = config;
-
+    async setMacro(config: MacroBuilderOptions) {
         const macroProtocol = new MacrosBuilder()
-            .setMacro(Buttons.LEFT_BUTTON, left)
-            .setMacro(Buttons.RIGHT_BUTTON, right)
-            .setMacro(Buttons.MIDDLE_BUTTON, middle)
-            .setMacro(Buttons.BUTTON_4, extra4)
-            .setMacro(Buttons.BUTTON_5, extra5);
+            .setMacro(Buttons.LEFT_BUTTON, config.left ?? macroTemplates[MacroName.GLOBAL_LEFT_CLICK])
+            .setMacro(Buttons.RIGHT_BUTTON, config.right ?? macroTemplates[MacroName.GLOBAL_RIGHT_CLICK])
+            .setMacro(Buttons.MIDDLE_BUTTON, config.middle ?? macroTemplates[MacroName.GLOBAL_MIDDLE])
+            .setMacro(Buttons.EXTRA_BUTTON_4, config.extra4 ?? macroTemplates[MacroName.GLOBAL_FORWARD])
+            .setMacro(Buttons.EXTRA_BUTTON_5, config.extra5 ?? macroTemplates[MacroName.GLOBAL_BACKWARD])
 
         const buffer = macroProtocol.build(this.connectionMode)
 

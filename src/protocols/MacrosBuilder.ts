@@ -1,9 +1,10 @@
-import {ConnectionMode, type ProtocolBuilder} from "../types.js";
+import type {BaseProtocolBuilder} from "../core/BaseProtocolBuilder.js";
+import type {ConnectionMode} from "../types.js";
 
 export type MacroTuple = readonly [
     FirmwareAction,
     Modifiers,
-    KeyCode
+        KeyCode | number
 ];
 
 export enum Modifiers {
@@ -14,9 +15,10 @@ export enum Modifiers {
     WIN = 0x08
 }
 
+// noinspection JSUnusedGlobalSymbols
 export enum KeyCode {
     NONE = 0x00,
-    UNKNOWN = 0x03, // used by easy-aim
+    ONLY_USED_BY_EASY_AIM = 0x03, // used by easy-aim
 
     // Letters
     A = 0x04,
@@ -201,6 +203,12 @@ export enum MacroName {
     SHORTCUT_RUN_COMMAND = "shortcut-run-command",
     SHORTCUT_LOCK_PC = "shortcut-lock-pc",
     SHORTCUT_SCREEN_CAPTURE = "shortcut-screen-capture",
+
+    CUSTOM_MACRO_LEFT_BUTTON = "custom-macro-left-button",
+    CUSTOM_MACRO_RIGHT_BUTTON = "custom-macro-right-button",
+    CUSTOM_MACRO_MIDDLE_BUTTON = "custom-macro-middle-button",
+    CUSTOM_MACRO_EXTRA_BUTTON_4 = "custom-macro-extra-button_4",
+    CUSTOM_MACRO_EXTRA_BUTTON_5 = "custom-macro-extra-button_5",
 }
 
 export enum FirmwareAction {
@@ -222,6 +230,7 @@ export enum FirmwareAction {
 
     // Keyboard
     KEYBOARD = 0x11,
+    CUSTOM_MACRO = 0X12,
 
     // Multimedia
     MEDIA_PLAYER = 0x15,
@@ -244,7 +253,9 @@ export enum FirmwareAction {
     BROWSER_SEARCH = 0x26,
 }
 
-export const MacroTemplate: Record<MacroName, MacroTuple> = {
+export type MacroTemplate = Record<MacroName, MacroTuple>
+
+export const macroTemplates: MacroTemplate = {
     [MacroName.GLOBAL_DISABLE_BUTTON]: [FirmwareAction.DISABLE_BUTTON, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_LEFT_CLICK]: [FirmwareAction.LEFT_CLICK, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_RIGHT_CLICK]: [FirmwareAction.RIGHT_CLICK, Modifiers.NONE, KeyCode.NONE],
@@ -254,7 +265,7 @@ export const MacroTemplate: Record<MacroName, MacroTuple> = {
     [MacroName.GLOBAL_DOUBLE_CLICK]: [FirmwareAction.DOUBLE_CLICK, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_FIRE_BUTTON]: [FirmwareAction.FIRE, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_SCROLL_UP]: [FirmwareAction.SCROLL_UP, Modifiers.NONE, KeyCode.NONE],
-    [MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.UNKNOWN],
+    [MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.ONLY_USED_BY_EASY_AIM],
     [MacroName.GLOBAL_SCROLL_DOWN]: [FirmwareAction.SCROLL_DOWN, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.GLOBAL_DPI_CYCLE, Modifiers.NONE, KeyCode.NONE],
     [MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.GLOBAL_DPI_PLUS, Modifiers.NONE, KeyCode.NONE],
@@ -298,33 +309,47 @@ export const MacroTemplate: Record<MacroName, MacroTuple> = {
     [MacroName.SHORTCUT_RUN_COMMAND]: [FirmwareAction.KEYBOARD, Modifiers.WIN, KeyCode.R],
     [MacroName.SHORTCUT_LOCK_PC]: [FirmwareAction.KEYBOARD, Modifiers.WIN, KeyCode.L],
     [MacroName.SHORTCUT_SCREEN_CAPTURE]: [FirmwareAction.KEYBOARD, Modifiers.WIN | Modifiers.SHIFT, KeyCode.S],
+
+    [MacroName.CUSTOM_MACRO_LEFT_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.NONE, 0x01],
+    [MacroName.CUSTOM_MACRO_RIGHT_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.NONE, 0x02],
+    [MacroName.CUSTOM_MACRO_MIDDLE_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.NONE, 0x03],
+    [MacroName.CUSTOM_MACRO_EXTRA_BUTTON_4]: [FirmwareAction.CUSTOM_MACRO, Modifiers.NONE, 0x07],
+    [MacroName.CUSTOM_MACRO_EXTRA_BUTTON_5]: [FirmwareAction.CUSTOM_MACRO, Modifiers.NONE, 0x08],
 } satisfies Record<MacroName, MacroTuple>;
 
 export enum Buttons {
     LEFT_BUTTON,
     RIGHT_BUTTON,
     MIDDLE_BUTTON,
-    BUTTON_4,
-    BUTTON_5,
+    EXTRA_BUTTON_4,
+    EXTRA_BUTTON_5,
 }
 
 const BUTTON_OFFSET: Record<Buttons, number> = {
     [Buttons.LEFT_BUTTON]: 3,
     [Buttons.RIGHT_BUTTON]: 6,
     [Buttons.MIDDLE_BUTTON]: 9,
-    [Buttons.BUTTON_4]: 21,
-    [Buttons.BUTTON_5]: 24,
+    [Buttons.EXTRA_BUTTON_4]: 21,
+    [Buttons.EXTRA_BUTTON_5]: 24,
 };
 
-export class MacrosBuilder implements ProtocolBuilder {
-    public readonly buffer: Buffer;
+export interface MacroBuilderOptions {
+    left?: MacroTuple,
+    right?: MacroTuple,
+    middle?: MacroTuple,
+    extra4?: MacroTuple,
+    extra5?: MacroTuple,
+}
+
+export class MacrosBuilder implements BaseProtocolBuilder {
+    readonly buffer: Buffer;
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
     public readonly wValue: number = 0x0308;
     public readonly wIndex: number = 2;
 
     // noinspection FunctionTooLongJS
-    constructor() {
+    constructor(options?: MacroBuilderOptions) {
         this.buffer = Buffer.alloc(59);
 
         this.buffer[0] = 0x08 // header
@@ -405,6 +430,21 @@ export class MacrosBuilder implements ProtocolBuilder {
 
         this.buffer[57] = 0x00
         this.buffer[58] = 0x3e // checksum
+
+        options = {
+            left: macroTemplates[MacroName.GLOBAL_LEFT_CLICK],
+            right: macroTemplates[MacroName.GLOBAL_RIGHT_CLICK],
+            middle: macroTemplates[MacroName.GLOBAL_MIDDLE],
+            extra4: macroTemplates[MacroName.GLOBAL_FORWARD],
+            extra5: macroTemplates[MacroName.GLOBAL_BACKWARD],
+            ...options
+        }
+
+        this.setMacro(Buttons.LEFT_BUTTON, options.left ?? macroTemplates[MacroName.GLOBAL_LEFT_CLICK])
+        this.setMacro(Buttons.RIGHT_BUTTON, options.right ?? macroTemplates[MacroName.GLOBAL_RIGHT_CLICK])
+        this.setMacro(Buttons.MIDDLE_BUTTON, options.middle ?? macroTemplates[MacroName.GLOBAL_MIDDLE])
+        this.setMacro(Buttons.EXTRA_BUTTON_4, options.extra4 ?? macroTemplates[MacroName.GLOBAL_FORWARD])
+        this.setMacro(Buttons.EXTRA_BUTTON_5, options.extra5 ?? macroTemplates[MacroName.GLOBAL_BACKWARD])
     }
 
     setMacro(button: Buttons, macro: MacroTuple): MacrosBuilder {
@@ -424,13 +464,9 @@ export class MacrosBuilder implements ProtocolBuilder {
     }
 
     calculateChecksum(): number {
-        if (this.buffer.length !== 59) {
-            throw new Error("Invalid buffer size. Expected 59 bytes.")
-        }
-
         let sum = 0
 
-        for (let i = 2; i <= 56; i++) {
+        for (let i = 2; i < this.buffer.length - 1; i++) {
             sum = (sum + this.buffer[i]!) & 0xff
         }
 
@@ -444,5 +480,9 @@ export class MacrosBuilder implements ProtocolBuilder {
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    compareWitHexString(value: string): boolean {
+        return this.toString() == value
     }
 }

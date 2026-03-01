@@ -1,4 +1,5 @@
-import {ConnectionMode, type ProtocolBuilder} from "../types.js";
+import {ConnectionMode} from "../types.js";
+import type {BaseProtocolBuilder} from "../core/BaseProtocolBuilder.js";
 
 export enum PollingRate {
     powerSaving = 125,
@@ -10,8 +11,8 @@ export enum PollingRate {
 /**
  * Builder for configuring the Polling Rate of the Attack Shark X11
  */
-export class PollingRateBuilder implements ProtocolBuilder {
-    public readonly buffer: Buffer;
+export class PollingRateBuilder implements BaseProtocolBuilder {
+    readonly buffer: Buffer = Buffer.alloc(64);
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
     public readonly wValue: number = 0x0306;
@@ -69,5 +70,9 @@ export class PollingRateBuilder implements ProtocolBuilder {
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    compareWitHexString(value: string): boolean {
+        return this.toString() == value
     }
 }

@@ -1,4 +1,5 @@
-import {ConnectionMode, type ProtocolBuilder, type RGB, type UserPreferenceOptions} from "../types.js";
+import {ConnectionMode, type RGB, type UserPreferenceOptions} from "../types.js";
+import type {BaseProtocolBuilder} from "../core/BaseProtocolBuilder.js";
 
 /**
  * Enum representing different light modes for a device or application.
@@ -29,7 +30,7 @@ export enum LightMode {
  * Builder for user preferences and configurations (Report 0x0305)
  * Handles Light Mode, Deep Sleep, Sleep, Key Response and RGB settings.
  */
-export class UserPreferencesBuilder implements ProtocolBuilder {
+export class UserPreferencesBuilder implements BaseProtocolBuilder {
     public readonly buffer: Buffer;
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
@@ -185,5 +186,9 @@ export class UserPreferencesBuilder implements ProtocolBuilder {
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    compareWitHexString(value: string): boolean {
+        return this.toString() == value
     }
 }
