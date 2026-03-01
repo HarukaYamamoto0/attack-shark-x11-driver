@@ -16,12 +16,14 @@ export enum CUSTOM_MACRO_BUTTONS {
     EXTRA_BUTTON_5 = 0x08,
 }
 
+// noinspection JSUnusedGlobalSymbols
 export enum MacroSettings {
     THE_NUMBER_OF_TIME_TO_PLAY = 0x00,
     ANY_KEY_PRESS_TO_STOP_PLAYING = 0x01,
     PRESS_AND_HOLD_RELEASE_STOP = 0x02
 }
 
+// noinspection JSUnusedGlobalSymbols
 export enum MouseMacroEvent {
     LEFT_CLICK = 0xf1,
     RIGHT_CLICK = 0xf2,
@@ -52,11 +54,11 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
         this.secondPacket[1] = 0x40 // Header
         this.secondPacket[2] = CUSTOM_MACRO_BUTTONS.EXTRA_BUTTON_5
         this.secondPacket[3] = 0x00 // Page 0
-        this.secondPacket[4] = MacroSettings.THE_NUMBER_OF_TIME_TO_PLAY
+        this.secondPacket[4] = 0x01
         this.secondPacket[5] = 0x00
         this.secondPacket[6] = 0x00
         this.secondPacket[7] = 0x00
-        this.secondPacket[8] = 0xFF // referring to THE_NUMBER_OF_TIME_TO_PLAY, which indicates how many times it will repeat the macro.
+        this.secondPacket[8] = 0x00 // referring to THE_NUMBER_OF_TIME_TO_PLAY, which indicates how many times it will repeat the macro.
         this.secondPacket[9] = 0x00
         this.secondPacket[10] = 0x00
         this.secondPacket[11] = 0x00
@@ -113,42 +115,23 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
         }
     }
 
-    addKeyPress(keyCode: KeyCode | number, delayMs: number = 10) {
+    addEvent(key: KeyCode | MouseMacroEvent | number, delayMs: number = 10, isRelease: boolean = false) {
         const {eventDelay, extraDelay} = this.handleDelay(delayMs);
-        this.addEvent(eventDelay, keyCode);
+        this.pushEventBytes(isRelease ? (0x80 | eventDelay) : eventDelay, key);
         if (extraDelay) {
-            this.addEvent(extraDelay, 0x03);
+            this.pushEventBytes(extraDelay, 0x03);
         }
         return this;
     }
 
-    addKeyRelease(keyCode: KeyCode | number, delayMs: number = 10) {
-        const {eventDelay, extraDelay} = this.handleDelay(delayMs);
-        this.addEvent(0x80 | eventDelay, keyCode);
-        if (extraDelay) {
-            this.addEvent(extraDelay, 0x03);
-        }
-        return this;
-    }
-
-    addMousePress(button: MouseMacroEvent, delayMs: number = 10) {
-        return this.addKeyPress(button, delayMs);
-    }
-
-    addMouseRelease(button: MouseMacroEvent, delayMs: number = 10) {
-        return this.addKeyRelease(button, delayMs);
-    }
-
-    addDelay(ms: number) {
-        const units = Math.floor(ms / 200);
-        if (units > 0) {
-            this.addEvent(Math.min(units, 0xFF), 0x03);
-        }
-        return this;
-    }
-
-    addEvent(byte1: number, byte2: number) {
+    pushEventBytes(byte1: number, byte2: number) {
         this.macroEvents.push(byte1, byte2);
+        return this;
+    }
+
+    setPlayOptions(mode: MacroSettings, times: number = 1) {
+        this.secondPacket[4] = mode === MacroSettings.THE_NUMBER_OF_TIME_TO_PLAY ? times : 0x00;
+        this.secondPacket[8] = (mode === MacroSettings.THE_NUMBER_OF_TIME_TO_PLAY && times > 1) ? 0xFF : mode;
         return this;
     }
 
@@ -214,12 +197,12 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 
         // Fill Second Packet (17 events max, 34 bytes)
         for (let i = 30; i < 64 && eventByteIndex < this.macroEvents.length; i++) {
-            this.secondPacket[i] = this.macroEvents[eventByteIndex++];
+            this.secondPacket[i] = this.macroEvents[eventByteIndex++]!;
         }
 
         // Fill the Third Packet (30 events max, 60 bytes)
         for (let i = 4; i < 64 && eventByteIndex < this.macroEvents.length; i++) {
-            this.thirdPacket[i] = this.macroEvents[eventByteIndex++];
+            this.thirdPacket[i] = this.macroEvents[eventByteIndex++]!;
         }
 
         const checksum = this.calculateChecksum()
