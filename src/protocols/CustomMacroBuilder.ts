@@ -36,7 +36,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
     readonly buffer: Buffer = Buffer.alloc(0);
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
-    public readonly wValue: number = 0x0304;
+    public readonly wValue: number = 0x0309;
     public readonly wIndex: number = 2;
 
     private defineMacroButton: MacrosBuilder
@@ -106,12 +106,14 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
     }
 
     private handleDelay(delayMs: number): { eventDelay: number, extraDelay?: number } {
+        const computeByte = (ms: number) => 2 * Math.floor((ms + 5) / 20) + 1;
+
         if (delayMs <= 1070) {
-            return {eventDelay: Math.floor(delayMs / 10)};
+            return {eventDelay: computeByte(delayMs)};
         } else {
             const extraUnits = Math.floor(delayMs / 200);
             const rem = delayMs % 200;
-            return {eventDelay: Math.max(1, Math.floor(rem / 10)), extraDelay: extraUnits};
+            return {eventDelay: computeByte(rem), extraDelay: extraUnits};
         }
     }
 
@@ -137,7 +139,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
             return this;
         }
         if (times < 1 || times > 255) {
-            throw new Error("The number of loops must be at least 1 (0x01) and at most 255 (0xFF), regardless of the mode.")
+            throw new Error("The number of loops must be at least 1 (0x01) and at most 255 (0xFF), regardless of the mode")
         }
 
         this.secondPacket[8] = times

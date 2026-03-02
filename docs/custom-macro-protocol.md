@@ -96,20 +96,42 @@ This packet serves as the termination of the macro configuration and includes a 
 Each macro event consists of **2 bytes**:
 
 - **Byte 1 (Delay & Flags)**:
-    - **Bits 0-6**: Delay value in units of 10ms (0 to 127, where 1 = 10ms).
+    - **Bits 0-6**: Delay value (calculated using the formula: `2 * Math.floor((ms + 5) / 20) + 1`).
     - **Bit 7 (0x80)**: Release flag. If set, the event signifies a key release.
 - **Byte 2 (Key/Action)**:
     - Standard Keyboard Key Code (e.g., `0x04` for 'A').
     - Mouse Event Code (e.g., `0xF1` for Left Click).
+
+### Delay Calculation Logic
+
+The mouse uses a specific rounding logic for event delays to map milliseconds to the 7-bit delay field. Both keyboard and mouse events follow this rule:
+
+```typescript
+function computeDelayByte(ms: number): number {
+    return 2 * Math.floor((ms + 5) / 20) + 1;
+}
+```
+
+Common values:
+- **10ms**: `0x01`
+- **15ms**: `0x03`
+- **20ms**: `0x03`
+- **35ms**: `0x05`
+- **55ms**: `0x07`
+- **75ms**: `0x09`
+- **95ms**: `0x0B`
+- **110ms**: `0x0B`
+- **115ms**: `0x0D`
+- **255ms**: `0x1B`
 
 ### Long Delays (> 1070ms)
 
 When a delay exceeds 1070ms, it is decomposed into a base delay and extra delay units using a special event type (`0x03`).
 
 1.  **Extra Units**: `Math.floor(delayMs / 200)`
-2.  **Remainder**: `delayMs % 200` (mapped to units of 10ms)
-3.  **Event 1**: `[Remainder / 10, KeyCode]`
-4.  **Event 2 (Extra Delay)**: `[ExtraUnits, 0x03]`
+2.  **Remainder**: `delayMs % 200` (mapped using the `computeDelayByte` formula)
+3.  **Event 1**: `[computeDelayByte(rem), KeyCode]`
+4.  **Event 2 (Extra Delay)**: `[extraUnits, 0x03]`
 
 ### Mouse Event Codes
 

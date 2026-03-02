@@ -158,25 +158,25 @@ export class AttackSharkX11 {
             0x21,
             0x09,
             0x0309,
-            2,
+            2
         )
         await delay(500)
 
+        await delay(500)
         await this.commandTransfer(
             thirdPacket!,
             0x21,
             0x09,
             0x0309,
-            2,
+            2
         )
-        await delay(500)
 
         await this.commandTransfer(
             fourthPacket!,
             0x21,
             0x09,
             0x0309,
-            2,
+            2
         )
     }
 

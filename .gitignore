@@ -14,3 +14,5 @@ yarn-error.log*
 .idea
 dist
 parse.ts
+tests.ts
+scratch.txt
