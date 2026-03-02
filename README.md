@@ -25,7 +25,7 @@ The official configuration panel provides the following features:
 | Option                | Description                                              | Implementation |
 |-----------------------|----------------------------------------------------------|----------------|
 | Button settings       | Change button behavior and mappings                      | ✅              |
-| Macro Manager         | Configure and manage custom macros.                      | ❌              |
+| Macro Manager         | Configure and manage custom macros.                      | ✅              |
 | Power                 | Displays mouse battery status                            | ❌              |
 | Reset profile         | Resets the current profile                               | ✅              |
 | DPI settings          | Configure DPI stages and values per stage                | ✅              |
