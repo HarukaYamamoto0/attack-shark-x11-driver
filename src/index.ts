@@ -1,7 +1,7 @@
 import {AttackSharkX11} from "./core/AttackSharkX11.js";
 import {LightMode, UserPreferencesBuilder} from "./protocols/UserPreferencesBuilder.js";
 import {PollingRateBuilder, PollingRate} from "./protocols/PollingRateBuilder.js";
-import DpiBuilder from "./protocols/DpiBuilder.js";
+import DpiBuilder, {StageIndex} from "./protocols/DpiBuilder.js";
 import {
     Buttons,
     FirmwareAction, KeyCode,
@@ -10,7 +10,12 @@ import {
     macroTemplates, Modifiers
 } from "./protocols/MacrosBuilder.js";
 
-import {CustomMacroBuilder, CUSTOM_MACRO_BUTTONS, MacroSettings, MouseMacroEvent} from "./protocols/CustomMacroBuilder.js";
+import {
+    CustomMacroBuilder,
+    CUSTOM_MACRO_BUTTONS,
+    MacroSettings,
+    MouseMacroEvent
+} from "./protocols/CustomMacroBuilder.js";
 
 export {
     AttackSharkX11,
@@ -28,7 +33,8 @@ export {
     CustomMacroBuilder,
     CUSTOM_MACRO_BUTTONS,
     MacroSettings,
-    MouseMacroEvent
+    MouseMacroEvent,
+    StageIndex
 };
 
 export * from "./types.js";

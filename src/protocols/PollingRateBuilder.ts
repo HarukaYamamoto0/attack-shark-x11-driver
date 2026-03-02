@@ -8,6 +8,10 @@ export enum PollingRate {
     eSports = 1000
 }
 
+export interface PollingRateOptions {
+    rate: PollingRate
+}
+
 /**
  * Builder for configuring the Polling Rate of the Attack Shark X11
  */
@@ -18,7 +22,7 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
     public readonly wValue: number = 0x0306;
     public readonly wIndex: number = 2;
 
-    constructor() {
+    constructor(options?: PollingRateOptions) {
         this.buffer = Buffer.alloc(9)
         this.buffer[0] = 0x06; // header
         this.buffer[1] = 0x09; // header
@@ -29,6 +33,12 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
         this.buffer[6] = 0x00; // padding
         this.buffer[7] = 0x00; // padding
         this.buffer[8] = 0x00; // padding
+
+        const defaultOptions = {
+            rate: PollingRate.eSports
+        } as PollingRateOptions
+
+        this.setPollingRate(options?.rate ?? defaultOptions.rate)
     }
 
     calculateChecksum(): number {
@@ -37,6 +47,7 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 
     /**
      * Creates an instance already configured for a specific rate
+     * @deprecated
      */
     static forRate(rate: PollingRate): PollingRateBuilder {
         return new PollingRateBuilder().setPollingRate(rate);
