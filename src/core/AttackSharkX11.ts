@@ -12,7 +12,7 @@ import {
 } from "../protocols/MacrosBuilder.js";
 import {InternalStateResetReportBuilder} from "../protocols/InternalStateResetReportBuilder.js";
 import {delay} from "../utils/delay.js";
-import DpiBuilder from "../protocols/DpiBuilder.js";
+import {DpiBuilder} from "../protocols/DpiBuilder.js";
 import {CustomMacroBuilder} from "../protocols/CustomMacroBuilder.js";
 
 const VID = 0x1d57;

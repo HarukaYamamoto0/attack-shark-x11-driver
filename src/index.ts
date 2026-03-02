@@ -1,7 +1,7 @@
 import {AttackSharkX11} from "./core/AttackSharkX11.js";
 import {LightMode, UserPreferencesBuilder} from "./protocols/UserPreferencesBuilder.js";
 import {PollingRateBuilder, PollingRate} from "./protocols/PollingRateBuilder.js";
-import DpiBuilder, {StageIndex} from "./protocols/DpiBuilder.js";
+import {DpiBuilder, StageIndex} from "./protocols/DpiBuilder.js";
 import {
     Buttons,
     FirmwareAction, KeyCode,
