@@ -1,4 +1,5 @@
-import { ConnectionMode, type ProtocolBuilder } from "../types.js";
+import { ConnectionMode } from "../types.js";
+import type {BaseProtocolBuilder} from "../core/BaseProtocolBuilder.js";
 
 /**
  * ⚠️ CRITICAL: INTERNAL STATE RESET REPORT
@@ -36,8 +37,8 @@ import { ConnectionMode, type ProtocolBuilder } from "../types.js";
  * - Send this report twice
  * - Send this report outside a complete configuration update
  */
-export class InternalStateResetReportBuilder implements ProtocolBuilder {
-    public readonly buffer: Buffer;
+export class InternalStateResetReportBuilder implements BaseProtocolBuilder {
+    readonly buffer: Buffer;
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
     public readonly wValue: number = 0x030C;
@@ -78,5 +79,9 @@ export class InternalStateResetReportBuilder implements ProtocolBuilder {
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    compareWitHexString(value: string): boolean {
+        return this.toString() == value
     }
 }

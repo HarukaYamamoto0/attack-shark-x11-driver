@@ -1,5 +1,6 @@
-import {ConnectionMode, type ProtocolBuilder} from "../types.js";
-import {DPI_STEP_MAP} from "../dpi-map.js";
+import {ConnectionMode} from "../types.js";
+import {DPI_STEP_MAP} from "../tables/dpi-map.js";
+import type {BaseProtocolBuilder} from "../core/BaseProtocolBuilder.js";
 
 const OFFSET = {
     ANGLE_SNAP: 3,
@@ -24,15 +25,14 @@ export enum StageIndex {
 
 type StageArrayIndex = 0 | 1 | 2 | 3 | 4 | 5;
 
-class DpiBuilder implements ProtocolBuilder {
-    public readonly buffer: Buffer;
-    private stages: [number, number, number, number, number, number] =
-        [800, 1600, 2400, 3200, 5000, 12000];
-
+class DpiBuilder implements BaseProtocolBuilder {
+    readonly buffer: Buffer;
     public readonly bmRequestType: number = 0x21;
     public readonly bRequest: number = 0x09;
     public readonly wValue: number = 0x0304;
     public readonly wIndex: number = 2;
+
+    private stages: [number, number, number, number, number, number] = [800, 1600, 2400, 3200, 5000, 12000];
 
     // noinspection FunctionTooLongJS
     constructor() {
@@ -218,6 +218,10 @@ class DpiBuilder implements ProtocolBuilder {
 
     toString(): string {
         return this.buffer.toString("hex");
+    }
+
+    compareWitHexString(value: string): boolean {
+        return this.toString() == value
     }
 }
 

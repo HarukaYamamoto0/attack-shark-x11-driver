@@ -1,26 +1,6 @@
 import {LightMode} from "./protocols/UserPreferencesBuilder.js";
 import type {MacroTuple} from "./protocols/MacrosBuilder.js";
 
-export interface ProtocolBuilder {
-    readonly buffer: Buffer;
-    readonly bmRequestType: number;
-    readonly bRequest: number;
-    readonly wValue: number;
-    readonly wIndex: number;
-
-    calculateChecksum(): number;
-
-    /**
-     * Returns the final buffer to be sent to the device
-     */
-    build(mode: ConnectionMode): Buffer;
-
-    /**
-     * Hexadecimal representation of the buffer (for debugging)
-     */
-    toString(): string
-}
-
 export enum ConnectionMode {
     Adapter,
     Wired
