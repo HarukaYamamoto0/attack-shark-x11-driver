@@ -20,6 +20,8 @@ export enum KeyCode {
     NONE = 0x00,
     ONLY_USED_BY_EASY_AIM = 0x03, // used by easy-aim
 
+    // TODO: Check for missing keys such as ALT.
+
     // Letters
     A = 0x04,
     B = 0x05,
@@ -318,161 +320,163 @@ export const macroTemplates: MacroTemplate = {
 } satisfies Record<MacroName, MacroTuple>;
 
 export enum Buttons {
-    LEFT_BUTTON,
-    RIGHT_BUTTON,
-    MIDDLE_BUTTON,
-    EXTRA_BUTTON_4,
-    EXTRA_BUTTON_5,
+    LEFT = 0,
+    RIGHT = 1,
+    MIDDLE = 2,
+    FORWARD = 3,
+    BACKWARD = 4,
+
+    // EXTENDED BUTTONS - This feature isn't available in the official control panel, but the mouse's chipset does support it.
+    DPI = 6,
+    SCROLL_UP = 16,
+    SCROLL_DOWN = 17,
 }
 
 const BUTTON_OFFSET: Record<Buttons, number> = {
-    [Buttons.LEFT_BUTTON]: 3,
-    [Buttons.RIGHT_BUTTON]: 6,
-    [Buttons.MIDDLE_BUTTON]: 9,
-    [Buttons.EXTRA_BUTTON_4]: 21,
-    [Buttons.EXTRA_BUTTON_5]: 24,
+    [Buttons.LEFT]: 3,
+    [Buttons.RIGHT]: 6,
+    [Buttons.MIDDLE]: 9,
+    [Buttons.FORWARD]: 21,
+    [Buttons.BACKWARD]: 24,
+
+    [Buttons.DPI]: 18,
+    [Buttons.SCROLL_UP]: 51,
+    [Buttons.SCROLL_DOWN]: 54,
 };
 
 export interface MacroBuilderOptions {
     left?: MacroTuple,
     right?: MacroTuple,
     middle?: MacroTuple,
+    forward?: MacroTuple,
+    backward?: MacroTuple,
+    dpi?: MacroTuple,
+    scrollUp?: MacroTuple,
+    scrollDown?: MacroTuple,
+
+    /** @deprecated Use forward instead */
     extra4?: MacroTuple,
+    /** @deprecated Use backward instead */
     extra5?: MacroTuple,
 }
 
+/**
+ * Builder for configuring Mouse Button Macros and reassignments (Report 0x0308).
+ * This builder allows remapping buttons to mouse clicks, keyboard keys, multimedia controls, and more.
+ */
 export class MacrosBuilder implements BaseProtocolBuilder {
+    public static readonly BM_REQUEST_TYPE = 0x21;
+    public static readonly B_REQUEST = 0x09;
+    public static readonly W_VALUE = 0x0308;
+    public static readonly W_INDEX = 2;
+
+    public static readonly DEFAULT_MACROS: MacroBuilderOptions = {
+        left: macroTemplates[MacroName.GLOBAL_LEFT_CLICK],
+        right: macroTemplates[MacroName.GLOBAL_RIGHT_CLICK],
+        middle: macroTemplates[MacroName.GLOBAL_MIDDLE],
+        forward: macroTemplates[MacroName.GLOBAL_FORWARD],
+        backward: macroTemplates[MacroName.GLOBAL_BACKWARD],
+    };
+
     readonly buffer: Buffer;
-    public readonly bmRequestType: number = 0x21;
-    public readonly bRequest: number = 0x09;
-    public readonly wValue: number = 0x0308;
-    public readonly wIndex: number = 2;
+    public readonly bmRequestType: number = MacrosBuilder.BM_REQUEST_TYPE;
+    public readonly bRequest: number = MacrosBuilder.B_REQUEST;
+    public readonly wValue: number = MacrosBuilder.W_VALUE;
+    public readonly wIndex: number = MacrosBuilder.W_INDEX;
 
     // noinspection FunctionTooLongJS
+    /**
+     * Initializes a new MacrosBuilder instance with default button mappings.
+     *
+     * @param options Partial macro configurations to override defaults.
+     */
     constructor(options?: MacroBuilderOptions) {
         this.buffer = Buffer.alloc(59);
 
-        this.buffer[0] = 0x08 // header
-        this.buffer[1] = 0x3b // header
-        this.buffer[2] = 0x01 // header
+        // Header: Report ID 0x08, Length 0x3b (59), Protocol version 0x01
+        this.buffer[0] = 0x08;
+        this.buffer[1] = 0x3b;
+        this.buffer[2] = 0x01;
 
-        this.buffer[3] = 0x02 // button 1
-        this.buffer[4] = 0x00 // button 1
-        this.buffer[5] = 0x00 // button 1
-
-        this.buffer[6] = 0x03 // button 2
-        this.buffer[7] = 0x00 // button 2
-        this.buffer[8] = 0x00 // button 2
-
-        this.buffer[9] = 0x04 // button 3
-        this.buffer[10] = 0x00 // button 3
-        this.buffer[11] = 0x00 // button 3
-
-        this.buffer[12] = 0x01
-        this.buffer[13] = 0x00
-        this.buffer[14] = 0x00
-
-        this.buffer[15] = 0x01
-        this.buffer[16] = 0x00
-        this.buffer[17] = 0x00
-
-        this.buffer[18] = 0x0d
-        this.buffer[19] = 0x00
-        this.buffer[20] = 0x00
-
-        this.buffer[21] = 0x06 // button 4
-        this.buffer[22] = 0x00 // button 4
-        this.buffer[23] = 0x00 // button 4
-
-        this.buffer[24] = 0x05 // button 5
-        this.buffer[25] = 0x00 // button 5
-        this.buffer[26] = 0x00 // button 5
-
-        this.buffer[27] = 0x01
-        this.buffer[28] = 0x00
-        this.buffer[29] = 0x00
-
-        this.buffer[30] = 0x01
-        this.buffer[31] = 0x00
-        this.buffer[32] = 0x00
-
-        this.buffer[33] = 0x01
-        this.buffer[34] = 0x00
-        this.buffer[35] = 0x00
-
-        this.buffer[36] = 0x01
-        this.buffer[37] = 0x00
-        this.buffer[38] = 0x00
-
-        this.buffer[39] = 0x01
-        this.buffer[40] = 0x00
-        this.buffer[41] = 0x00
-
-        this.buffer[42] = 0x01
-        this.buffer[43] = 0x00
-        this.buffer[44] = 0x00
-
-        this.buffer[45] = 0x01
-        this.buffer[46] = 0x00
-        this.buffer[47] = 0x00
-
-        this.buffer[48] = 0x01
-        this.buffer[49] = 0x00
-        this.buffer[50] = 0x00
-
-        this.buffer[51] = 0x09
-        this.buffer[52] = 0x00
-        this.buffer[53] = 0x00
-
-        this.buffer[54] = 0x0a
-        this.buffer[55] = 0x00
-        this.buffer[56] = 0x00
-
-        this.buffer[57] = 0x00
-        this.buffer[58] = 0x3e // checksum
-
-        options = {
-            left: macroTemplates[MacroName.GLOBAL_LEFT_CLICK],
-            right: macroTemplates[MacroName.GLOBAL_RIGHT_CLICK],
-            middle: macroTemplates[MacroName.GLOBAL_MIDDLE],
-            extra4: macroTemplates[MacroName.GLOBAL_FORWARD],
-            extra5: macroTemplates[MacroName.GLOBAL_BACKWARD],
-            ...options
+        // Initialize all 18 button slots (3 bytes each) with [0x01, 0x00, 0x00]
+        // This is the "Inactive" or "Disabled" default state for most slots.
+        for (let i = 3; i <= 54; i += 3) {
+            this.buffer[i] = 0x01;
+            this.buffer[i + 1] = 0x00;
+            this.buffer[i + 2] = 0x00;
         }
 
-        this.setMacro(Buttons.LEFT_BUTTON, options.left ?? macroTemplates[MacroName.GLOBAL_LEFT_CLICK])
-        this.setMacro(Buttons.RIGHT_BUTTON, options.right ?? macroTemplates[MacroName.GLOBAL_RIGHT_CLICK])
-        this.setMacro(Buttons.MIDDLE_BUTTON, options.middle ?? macroTemplates[MacroName.GLOBAL_MIDDLE])
-        this.setMacro(Buttons.EXTRA_BUTTON_4, options.extra4 ?? macroTemplates[MacroName.GLOBAL_FORWARD])
-        this.setMacro(Buttons.EXTRA_BUTTON_5, options.extra5 ?? macroTemplates[MacroName.GLOBAL_BACKWARD])
+        // Default internal assignments
+        this.buffer[18] = 0x0d; // Slot 6 (DPI Cycle)
+        this.buffer[51] = 0x09; // Slot 17 (Scroll Up)
+        this.buffer[54] = 0x0a; // Slot 18 (Scroll Down)
+
+        const config = {...MacrosBuilder.DEFAULT_MACROS, ...options};
+
+        if (config.left) this.setMacro(Buttons.LEFT, config.left);
+        if (config.right) this.setMacro(Buttons.RIGHT, config.right);
+        if (config.middle) this.setMacro(Buttons.MIDDLE, config.middle);
+
+        // Handle forward/backward with compatibility for extra4/extra5
+        const forward = config.forward ?? config.forward;
+        if (forward) this.setMacro(Buttons.FORWARD, forward);
+
+        const backward = config.backward ?? config.backward;
+        if (backward) this.setMacro(Buttons.BACKWARD, backward);
+
+        if (config.dpi) this.setMacro(Buttons.DPI, config.dpi);
+        if (config.scrollUp) this.setMacro(Buttons.SCROLL_UP, config.scrollUp);
+        if (config.scrollDown) this.setMacro(Buttons.SCROLL_DOWN, config.scrollDown);
     }
 
-    setMacro(button: Buttons, macro: MacroTuple): MacrosBuilder {
+    /**
+     * Assigns a macro action to a specific mouse button.
+     *
+     * @param button The button index or identifier.
+     * @param macro A tuple containing [Action, Modifier, KeyCode/Value].
+     * @return {this} The current instance for method chaining.
+     */
+    setMacro(button: Buttons, macro: MacroTuple): this {
         const [
             firmwareAction = FirmwareAction.DISABLE_BUTTON,
             modifier = Modifiers.NONE,
             keyCode = KeyCode.NONE
-        ] = macro
+        ] = macro;
 
         const offset = BUTTON_OFFSET[button];
+        if (offset === undefined) {
+            throw new Error(`Invalid button identifier: ${button}`);
+        }
 
         this.buffer[offset] = firmwareAction;
         this.buffer[offset + 1] = modifier;
         this.buffer[offset + 2] = keyCode;
 
-        return this
+        return this;
     }
 
+    /**
+     * Calculates the checksum for the macro configuration buffer.
+     * The checksum is the sum of bytes from index 2 to 57, minus 1, masked to 8 bits.
+     *
+     * @return {number} The calculated 8-bit checksum.
+     */
     calculateChecksum(): number {
-        let sum = 0
+        let sum = 0;
 
         for (let i = 2; i < this.buffer.length - 1; i++) {
-            sum = (sum + this.buffer[i]!) & 0xff
+            sum = (sum + this.buffer[i]!) & 0xff;
         }
 
-        return (sum - 1) & 0xff
+        return (sum - 1) & 0xff;
     }
 
+    /**
+     * Finalizes the buffer by calculating the checksum.
+     *
+     * @param _mode Connection mode (currently ignored as macros are identical).
+     * @return {Buffer} The built macro configuration buffer.
+     */
     build(_mode: ConnectionMode): Buffer {
         this.buffer[58] = this.calculateChecksum();
         return this.buffer;

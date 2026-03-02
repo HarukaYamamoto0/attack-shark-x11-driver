@@ -3,13 +3,7 @@ import * as usb from "usb";
 import {PollingRateBuilder, PollingRate} from "../protocols/PollingRateBuilder.js";
 import {UserPreferencesBuilder} from "../protocols/UserPreferencesBuilder.js";
 import {ConnectionMode, type UserPreferenceOptions} from "../types.js";
-import {
-    Buttons,
-    type MacroBuilderOptions,
-    MacroName,
-    MacrosBuilder,
-    macroTemplates
-} from "../protocols/MacrosBuilder.js";
+import {type MacroBuilderOptions, MacrosBuilder} from "../protocols/MacrosBuilder.js";
 import {InternalStateResetReportBuilder} from "../protocols/InternalStateResetReportBuilder.js";
 import {delay} from "../utils/delay.js";
 import {DpiBuilder} from "../protocols/DpiBuilder.js";
@@ -109,11 +103,11 @@ export class AttackSharkX11 {
         });
     }
 
-    open() {
-        this.device.open()
+    async open() {
+        this.device.open() // TODO: Remove the call from inside the constructor and add a response if the mouse button successfully opens.
     }
 
-    close() {
+    async close() {
         if (this.deviceInterface) {
             try {
                 this.deviceInterface.release(true, (err) => {
@@ -128,16 +122,15 @@ export class AttackSharkX11 {
         }
     }
 
-    async setPollingRate(rate: PollingRate) {
-        const pollingRateProtocol = new PollingRateBuilder()
-            .setPollingRate(rate)
+    async setPollingRate(rate: PollingRate | PollingRateBuilder) {
+        const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setPollingRate(rate);
 
         return await this.commandTransfer(
-            pollingRateProtocol.build(this.connectionMode),
-            pollingRateProtocol.bmRequestType,
-            pollingRateProtocol.bRequest,
-            pollingRateProtocol.wValue,
-            pollingRateProtocol.wIndex
+            builder.build(this.connectionMode),
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
         );
     }
 
@@ -155,67 +148,63 @@ export class AttackSharkX11 {
 
         await this.commandTransfer(
             secondPacket!,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            macro.bmRequestType,
+            macro.bRequest,
+            macro.wValue,
+            macro.wIndex
         )
         await delay(500)
 
-        await delay(500)
         await this.commandTransfer(
             thirdPacket!,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            macro.bmRequestType,
+            macro.bRequest,
+            macro.wValue,
+            macro.wIndex
         )
+        await delay(500)
 
         await this.commandTransfer(
             fourthPacket!,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            macro.bmRequestType,
+            macro.bRequest,
+            macro.wValue,
+            macro.wIndex
         )
     }
 
-    async setMacro(config: MacroBuilderOptions) {
-        const macroProtocol = new MacrosBuilder()
-            .setMacro(Buttons.LEFT_BUTTON, config.left ?? macroTemplates[MacroName.GLOBAL_LEFT_CLICK])
-            .setMacro(Buttons.RIGHT_BUTTON, config.right ?? macroTemplates[MacroName.GLOBAL_RIGHT_CLICK])
-            .setMacro(Buttons.MIDDLE_BUTTON, config.middle ?? macroTemplates[MacroName.GLOBAL_MIDDLE])
-            .setMacro(Buttons.EXTRA_BUTTON_4, config.extra4 ?? macroTemplates[MacroName.GLOBAL_FORWARD])
-            .setMacro(Buttons.EXTRA_BUTTON_5, config.extra5 ?? macroTemplates[MacroName.GLOBAL_BACKWARD])
-
-        const buffer = macroProtocol.build(this.connectionMode)
+    async setMacro(config: MacroBuilderOptions | MacrosBuilder) {
+        const builder = config instanceof MacrosBuilder ? config : new MacrosBuilder(config);
+        const buffer = builder.build(this.connectionMode);
 
         return this.commandTransfer(
             buffer,
-            macroProtocol.bmRequestType,
-            macroProtocol.bRequest,
-            macroProtocol.wValue,
-            macroProtocol.wIndex
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
         );
     }
 
-    async setUserPreferences(options: Partial<UserPreferenceOptions> = {}) {
-        const opts: UserPreferenceOptions = {
-            ...UserPreferencesBuilder.DEFAULT_PREFS,
-            ...options,
-            rgb: {
-                ...UserPreferencesBuilder.DEFAULT_PREFS.rgb,
-                ...options.rgb
-            }
-        };
+    async setUserPreferences(options: Partial<UserPreferenceOptions> | UserPreferencesBuilder = {}) {
+        const builder = options instanceof UserPreferencesBuilder ? options : (() => {
+            const opts: UserPreferenceOptions = {
+                ...UserPreferencesBuilder.DEFAULT_PREFS,
+                ...options,
+                rgb: {
+                    ...UserPreferencesBuilder.DEFAULT_PREFS.rgb,
+                    ...options.rgb
+                }
+            };
 
-        const builder = new UserPreferencesBuilder()
-            .setLightMode(opts.lightMode)
-            .setLedSpeed(opts.ledSpeed)
-            .setRgb(opts.rgb)
-            .setSleep(opts.sleepTime)
-            .setDeepSleep(opts.deepSleepTime)
-            .setKeyResponse(opts.keyResponse);
+            return new UserPreferencesBuilder()
+                .setLightMode(opts.lightMode)
+                .setLedSpeed(opts.ledSpeed)
+                .setRgb(opts.rgb)
+                .setSleep(opts.sleepTime)
+                .setDeepSleep(opts.deepSleepTime)
+                .setKeyResponse(opts.keyResponse);
+        })();
 
         return await this.commandTransfer(
             builder.build(this.connectionMode),
@@ -229,6 +218,16 @@ export class AttackSharkX11 {
     async sendInternalStateResetReportBuilder() {
         const builder = new InternalStateResetReportBuilder()
 
+        return await this.commandTransfer(
+            builder.build(this.connectionMode),
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
+        );
+    }
+
+    async setInternalStateResetReport(builder: InternalStateResetReportBuilder = new InternalStateResetReportBuilder()) {
         return await this.commandTransfer(
             builder.build(this.connectionMode),
             builder.bmRequestType,
