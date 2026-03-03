@@ -151,23 +151,23 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
         let macroTemplate: MacroTuple
 
         switch (button) {
-            case Buttons.LEFT_BUTTON:
+            case Buttons.LEFT:
                 buttonMap = CUSTOM_MACRO_BUTTONS.LEFT_BUTTON
                 macroTemplate = macroTemplates[MacroName.CUSTOM_MACRO_LEFT_BUTTON]
                 break
-            case Buttons.RIGHT_BUTTON:
+            case Buttons.RIGHT:
                 buttonMap = CUSTOM_MACRO_BUTTONS.RIGHT_BUTTON
                 macroTemplate = macroTemplates[MacroName.CUSTOM_MACRO_RIGHT_BUTTON]
                 break
-            case Buttons.MIDDLE_BUTTON:
+            case Buttons.MIDDLE:
                 buttonMap = CUSTOM_MACRO_BUTTONS.MIDDLE_BUTTON
                 macroTemplate = macroTemplates[MacroName.CUSTOM_MACRO_MIDDLE_BUTTON]
                 break
-            case Buttons.EXTRA_BUTTON_4:
+            case Buttons.FORWARD:
                 buttonMap = CUSTOM_MACRO_BUTTONS.EXTRA_BUTTON_4
                 macroTemplate = macroTemplates[MacroName.CUSTOM_MACRO_EXTRA_BUTTON_4]
                 break
-            case Buttons.EXTRA_BUTTON_5:
+            case Buttons.BACKWARD:
                 buttonMap = CUSTOM_MACRO_BUTTONS.EXTRA_BUTTON_5
                 macroTemplate = macroTemplates[MacroName.CUSTOM_MACRO_EXTRA_BUTTON_5]
                 break
