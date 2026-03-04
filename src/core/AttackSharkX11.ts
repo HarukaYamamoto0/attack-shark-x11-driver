@@ -118,36 +118,54 @@ export class AttackSharkX11 {
         }
     }
 
-    /**
-     * Retrieves the current battery level of the device.
-     * The method interacts with an interrupt endpoint to fetch the battery level
-     * and validates the response data to ensure it is within the acceptable range.
-     *
-     * @return {Promise<number>} A promise that resolves with the current battery level as a percentage (0–100),
-     * or rejects with an error if the data is invalid or if an error occurs during the transfer.
-     * In Wired mode it only returns -1 because it's a charging mode; the battery status is not available in this mode.
-     */
-    async getBatteryLevel(): Promise<number> {
-        if (this.connectionMode == ConnectionMode.Wired) return -1
+    async getBatteryLevel(timeoutMs = 2000): Promise<number> {
+        if (this.connectionMode === ConnectionMode.Wired) return -1;
+
         const endpoint = this.interruptEndpoint as InEndpoint;
 
         return new Promise((resolve, reject) => {
-            endpoint.transfer(64, (err, data) => {
-                if (err) return reject(err);
-                if (!data || data.length < 5 || data[0] !== 0x03 || data[1] !== 0x55 || data[2] !== 0x40 || data[3] !== 0x01) {
-                    return reject(new Error("Invalid battery packet"));
+            let finished = false;
+
+            const cleanup = () => {
+                if (finished) return;
+                finished = true;
+
+                clearTimeout(timeout);
+                endpoint.removeListener("data", handleData);
+
+                try {
+                    endpoint.stopPoll();
+                } catch {
                 }
+            };
 
-                const battery = data[4]!;
+            const handleData = (data: Buffer) => {
+                if (finished) return;
+                if (!data || data.length < 5) return;
 
-                if (battery < 0 || battery > 100) {
-                    return reject(
-                        new Error("Battery byte is outside the valid 0–100 range")
-                    );
+                if (
+                    data[0] === 0x03 &&
+                    data[1] === 0x55 &&
+                    data[2] === 0x40 &&
+                    data[3] === 0x01 &&
+                    data[4] !== undefined
+                ) {
+                    const battery = data[4];
+
+                    if (battery <= 100) {
+                        cleanup();
+                        resolve(battery);
+                    }
                 }
+            };
 
-                resolve(battery);
-            });
+            const timeout = setTimeout(() => {
+                cleanup();
+                reject(new Error("Timeout waiting for battery report"));
+            }, timeoutMs);
+
+            endpoint.on("data", handleData);
+            endpoint.startPoll(1, 64);
         });
     }
 
@@ -163,16 +181,23 @@ export class AttackSharkX11 {
         const endpoint = this.interruptEndpoint as InEndpoint;
 
         const handleData = (data: Buffer) => {
-            if (!data || data.length < 5 || data[0] !== 0x03 || data[1] !== 0x55 || data[2] !== 0x40 || data[3] !== 0x01) return;
+            if (
+                data[0] === 0x03 &&
+                data[1] === 0x55 &&
+                data[2] === 0x40 &&
+                data[3] === 0x01 &&
+                data[4] !== undefined
+            ) {
 
-            const battery = data[4];
-            if (!battery) return;
+                const battery = data[4];
+                if (!battery) return;
 
-            if (battery !== this.lastBattery) {
-                this.lastBattery = battery;
-                listener(battery);
+                if (battery !== this.lastBattery) {
+                    this.lastBattery = battery;
+                    listener(battery);
+                }
             }
-        };
+        }
 
         endpoint.on("data", handleData);
         endpoint.startPoll(1, 64);
