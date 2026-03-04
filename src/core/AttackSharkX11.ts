@@ -125,14 +125,16 @@ export class AttackSharkX11 {
      *
      * @return {Promise<number>} A promise that resolves with the current battery level as a percentage (0–100),
      * or rejects with an error if the data is invalid or if an error occurs during the transfer.
+     * In Wired mode it only returns -1 because it's a charging mode; the battery status is not available in this mode.
      */
     async getBatteryLevel(): Promise<number> {
+        if (this.connectionMode == ConnectionMode.Wired) return -1
         const endpoint = this.interruptEndpoint as InEndpoint;
 
         return new Promise((resolve, reject) => {
             endpoint.transfer(64, (err, data) => {
                 if (err) return reject(err);
-                if (!data || data.length < 4 || data.length > 4) {
+                if (!data || data.length < 5 || data[0] !== 0x03 || data[1] !== 0x55 || data[2] !== 0x40 || data[3] !== 0x01) {
                     return reject(new Error("Invalid battery packet"));
                 }
 
@@ -154,13 +156,14 @@ export class AttackSharkX11 {
      *
      * @param listener A callback function that receives the updated battery level as a number.
      *                 The battery level is provided if it has changed since the last update.
+     *                 It is not updated in Wired mode because it is treated as charging the mouse battery.
      * @return A function that can be called to stop polling for battery level changes and remove the listener.
      */
     onBatteryChange(listener: (battery: number) => void): () => void {
         const endpoint = this.interruptEndpoint as InEndpoint;
 
         const handleData = (data: Buffer) => {
-            if (data.length < 4) return;
+            if (!data || data.length < 5 || data[0] !== 0x03 || data[1] !== 0x55 || data[2] !== 0x40 || data[3] !== 0x01) return;
 
             const battery = data[4];
             if (!battery) return;

@@ -15,8 +15,6 @@ const driver = new AttackSharkX11()
 const delayMS = 250
 
 try {
-    console.time("start")
-
     await driver.reset()
     await delay(delayMS)
 
@@ -61,9 +59,14 @@ try {
         macrosBuilder: macroBuilder,
     })
 
-    // const batteryStatus = await driver.getBatteryLevel()
-    // console.log(batteryStatus + "%")
+    const batteryStatus = await driver.getBatteryLevel()
+    console.log(batteryStatus + "%")
+
+    driver.onBatteryChange((level: number) => {
+        console.log(level + "%")
+    })
+
+    await delay(10000)
 } finally {
-    console.timeEnd("start")
     driver.close()
 }
