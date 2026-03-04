@@ -1,13 +1,13 @@
-import type {Device, Endpoint, Interface} from "usb";
+import type {Device, InEndpoint, Interface} from "usb";
 import * as usb from "usb";
 import {PollingRateBuilder, PollingRate} from "../protocols/PollingRateBuilder.js";
-import {UserPreferencesBuilder} from "../protocols/UserPreferencesBuilder.js";
-import {ConnectionMode, type UserPreferenceOptions} from "../types.js";
+import {UserPreferencesBuilder, type UserPreferencesBuilderOptions} from "../protocols/UserPreferencesBuilder.js";
 import {type MacroBuilderOptions, MacrosBuilder} from "../protocols/MacrosBuilder.js";
 import {InternalStateResetReportBuilder} from "../protocols/InternalStateResetReportBuilder.js";
 import {delay} from "../utils/delay.js";
 import {DpiBuilder} from "../protocols/DpiBuilder.js";
-import {CustomMacroBuilder} from "../protocols/CustomMacroBuilder.js";
+import {CustomMacroBuilder, type CustomMacroBuilderOptions} from "../protocols/CustomMacroBuilder.js";
+import {ConnectionMode} from "../types.js";
 
 const VID = 0x1d57;
 const PID_WIRELESS = 0xfa60;
@@ -20,7 +20,9 @@ export class AttackSharkX11 {
     public readonly productId: number;
     device: Device
     deviceInterface: Interface
-    interruptEndpoint: Endpoint
+    interruptEndpoint: InEndpoint
+
+    private lastBattery: number = -1
 
     constructor() {
         const device = usb.getDeviceList().find(d =>
@@ -64,7 +66,7 @@ export class AttackSharkX11 {
         if (!interruptEndpoint) {
             throw new Error("interruptEndpoint not found")
         }
-        this.interruptEndpoint = interruptEndpoint
+        this.interruptEndpoint = interruptEndpoint as InEndpoint
     }
 
     /**
@@ -120,6 +122,59 @@ export class AttackSharkX11 {
         } else {
             this.device?.close();
         }
+    }
+
+    /**
+     * Retrieves the current battery level from the device.
+     *
+     * @return {Promise<number | undefined>} A promise that resolves with the battery level as a number, or undefined if unavailable.
+     *                                       Throws an error if the battery packet is invalid or if a communication error occurs.
+     */
+    async getBatteryLevel(): Promise<number | undefined> {
+        const endpoint = this.interruptEndpoint as InEndpoint;
+
+        return new Promise((resolve, reject) => {
+            endpoint.transfer(64, (err, data) => {
+                if (err) return reject(err);
+                if (!data || data.length < 4) {
+                    return reject(new Error("Invalid battery packet"));
+                }
+
+                const battery = data[4];
+                resolve(battery);
+            });
+        });
+    }
+
+    /**
+     * Registers a listener for battery level changes and starts polling for updates.
+     *
+     * @param listener A callback function that receives the updated battery level as a number.
+     *                 The battery level is provided if it has changed since the last update.
+     * @return A function that can be called to stop polling for battery level changes and remove the listener.
+     */
+    onBatteryChange(listener: (battery: number) => void): () => void {
+        const endpoint = this.interruptEndpoint as InEndpoint;
+
+        const handleData = (data: Buffer) => {
+            if (data.length < 4) return;
+
+            const battery = data[4];
+            if (!battery) return;
+
+            if (battery !== this.lastBattery) {
+                this.lastBattery = battery;
+                listener(battery);
+            }
+        };
+
+        endpoint.on("data", handleData);
+        endpoint.startPoll(1, 64);
+
+        return () => {
+            endpoint.stopPoll();
+            endpoint.removeListener("data", handleData);
+        };
     }
 
     async setPollingRate(rate: PollingRate | PollingRateBuilder) {
