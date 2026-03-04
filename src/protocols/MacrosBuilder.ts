@@ -67,6 +67,14 @@ export enum KeyCode {
     ESC = 0x29,
     BACKSPACE = 0x2a,
     TAB = 0x2b,
+    LShift = 0xE1,
+    RShift = 0xE5,
+    LAlt = 0xE2,
+    RAlt = 0xE6,
+    LCrtl = 0xE0,
+    RCrtl = 0xE4,
+    LWin = 0xE3,
+    RWin = 0xE7,
     SPACE = 0x2c,
 
     // Symbols
