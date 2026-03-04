@@ -57,6 +57,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
     private readonly fourthPacket: Buffer = Buffer.alloc(64)
 
     private readonly macroEvents: number[] = []
+    public static readonly MAX_MACRO_EVENTS = 47;
 
     public static readonly DEFAULT_OPTIONS: CustomMacroBuilderOptions = {
         playOptions: {
@@ -227,7 +228,8 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
     }
 
     build(mode: ConnectionMode): [Buffer, Buffer, Buffer, Buffer] {
-        this.secondPacket[29] = this.macroEvents.length / 2
+        const eventCount = Math.floor(this.macroEvents.length / 2);
+        this.secondPacket[29] = Math.min(eventCount, CustomMacroBuilder.MAX_MACRO_EVENTS);
 
         // Clear events area first
         this.secondPacket.fill(0, 30);

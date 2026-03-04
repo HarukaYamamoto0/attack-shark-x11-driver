@@ -114,4 +114,17 @@ describe("CustomMacroBuilder Configuration", () => {
         // Backward should be Custom Macro (0x12)
         expect(macroPacket[24]).toBe(FirmwareAction.CUSTOM_MACRO);
     });
+
+    test("should cap the event counter at 47 even if more events are added", () => {
+        const builder = new CustomMacroBuilder();
+        // Add 50 events
+        for (let i = 0; i < 50; i++) {
+            builder.addEvent(KeyCode.A);
+        }
+
+        const [, secondPacket] = builder.build(ConnectionMode.Adapter);
+
+        // Capacity is 47, so the counter at index 29 should be 47
+        expect(secondPacket[29]).toBe(47);
+    });
 });
