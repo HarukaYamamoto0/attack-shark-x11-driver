@@ -61,8 +61,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
             mode: MacroMode.THE_NUMBER_OF_TIME_TO_PLAY,
             times: 1
         },
-        targetButton: Button.BACKWARD,
-        macroEvents: []
+        targetButton: Button.BACKWARD
     };
 
     // noinspection FunctionTooLongJS
@@ -125,9 +124,9 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 
         const config = {...CustomMacroBuilder.DEFAULT_OPTIONS, ...options};
 
-        if (config.playOptions) this.setPlayOptions(config.playOptions.mode, config.playOptions.times)
-        if (config.targetButton) this.setTargetButton(config.targetButton)
-        if (config.macroEvents) this.macroEvents = config.macroEvents
+        if (config.playOptions !== undefined) this.setPlayOptions(config.playOptions.mode, config.playOptions.times)
+        if (config.targetButton !== undefined) this.setTargetButton(config.targetButton)
+        if (config.macroEvents && config.macroEvents.length > 0) this.macroEvents.push(...config.macroEvents)
     }
 
     private handleDelay(delayMs: number): { eventDelay: number, extraDelay?: number } {

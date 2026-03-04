@@ -168,12 +168,12 @@ export class UserPreferencesBuilder implements BaseProtocolBuilder {
 
         const config = {...UserPreferencesBuilder.DEFAULT_OPTIONS, ...options};
 
-        if (config.lightMode) this.setLightMode(config.lightMode)
-        if (config.deepSleepTime) this.setDeepSleep(config.deepSleepTime)
-        if (config.ledSpeed) this.setLedSpeed(config.ledSpeed)
-        if (config.rgb) this.setRgb(config.rgb)
-        if (config.keyResponse) this.setKeyResponse(config.keyResponse)
-        if (config.sleepTime) this.setSleep(config.sleepTime)
+        if (config.lightMode !== undefined) this.setLightMode(config.lightMode)
+        if (config.deepSleepTime !== undefined) this.setDeepSleep(config.deepSleepTime)
+        if (config.ledSpeed !== undefined) this.setLedSpeed(config.ledSpeed)
+        if (config.rgb !== undefined) this.setRgb(config.rgb)
+        if (config.keyResponse !== undefined) this.setKeyResponse(config.keyResponse)
+        if (config.sleepTime !== undefined) this.setSleep(config.sleepTime)
     }
 
     /**

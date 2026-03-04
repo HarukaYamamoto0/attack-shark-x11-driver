@@ -121,10 +121,10 @@ export class DpiBuilder implements BaseProtocolBuilder {
 
         const config = {...DpiBuilder.DEFAULT_OPTIONS, ...options};
 
-        if (config.angleSnap) this.setAngleSnap(config.angleSnap)
-        if (config.ripplerControl) this.setRipplerControl(config.ripplerControl)
-        if (config.dpiValues) this.setStages(config.dpiValues)
-        if (config.activeStage) this.setCurrentStage(config.activeStage);
+        if (config.angleSnap !== undefined) this.setAngleSnap(config.angleSnap)
+        if (config.ripplerControl !== undefined) this.setRipplerControl(config.ripplerControl)
+        if (config.dpiValues !== undefined) this.setStages(config.dpiValues)
+        if (config.activeStage !== undefined) this.setCurrentStage(config.activeStage);
     }
 
     /**

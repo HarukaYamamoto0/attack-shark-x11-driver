@@ -77,14 +77,6 @@ export class AttackSharkX11 {
         return this.productId === PID_WIRELESS ? ConnectionMode.Adapter : ConnectionMode.Wired
     }
 
-    /**
-     * Check if it's in wireless mode.
-     * @deprecated
-     */
-    get isWireless(): boolean {
-        return this.productId === PID_WIRELESS;
-    }
-
     async commandTransfer(
         data: Buffer,
         bmRequestType: number,
@@ -107,11 +99,11 @@ export class AttackSharkX11 {
         });
     }
 
-    async open() {
-        this.device.open() // TODO: Remove the call from inside the constructor and add a response if the mouse button successfully opens.
+    open() {
+        this.device.open()
     }
 
-    async close() {
+    close() {
         if (this.deviceInterface) {
             try {
                 this.deviceInterface.release(true, (err) => {
@@ -127,10 +119,12 @@ export class AttackSharkX11 {
     }
 
     /**
-     * Retrieves the current battery level from the device.
+     * Retrieves the current battery level of the device.
+     * The method interacts with an interrupt endpoint to fetch the battery level
+     * and validates the response data to ensure it is within the acceptable range.
      *
-     * @return {Promise<number | undefined>} A promise that resolves with the battery level as a number, or undefined if unavailable.
-     *                                       Throws an error if the battery packet is invalid or if a communication error occurs.
+     * @return {Promise<number>} A promise that resolves with the current battery level as a percentage (0–100),
+     * or rejects with an error if the data is invalid or if an error occurs during the transfer.
      */
     async getBatteryLevel(): Promise<number> {
         const endpoint = this.interruptEndpoint as InEndpoint;
@@ -213,28 +207,28 @@ export class AttackSharkX11 {
 
         await this.commandTransfer(
             secondPacket,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
         )
         await delay(500)
 
         await this.commandTransfer(
             thirdPacket,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
         )
         await delay(500)
 
         await this.commandTransfer(
             fourthPacket,
-            0x21,
-            0x09,
-            0x0309,
-            2
+            builder.bmRequestType,
+            builder.bRequest,
+            builder.wValue,
+            builder.wIndex
         )
     }
 
@@ -348,15 +342,15 @@ export class AttackSharkX11 {
 
     async reset() {
         await this.sendInternalStateResetReportBuilder()
-        await delay(500) // TODO: discover the minimum delay that doesn't crash the firmware.
+        await delay(250)
         await this.resetDpi()
-        await delay(500)
+        await delay(250)
         await this.resetUserPreferences()
-        await delay(500)
+        await delay(250)
         await this.resetPollingRate()
-        await delay(500)
+        await delay(250)
         await this.resetMacro()
-        await delay(500)
+        await delay(250)
         await this.resetCustomMacro()
     }
 }

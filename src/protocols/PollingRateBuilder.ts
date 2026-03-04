@@ -40,7 +40,7 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 
         const config = {...PollingRateBuilder.DEFAULT_OPTIONS, ...options};
 
-        if (config.rate) this.setRate(config.rate)
+        if (config.rate !== undefined) this.setRate(config.rate)
     }
 
     calculateChecksum(): number {

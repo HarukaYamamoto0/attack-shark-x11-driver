@@ -417,20 +417,14 @@ export class MacrosBuilder implements BaseProtocolBuilder {
         const config = {...MacrosBuilder.DEFAULT_MACROS, ...options};
 
         // TODO: if (config.left)
-        if (config.left) this.setMacro(Button.LEFT, config.left);
-        if (config.right) this.setMacro(Button.RIGHT, config.right);
-        if (config.middle) this.setMacro(Button.MIDDLE, config.middle);
-
-        // Handle forward/backward with compatibility for extra4/extra5
-        const forward = config.forward ?? config.forward;
-        if (forward) this.setMacro(Button.FORWARD, forward);
-
-        const backward = config.backward ?? config.backward;
-        if (backward) this.setMacro(Button.BACKWARD, backward);
-
-        if (config.dpi) this.setMacro(Button.DPI, config.dpi);
-        if (config.scrollUp) this.setMacro(Button.SCROLL_UP, config.scrollUp);
-        if (config.scrollDown) this.setMacro(Button.SCROLL_DOWN, config.scrollDown);
+        if (config.left !== undefined) this.setMacro(Button.LEFT, config.left);
+        if (config.right !== undefined) this.setMacro(Button.RIGHT, config.right);
+        if (config.middle !== undefined) this.setMacro(Button.MIDDLE, config.middle);
+        if (config.forward !== undefined) this.setMacro(Button.FORWARD, config.forward);
+        if (config.backward !== undefined) this.setMacro(Button.BACKWARD, config.backward);
+        if (config.dpi !== undefined) this.setMacro(Button.DPI, config.dpi);
+        if (config.scrollUp !== undefined) this.setMacro(Button.SCROLL_UP, config.scrollUp);
+        if (config.scrollDown !== undefined) this.setMacro(Button.SCROLL_DOWN, config.scrollDown);
     }
 
     /**
