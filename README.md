@@ -1,91 +1,140 @@
-## Attack Shark X11 – Reverse Engineering Project
+# Attack Shark X11 – Linux Driver & Reverse Engineering
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HarukaYamamoto0/attack-shark-x11-driver)
 
-This project is an attempt to reverse-engineer the **Attack Shark X11** mouse.
+Open-source effort to provide **Linux support for the Attack Shark X11 gaming mouse**.
 
-Unfortunately, the official configuration software for this mouse is **only available on Windows**.
-Because of that, and purely as a learning exercise in my free time, I’m analyzing the device’s USB protocol using \*
-\*Wireshark + USBCAP\*\*, with the goal of eventually building a usable driver / configuration tool for other platforms.
+The official configuration software is **Windows-only**, so this project reversely engineers
+the device's USB protocol to build cross-platform tooling and drivers.
 
-Please note that this driver currently only supports wired and 2.4 GHz wireless modes, as my computer lacks a Bluetooth
-adapter for testing.  
-However, I expect Bluetooth behavior to be similar, likely requiring only minor bug fixes.
+The long-term goal is to make the device configurable on Linux and potentially integrate
+support into projects such as libratbag.
 
-I’m using **TypeScript** as a testing environment because it speeds up iteration and experimentation.
-Several captured communication samples can be found in the `samples/` directory.
+# Project Goals
 
-## Original Windows Software Features
+This repository focuses on three main areas:
 
-The official configuration panel provides the following features:
+• Reverse engineering the USB HID protocol used by the mouse
+• Documenting the protocol for future developers
+• Building open tools and drivers for Linux
 
-✅ = fully implemented<br>
-⚠️ = under development<br>
-❌ = Not yet implemented<br>
+# Reverse Engineering Methodology
 
-| Option                | Description                                          | Implementation |
-| --------------------- | ---------------------------------------------------- | -------------- |
-| Button settings       | Change button behavior and mappings                  | ✅             |
-| Macro Manager         | Configure and manage custom macros.                  | ✅             |
-| Power                 | Displays mouse battery status                        | ✅             |
-| Reset profile         | Resets the current profile                           | ✅             |
-| DPI settings          | Configure DPI stages and values per stage            | ✅             |
-| Light settings        | Configure the mouse LED                              | ✅             |
-| Polling rate settings | Set polling rate (4 predefined options)              | ✅             |
-| Power manager         | Two sliders to configure sleep and deep sleep timing | ✅             |
-| Key response time     | Slider from 4ms (step 2ms) up to 50ms                | ✅             |
-| Ripple control        | On / Off                                             | ✅             |
-| Angle snap            | On / Off                                             | ✅             |
+The protocol was analyzed using:
 
-Almost everything is already implemented, but some bug fixes are still required, along with additional testing and a few
-extra features.
+- Wireshark
+- USBPcap
+- Windows vendor software
 
-Individually, however, the protocols are functioning perfectly.
+Captured USB traffic was compared against configuration changes in the Windows software
+to determine packet structure and command behavior.
 
-⚠️ **Important:**
+A **TypeScript test environment** is used to rapidly prototype commands before implementing
+them in native drivers.
 
-Sending multiple configuration reports too quickly can cause the device to become unresponsive.
+Protocol documentation and captured traffic samples can be found in `docs/`
 
-Always introduce a delay between transfers. The **minimum safe interval is 250 ms or higher**.
+# Supported Hardware
 
-If the mouse becomes unresponsive, it can typically be recovered by switching to **Bluetooth mode** using the physical
-button on the device, then switching back to wireless (2.4 GHz) mode.
+Currently tested with:
 
-After recovery, it is recommended to restore the default configuration for safety. ⚠️
+| Device           | Mode            | Status     |
+|------------------|-----------------|------------|
+| Attack Shark X11 | Wired           | Supported  |
+| Attack Shark X11 | 2.4GHz wireless | Supported  |
+| Attack Shark X11 | Bluetooth       | Not tested |
 
-## Linux Access (udev Rules)
+Some other models may share the same protocol:
 
-To avoid constantly running the Windows software inside a VM, I use Windows directly when capturing traffic.
-However, if you want to start testing this project on **Linux**, you’ll need to create **udev rules** to allow
-user-level access to the device.
+| Device          | Status              |
+|-----------------|---------------------|
+| Attack Shark R1 | Possibly compatible |
 
-### Create udev rule
+Additional testing and reverse engineering would be required.
 
-Create the following file:
+# Features of the Original Software
 
-```bash
+The Windows configuration tool provides the following features.
+
+Legend
+✅ Implemented
+⚠️ Work in progress
+❌ Not implemented
+
+| Feature           | Description                  | Status |
+|-------------------|------------------------------|--------|
+| Button remapping  | Change button behavior       | ✅      |
+| Macro manager     | Create custom macros         | ✅      |
+| Battery status    | Display device battery level | ✅      |
+| Reset profile     | Restore profile defaults     | ✅      |
+| DPI configuration | Configure DPI stages         | ✅      |
+| Lighting control  | LED configuration            | ✅      |
+| Polling rate      | 125 / 250 / 500 / 1000 Hz    | ✅      |
+| Power manager     | Configure sleep timers       | ✅      |
+| Key response time | 4ms – 50ms                   | ✅      |
+| Ripple control    | Enable / disable             | ✅      |
+| Angle snap        | Enable / disable             | ✅      |
+
+# Important ⚠️
+
+Sending configuration packets too quickly can cause the device firmware
+to stop responding.
+
+Always introduce a delay between transfers.
+
+Minimum safe delay:
+
+```
+250 ms
+```
+
+If the mouse becomes unresponsive, it can usually be recovered by:
+
+1. Switching to **Bluetooth mode**
+2. Waiting a few seconds
+3. Switching back to **2.4 GHz wireless**
+
+After recovery, restoring the default configuration is recommended.
+
+# Linux Device Access (udev)
+
+To allow non-root access to the device, create an udev rule.
+
+## Create the rule
+
+```
 sudo nano /etc/udev/rules.d/99-attack-shark-x11.rules
 ```
 
-Add the content below:
+Add:
 
-```udev
-SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa60", MODE="0666", GROUP="plugdev" # wireless
-SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa55", MODE="0666", GROUP="plugdev" # wired
+```
+SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa60", MODE="0666", GROUP="plugdev"
+SUBSYSTEM=="usb", ATTR{idVendor}=="1d57", ATTR{idProduct}=="fa55", MODE="0666", GROUP="plugdev"
 ```
 
-> `0666` = read/write access for user
-> `plugdev` is standard on most desktop Linux distros (Linux Mint included)
+Reload rules:
 
-### Apply the rules
-
-```bash
+```
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-Or, the lazy but effective way:
+Or reboot the system.
 
-```bash
-sudo reboot
-```
+# Contributing
+
+Contributions are welcome.
+
+Useful contributions include:
+
+• Additional USB traffic captures
+• Testing with other Attack Shark devices
+• Protocol documentation improvements
+• Driver implementations
+
+# Disclaimer
+
+This project is **not affiliated with Attack Shark**.
+
+All trademarks belong to their respective owners.

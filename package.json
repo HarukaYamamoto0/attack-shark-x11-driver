@@ -6,6 +6,9 @@
 	"main": "dist/index.js",
 	"type": "module",
 	"scripts": {
+		"start": "node dist/index.js",
+		"clean": "rm -rf dist",
+		"dev": "tsc --watch",
 		"build": "tsc",
 		"lint": "eslint . --ext .ts --cache --cache-strategy content",
 		"lint:fix": "eslint . --ext .ts --fix --cache --cache-strategy content",
