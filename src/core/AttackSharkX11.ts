@@ -126,32 +126,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 			this.deviceInterface = iface;
 
-			// Once everything is complete, this Windows verification should be removed.
-			if (process.platform !== 'win32') {
-				if (iface.isKernelDriverActive()) {
-					try {
-						iface.detachKernelDriver();
-					} catch (e: unknown) {
-						return reject(new DriverError('Could not detach kernel driver: ', { cause: e }));
-					}
-				}
-			}
-
 			try {
 				iface.claim();
 			} catch (e: unknown) {
 				this.logger.error('An unexpected error occurred', e);
-
-				// Once everything is complete, this Windows verification should be removed.
-				if (process.platform === 'win32') {
-					return reject(
-						new InterfaceError(
-							`Could not claim interface ${DEVICE_INTERFACE}. On Windows, you might need to use Zadig to install WinUSB driver for Interface ${DEVICE_INTERFACE}.`,
-							DEVICE_INTERFACE,
-							{ cause: e },
-						),
-					);
-				}
 				return reject(
 					new InterfaceError(`Could not claim interface ${DEVICE_INTERFACE}`, DEVICE_INTERFACE, { cause: e }),
 				);
