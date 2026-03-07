@@ -14,7 +14,7 @@ export interface PollingRateBuilderOptions {
 }
 
 /**
- * Builder for configuring the Polling Rate
+ * Builder for configuring the update rate (Polling Rate).
  */
 export class PollingRateBuilder implements BaseProtocolBuilder {
 	public static readonly DEFAULT_OPTIONS: PollingRateBuilderOptions = {
@@ -56,8 +56,13 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 	}
 
 	/**
-	 * Sets the Polling Rate
-	 * @param rate Polling rate option
+	 * Sets the update rate (Polling Rate).
+	 * @param rate Rate option (125, 250, 500, or 1000 Hz).
+	 *
+	 * @example
+	 * ```typescript
+	 * builder.setRate(Rate.eSports); // 1000Hz
+	 * ```
 	 */
 	setRate(rate: Rate): this {
 		const rateMap: Record<Rate, number> = {

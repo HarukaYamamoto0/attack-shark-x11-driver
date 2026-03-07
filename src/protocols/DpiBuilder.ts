@@ -31,7 +31,7 @@ export interface DpiBuilderOptions {
 }
 
 /**
- * Builder for configuring the DPI of the Attack Shark X11
+ * Builder for configuring DPI and other sensor parameters of the Attack Shark X11.
  */
 export class DpiBuilder implements BaseProtocolBuilder {
 	public static readonly DEFAULT_OPTIONS: DpiBuilderOptions = {
@@ -127,11 +127,8 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	}
 
 	/**
-	 * Sets the angle snapping behavior for the object.
-	 *
-	 * @param {boolean} [active=false] - Determines whether angle snapping should be enabled.
-	 *                                   If `true`, angle snapping is activated; if `false`, it is disabled.
-	 * @return {this} The current instance for method chaining.
+	 * Defines whether Angle Snapping (straight line correction) should be active.
+	 * @param active True to activate. Default: false.
 	 */
 	public setAngleSnap(active: boolean = false): this {
 		this.buffer[OFFSET.ANGLE_SNAP] = active ? 0x01 : 0x00;
@@ -139,10 +136,8 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	}
 
 	/**
-	 * Sets the rippler control state.
-	 *
-	 * @param {boolean} [active=true] - A boolean value indicating whether the rippler control is active or inactive. Defaults to `true`.
-	 * @return {this} The current instance for method chaining.
+	 * Defines whether Ripple Control (sensor noise smoothing) should be active.
+	 * @param active True to activate. Default: true.
 	 */
 	public setRipplerControl(active: boolean = true): this {
 		this.buffer[OFFSET.RIPPLER_CONTROL] = active ? 0x01 : 0x00;
@@ -150,10 +145,8 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	}
 
 	/**
-	 * Sets the current stage of the process.
-	 *
-	 * @param {StageIndex} stage - The stage index to set as the current stage.
-	 * @return {this} The instance of the current object for method chaining.
+	 * Defines which DPI stage is currently active (1 to 6).
+	 * @param stage Stage index (StageIndex).
 	 */
 	public setCurrentStage(stage: StageIndex): this {
 		this.buffer[OFFSET.CURRENT_STAGE] = stage;
@@ -161,11 +154,9 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	}
 
 	/**
-	 * Sets the DPI (dots per inch) value for a specific stage.
-	 *
-	 * @param {StageIndex} stage - The index of the stage for which the DPI value is being set.
-	 * @param {number} dpi - The DPI value to assign to the specified stage.
-	 * @return {this} The instance of the class for method chaining.
+	 * Sets the DPI value for a specific stage.
+	 * @param stage Stage index (1 to 6).
+	 * @param dpi DPI value (must be supported by the sensor).
 	 */
 	public setDpiValue(stage: StageIndex, dpi: number): this {
 		const index = stage - 1;

@@ -45,6 +45,10 @@ export interface CustomMacroBuilderOptions {
 	macrosBuilder?: MacrosBuilder | MacroBuilderOptions;
 }
 
+/**
+ * Builder for creating complex custom macros (Report 0x0309).
+ * Allows key sequences with specific delays and different playback modes.
+ */
 export class CustomMacroBuilder implements BaseProtocolBuilder {
 	public static readonly MAX_MACRO_EVENTS = 47;
 	public static readonly DEFAULT_OPTIONS: CustomMacroBuilderOptions = {
@@ -134,6 +138,12 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		if (config.macroEvents && config.macroEvents.length > 0) this.macroEvents.push(...config.macroEvents);
 	}
 
+	/**
+	 * Adds a key or button event to the macro.
+	 * @param key Key code (KeyCode) or mouse event (MouseMacroEvent).
+	 * @param delayMs Delay after the event in milliseconds.
+	 * @param isRelease If true, the event represents releasing the key (KeyUp).
+	 */
 	addEvent(key: KeyCode | MouseMacroEvent | number, delayMs: number = 10, isRelease: boolean = false): this {
 		const { eventDelay, extraDelay } = this.handleDelay(delayMs);
 		this.pushEventBytes(isRelease ? 0x80 | eventDelay : eventDelay, key);
@@ -148,6 +158,11 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
+	/**
+	 * Sets the playback options for the macro.
+	 * @param mode Execution mode (repeat N times, until key press, or while held).
+	 * @param times Number of repetitions (used only in THE_NUMBER_OF_TIME_TO_PLAY mode).
+	 */
 	setPlayOptions(mode: MacroMode = MacroMode.THE_NUMBER_OF_TIME_TO_PLAY, times?: number): this {
 		this.secondPacket[4] = mode;
 
@@ -166,6 +181,11 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
+	/**
+	 * Defines which mouse button this custom macro will be assigned to.
+	 * @param button Mouse button.
+	 * @param macrosBuilder Optionally, an existing macros builder to avoid overwriting other settings.
+	 */
 	setTargetButton(button: Button, macrosBuilder?: MacrosBuilder | MacroBuilderOptions): this {
 		if (macrosBuilder !== undefined) {
 			this.defineMacroButton =

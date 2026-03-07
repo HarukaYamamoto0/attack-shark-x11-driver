@@ -3,10 +3,10 @@
 // Retrieved 2026-02-22, License - CC BY-SA 4.0
 
 /**
- * Pauses the execution of code for a specified number of milliseconds.
+ * Pauses execution for the specified number of milliseconds.
  *
- * @param {number} ms - The number of milliseconds to delay the execution.
- * @return {Promise<void>} A promise that resolves after the specified delay.
+ * @param ms Number of milliseconds to delay execution.
+ * @returns A Promise that resolves after the specified delay.
  */
 export function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));

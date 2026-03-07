@@ -26,11 +26,29 @@ const VID = 0x1d57;
 const DEVICE_INTERFACE = 0x02;
 const INTERRUPT_ENDPOINT = 0x83;
 
+/**
+ * Events emitted by the AttackSharkX11 class.
+ */
 export interface AttackSharkX11Events {
+	/** Emitted when the battery level changes */
 	batteryChange: [battery: number];
+	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
 
+/**
+ * Main driver for the Attack Shark X11 mouse.
+ * This class manages the USB connection, DPI settings, polling rate, macros, and user preferences.
+ *
+ * @example
+ * ```TypeScript
+ * const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter });
+ * await driver.open();
+ * const battery = await driver.getBatteryLevel();
+ * console.log(`Battery: ${battery}%`);
+ * await driver.close();
+ * ```
+ */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public readonly productId: number;
 	device: Device;
@@ -80,6 +98,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.productId as ConnectionMode;
 	}
 
+	/**
+	 * Opens the connection to the device and configures the necessary interfaces.
+	 * Claims the USB interface and sets up interrupt listeners.
+	 *
+	 * @throws {DeviceError} If an error occurs while opening the device.
+	 * @throws {InterfaceError} If the required interface is not found or cannot be claimed.
+	 * @returns A promise that resolves when the device is ready.
+	 */
 	open(): Promise<unknown> {
 		return new Promise((resolve, reject) => {
 			try {
@@ -193,6 +219,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
+	/**
+	 * Closes the connection to the device, stops polling, and releases the interfaces.
+	 * It is important to call this method when finishing use to avoid resource leaks.
+	 */
 	async close(): Promise<void> {
 		if (!this.isOpen) return;
 
@@ -269,6 +299,15 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return result;
 	}
 
+	/**
+	 * Gets the current battery level of the mouse.
+	 * Note that the value is only returned if the mouse is in wireless mode (Adapter).
+	 * In Wired mode, it returns -1.
+	 *
+	 * @param timeoutMs Maximum time to wait for the device response (default: 1000ms).
+	 * @throws {TimeoutError} If the device does not respond within the specified time.
+	 * @returns The battery level in percentage (0-100) or -1 if unavailable.
+	 */
 	getBatteryLevel(timeoutMs = 1000): Promise<number> {
 		this.checkIsOpen();
 
@@ -319,6 +358,17 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		};
 	}
 
+	/**
+	 * Sets the polling rate of the mouse.
+	 *
+	 * @param rate A value from the Rate enum or a PollingRateBuilder instance.
+	 * @returns The result of the USB control transfer.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * await driver.setPollingRate(Rate.eSports); // 1000Hz
+	 * ```
+	 */
 	setPollingRate(rate: Rate | PollingRateBuilder): Promise<number> {
 		this.checkIsOpen();
 		const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setRate(rate);
@@ -332,6 +382,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
+	/**
+	 * Configures an advanced custom macro with multiple events and repetitions.
+	 *
+	 * @param options CustomMacroBuilder instance or configuration options.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const builder = new CustomMacroBuilder()
+	 *   .setPlayOptions(MacroMode.THE_NUMBER_OF_TIME_TO_PLAY, 5)
+	 *   .setTargetButton(Button.BACKWARD, macroBuilder)
+	 *   .addEvent(KeyCode.A)
+	 *   .addEvent(KeyCode.A, 10, true); // Release key A after 10ms
+	 * await driver.setCustomMacro(builder);
+	 * ```
+	 */
 	async setCustomMacro(options: CustomMacroBuilder | CustomMacroBuilderOptions): Promise<void> {
 		this.checkIsOpen();
 		const builder = options instanceof CustomMacroBuilder ? options : new CustomMacroBuilder(options);
@@ -370,6 +435,17 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
+	/**
+	 * Maps mouse buttons to simple macros or keyboard functions.
+	 *
+	 * @param config MacrosBuilder instance or mapping options.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const macroBuilder = new MacrosBuilder().setMacro(Button.DPI, macroTemplates[MacroName.SHORTCUT_SWAP_WINDOW]);
+	 * await driver.setMacro(macroBuilder);
+	 * ```
+	 */
 	setMacro(config: MacroBuilderOptions | MacrosBuilder): Promise<number> {
 		this.checkIsOpen();
 		const builder = config instanceof MacrosBuilder ? config : new MacrosBuilder(config);
@@ -383,6 +459,20 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
+	/**
+	 * Sets user preferences, such as lighting, key response time, and sleep timers.
+	 *
+	 * @param options UserPreferencesBuilder instance or configuration options.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * await driver.setUserPreferences({
+	 *   lightMode: LightMode.Neon,
+	 *   ledSpeed: 5,
+	 *   keyResponse: 4
+	 * });
+	 * ```
+	 */
 	setUserPreferences(options: UserPreferencesBuilder | UserPreferencesBuilderOptions): Promise<number> {
 		this.checkIsOpen();
 		const builder = options instanceof UserPreferencesBuilder ? options : new UserPreferencesBuilder(options);
@@ -422,6 +512,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
+	// noinspection GrazieStyle
+	/**
+	 * Configures the DPI stages and values for the mouse.
+	 *
+	 * @param builder Configured DpiBuilder instance.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const dpiBuilder = new DpiBuilder({
+	 *   dpiValues: [800, 1600, 2400, 3200, 5000, 22000],
+	 *   activeStage: 2
+	 * });
+	 * await driver.setDpi(dpiBuilder);
+	 * ```
+	 */
 	setDpi(builder: DpiBuilder): Promise<number> {
 		this.checkIsOpen();
 		return this.controlTransfer({
@@ -486,6 +591,11 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
+	/**
+	 * Resets the mouse to factory settings (all profiles and definitions).
+	 *
+	 * @returns A promise that resolves when the reset is complete.
+	 */
 	async reset(): Promise<void> {
 		this.checkIsOpen();
 		await this.sendInternalStateResetReportBuilder();

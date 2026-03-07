@@ -367,8 +367,8 @@ export interface MacroBuilderOptions {
 }
 
 /**
- * Builder for configuring Mouse Button Macros and reassignments (Report 0x0308).
- * This builder allows remapping buttons to mouse clicks, keyboard keys, multimedia controls, and more.
+ * Builder for configuring macros and mouse button reassignments.
+ * Allows mapping buttons to mouse clicks, keyboard keys, multimedia controls, etc.
  */
 export class MacrosBuilder implements BaseProtocolBuilder {
 	public static readonly BM_REQUEST_TYPE = 0x21;
@@ -432,9 +432,13 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 	/**
 	 * Assigns a macro action to a specific mouse button.
 	 *
-	 * @param button The button index or identifier.
+	 * @param button Button identifier (LEFT, RIGHT, etc).
 	 * @param macro A tuple containing [Action, Modifier, KeyCode/Value].
-	 * @return {this} The current instance for method chaining.
+	 *
+	 * @example
+	 * ```typescript
+	 * builder.setMacro(Button.FORWARD, macroTemplates[MacroName.GLOBAL_FORWARD]);
+	 * ```
 	 */
 	setMacro(button: Button, macro: MacroTuple): this {
 		const [firmwareAction = FirmwareAction.DISABLE_BUTTON, modifier = Modifiers.NONE, keyCode = KeyCode.NONE] =
