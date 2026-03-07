@@ -1,8 +1,8 @@
 {
 	"private": true,
-	"name": "attack-shark-driver",
+	"name": "attack-shark-x11-driver",
 	"version": "1.0.0",
-	"description": "",
+	"description": "A library that allows you to configure the Attack Shark X11 mouse on Linux",
 	"main": "dist/index.js",
 	"type": "module",
 	"scripts": {
@@ -36,5 +36,7 @@
 		"prettier": "3.8.1",
 		"typescript": "5.9.3",
 		"typescript-eslint": "8.56.1"
-	}
+	},
+	"author": "HarukaYamamoto0 <harukayamamotodev@gmail.com>",
+	"license": "MIT"
 }
