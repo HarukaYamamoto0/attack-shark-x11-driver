@@ -75,7 +75,7 @@ Legend
 | Ripple control    | Enable / disable             | ✅      |
 | Angle snap        | Enable / disable             | ✅      |
 
-# Important ⚠️
+## Important ⚠️
 
 Sending configuration packets too quickly can cause the device firmware
 to stop responding.
