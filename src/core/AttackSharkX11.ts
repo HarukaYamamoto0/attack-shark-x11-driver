@@ -2,6 +2,7 @@
 
 import type { Device, InEndpoint, Interface } from 'usb';
 import * as usb from 'usb';
+import { EventEmitter } from 'node:events';
 import { ControlTransferError, DeviceError, DriverError, InterfaceError, TimeoutError } from '../errors.js';
 import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
 import { DpiBuilder } from '../protocols/DpiBuilder.js';
@@ -25,7 +26,12 @@ const VID = 0x1d57;
 const DEVICE_INTERFACE = 0x02;
 const INTERRUPT_ENDPOINT = 0x83;
 
-export class AttackSharkX11 {
+export interface AttackSharkX11Events {
+	batteryChange: [battery: number];
+	error: [error: Error];
+}
+
+export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public readonly productId: number;
 	device: Device;
 	deviceInterface!: Interface;
@@ -45,6 +51,7 @@ export class AttackSharkX11 {
 	 * @param options.delayMs Optional delay in milliseconds between packets to prevent lock-up (default: 250)
 	 */
 	constructor(options: { connectionMode: ConnectionMode; logger?: Logger; delayMs?: number }) {
+		super();
 		if (!options.connectionMode) {
 			throw new DriverError('The type of connection was not specified');
 		}
@@ -133,13 +140,70 @@ export class AttackSharkX11 {
 			}
 
 			this.interruptEndpoint = interruptEndpoint as InEndpoint;
+			this.setupListeners();
 			this.isOpen = true;
 			resolve(true);
 		});
 	}
 
+	private setupListeners(): void {
+		this.interruptEndpoint.on('data', (data: Buffer) => {
+			if (bufferStartsWith(data, Buffer.from([0x03, 0x55, 0x40, 0x01]))) {
+				if (data.length < 5) return;
+				const battery = data[4];
+				if (battery !== undefined && battery !== this.lastBattery) {
+					this.lastBattery = battery;
+					this.emit('batteryChange', battery);
+				}
+			}
+		});
+
+		this.interruptEndpoint.on('error', (err: Error) => {
+			this.emit('error', err);
+		});
+
+		this.on('newListener', (event) => {
+			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
+				this.startPolling();
+			}
+		});
+
+		this.on('removeListener', (event) => {
+			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
+				this.stopPolling();
+			}
+		});
+	}
+
+	private startPolling(): void {
+		if (!this.isOpen || !this.interruptEndpoint) return;
+		try {
+			this.interruptEndpoint.startPoll(1, 64);
+		} catch (e) {
+			this.logger.error('Failed to start polling', e);
+		}
+	}
+
+	private stopPolling(): void {
+		if (!this.interruptEndpoint) return;
+		try {
+			this.interruptEndpoint.stopPoll();
+		} catch {
+			/* empty */
+		}
+	}
+
 	async close(): Promise<void> {
 		if (!this.isOpen) return;
+
+		this.removeAllListeners();
+		if (this.interruptEndpoint) {
+			try {
+				this.interruptEndpoint.stopPoll();
+			} catch {
+				/* empty */
+			}
+		}
 
 		if (!this.deviceInterface) {
 			this.device?.close();
@@ -213,7 +277,6 @@ export class AttackSharkX11 {
 				return resolve(-1); // -1 indicates that it was not possible to get the exact battery status value
 			}
 
-			const endpoint = this.interruptEndpoint as InEndpoint;
 			let finished = false;
 
 			const cleanup = (): void => {
@@ -221,80 +284,38 @@ export class AttackSharkX11 {
 				finished = true;
 
 				clearTimeout(timeout);
-				endpoint.off('data', handleData);
-
-				try {
-					endpoint.stopPoll();
-				} catch {
-					/* empty */
-				}
+				this.removeListener('batteryChange', handleBattery);
 			};
 
-			const handleData = (data: Buffer): void => {
+			const handleBattery = (battery: number): void => {
 				if (finished) return;
-				if (data.length < 5) return;
-
-				if (bufferStartsWith(data, Buffer.from([0x03, 0x55, 0x40, 0x01]))) {
-					const battery = data[4];
-
-					if (battery === undefined) return;
-
-					if (battery <= 100) {
-						cleanup();
-						return resolve(battery);
-					}
+				if (battery <= 100) {
+					cleanup();
+					resolve(battery);
 				}
 			};
 
 			const timeout = setTimeout(() => {
 				cleanup();
-				return reject(new TimeoutError('Timeout waiting for battery report'));
+				reject(new TimeoutError('Timeout waiting for battery report'));
 			}, timeoutMs);
 
-			endpoint.on('data', handleData);
+			this.on('batteryChange', handleBattery);
 
-			try {
-				endpoint.startPoll(1, 64);
-			} catch (err) {
+			if (this.lastBattery !== -1 && this.lastBattery <= 100) {
 				cleanup();
-				return reject(err);
+				resolve(this.lastBattery);
 			}
 		});
 	}
 
-	// TODO: To improve listener behavior, such as adding and removing listeners in a better way.
 	onBatteryChange(listener: (battery: number) => void): () => void {
 		this.checkIsOpen();
 
-		const endpoint = this.interruptEndpoint as InEndpoint;
-
-		const handleData = (data: Buffer): void => {
-			if (!bufferStartsWith(data, Buffer.from([0x03, 0x55, 0x40, 0x01]))) {
-				return;
-			}
-
-			if (data.length < 5) return;
-
-			const battery = data[4];
-			if (battery === undefined) return;
-
-			if (battery !== this.lastBattery) {
-				this.lastBattery = battery;
-				listener(battery);
-			}
-		};
-
-		endpoint.on('data', handleData);
-		endpoint.startPoll(1, 64);
+		this.on('batteryChange', listener);
 
 		return () => {
-			endpoint.removeListener('data', handleData);
-
-			try {
-				endpoint.stopPoll();
-			} catch {
-				/* empty */
-			}
+			this.removeListener('batteryChange', listener);
 		};
 	}
 

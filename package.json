@@ -6,11 +6,11 @@
 	"main": "dist/index.js",
 	"type": "module",
 	"scripts": {
-		"build": "bunx tsc",
-		"lint": "bunx eslint . --ext .ts --cache --cache-strategy content",
-		"lint:fix": "bunx eslint . --ext .ts --fix --cache --cache-strategy content",
-		"format": "bunx prettier --check . --cache --cache-strategy content",
-		"format:fix": "bunx prettier --write . --cache --cache-strategy content",
+		"build": "tsc",
+		"lint": "eslint . --ext .ts --cache --cache-strategy content",
+		"lint:fix": "eslint . --ext .ts --fix --cache --cache-strategy content",
+		"format": "prettier --check . --cache --cache-strategy content",
+		"format:fix": "prettier --write . --cache --cache-strategy content",
 		"typecheck": "tsc --noEmit",
 		"prepare": "husky"
 	},

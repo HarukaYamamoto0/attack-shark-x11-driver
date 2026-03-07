@@ -48,13 +48,15 @@ try {
 	);
 
 	const batteryStatus = await driver.getBatteryLevel(1000);
-	logger.info(`battey status: ${batteryStatus}%`);
+	logger.info(`battery status: ${batteryStatus}%`);
 
-	driver.onBatteryChange((level: number) => {
+	driver.on('batteryChange', (level: number) => {
 		logger.info(`battery status in listening mode: ${level}%`);
 	});
 
-	await delay(10000); // Keep the system active for another 10 seconds to demonstrate the onBatteryChange
+	await delay(10000); // Keep the system active for another 10 seconds to demonstrate the batteryChange event
+} catch (error) {
+	logger.error('An error occurred:', error);
 } finally {
 	await driver.close();
 }
