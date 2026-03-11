@@ -42,15 +42,11 @@ The mouse supports four polling rate levels. The value sent in the buffer at ind
 ## Checksum Calculation
 
 The checksum is located at index 4 and is calculated by subtracting the polling rate value (from index 3) from `0xFF`.
+Or simply by the formula: `0xff - buffer[3]`
 
-```typescript
-function calculateChecksum(buffer: Buffer): number {
-    return (0xFF - buffer[3]) & 0xFF;
-}
-```
+## Examples
 
-Example for 1000 Hz:
-
-- Polling Rate Value = `0x01`
-- Checksum = `0xFF - 0x01` = `0xFE`
-- Full Payload (hex): `06 09 01 01 FE 00 00 00 00`
+- 1000 Hz: `06 09 01 01 fe 00 00 00 00`
+- 500 Hz: `06 09 01 02 fd 00 00 00 00`
+- 250 Hz: `06 09 01 04 fb 00 00 00 00`
+- 125 Hz: `06 09 01 08 f7 00 00 00 00`
