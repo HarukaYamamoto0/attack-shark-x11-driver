@@ -5,7 +5,7 @@ import * as usb from 'usb';
 import { EventEmitter } from 'node:events';
 import { ControlTransferError, DeviceError, DriverError, InterfaceError, TimeoutError } from '../errors.js';
 import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
-import { DpiBuilder } from '../protocols/DpiBuilder.js';
+import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { InternalStateResetReportBuilder } from '../protocols/InternalStateResetReportBuilder.js';
 import { type MacroBuilderOptions, MacrosBuilder } from '../protocols/MacrosBuilder.js';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
@@ -494,11 +494,11 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
-	// noinspection GrazieStyle
 	/**
 	 * Configures the DPI stages and values for the mouse.
 	 *
-	 * @param builder Configured DpiBuilder instance.
+	 * @param options DpiBuilder instance or configuration options.
+	 * @returns The result of the USB control transfer.
 	 *
 	 * @example
 	 * ```TypeScript
@@ -509,8 +509,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * await driver.setDpi(dpiBuilder);
 	 * ```
 	 */
-	setDpi(builder: DpiBuilder): Promise<number> {
+	setDpi(options: DpiBuilder | DpiBuilderOptions): Promise<number> {
 		this.checkIsOpen();
+		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
+
 		return this.controlTransfer({
 			data: builder.build(this.connectionMode),
 			bmRequestType: builder.bmRequestType,
