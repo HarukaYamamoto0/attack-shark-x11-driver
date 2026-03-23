@@ -1,11 +1,44 @@
 {
-	"private": true,
-	"name": "attack-shark-driver",
+	"name": "attack-shark-x11-driver",
 	"version": "1.0.0",
-	"description": "",
-	"main": "dist/index.js",
+	"description": "A TypeScript driver for the Attack Shark X11 gaming mouse, supporting Linux and other platforms via Node.js/Bun and USB HID.",
+	"author": "Haruka Yamamoto",
+	"license": "MIT",
+	"homepage": "https://github.com/HarukaYamamoto0/attack-shark-x11-driver#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/HarukaYamamoto0/attack-shark-x11-driver.git"
+	},
+	"bugs": {
+		"url": "https://github.com/HarukaYamamoto0/attack-shark-x11-driver/issues"
+	},
+	"keywords": [
+		"attack-shark",
+		"x11",
+		"mouse",
+		"driver",
+		"linux",
+		"usb",
+		"hid",
+		"typescript"
+	],
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"type": "module",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"dist",
+		"README.md",
+		"LICENSE"
+	],
 	"scripts": {
+		"prepublishOnly": "bun run build",
 		"build": "bunx tsc",
 		"lint": "bunx eslint . --ext .ts --cache --cache-strategy content",
 		"lint:fix": "bunx eslint . --ext .ts --fix --cache --cache-strategy content",

@@ -20,6 +20,8 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"sourceMap": true,
+		"declaration": true,
+		"declarationMap": true,
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"verbatimModuleSyntax": true
