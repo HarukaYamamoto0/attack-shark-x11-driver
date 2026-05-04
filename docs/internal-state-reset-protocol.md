@@ -1,93 +1,80 @@
-# Internal State Reset Protocol (Report 0x030C)
+# Internal State Reset Protocol (Report 0x0C)
 
-This document describes the USB HID report used by the class InternalStateResetReportBuilder to reset the active configuration stored in the mouse RAM.
+This document details the **Internal State Reset** protocol used by the **Attack Shark X11**. This is a low-level command used to clear the active configuration structure stored in the device's volatile memory (RAM).
 
-Important: This is an internal, high-risk operation that should never be exposed as a public API. It is intended to clear the in-memory configuration structure before reapplying all configuration blocks during a full profile update.
+## Purpose and Mechanism
 
-HID Report Parameters
+When the mouse receives this report, it performs a "soft reset" of its internal configuration state. This operation is designed to prepare the firmware for a full update of all settings (DPI, Polling Rate, Macros, etc.).
 
-- Request Type (bmRequestType): 0x21 (Host-to-Device, Class, Interface)
-- Request (bRequest): 0x09 (SET_REPORT)
-- Value (wValue): 0x030C (Feature report, Report ID = 0x0C)
-- Index (wIndex): 0x0002 (Interface index)
+### Key Characteristics:
+- **Volatile Only**: It only affects settings stored in RAM. It **does not** modify the EEPROM or permanent flash storage.
+- **Preparatory Step**: It is intended to be the **first** packet in a configuration sequence.
+- **State Clearing**: It clears active button mappings, lighting preferences, and sensor parameters from the immediate execution memory.
 
-Reference: src/protocols/InternalStateResetReportBuilder.ts
+## Technical Specifications
 
-Behavior Summary
+The protocol uses a standard HID Feature Report (SET_REPORT).
 
-What it does:
-- Clears the current configuration structure in volatile memory (RAM).
-- Temporarily disables button mapping and may leave the device partially non-functional until all settings are resent.
+| Parameter          | Value    | Description                             |
+|--------------------|----------|-----------------------------------------|
+| **Request Type**   | `0x21`   | Host-to-Device, Class, Interface        |
+| **Request**        | `0x09`   | SET_REPORT                              |
+| **Value (wValue)** | `0x030C` | Feature Report (0x03), Report ID (0x0C) |
+| **Index (wIndex)** | `0x0002` | Interface Index 2                       |
 
-What it does NOT do:
-- Does not erase EEPROM or other persistent storage.
-- Does not restore factory defaults.
-- Does not finalize or commit any configuration by itself.
+## Data Packet Structure
 
-If you send this report without immediately sending the full configuration sequence, the mouse may stop responding correctly (for example, buttons may stop working) until it is power-cycled.
+The payload consists of a fixed "magic" signature. The length varies depending on the connection mode.
 
-Payload Layout
+### Byte-by-Byte Analysis
 
-Two payload lengths have been observed, depending on the connection mode.
+| Byte Index | Field     | Value (Hex) | Description                          |
+|------------|-----------|-------------|--------------------------------------|
+| 0          | Report ID | `0x0C`      | Must match the low byte of `wValue`  |
+| 1          | Magic 1   | `0x0A`      | Constant signature byte              |
+| 2          | Magic 2   | `0x01`      | Constant signature byte              |
+| 3          | Magic 3   | `0xFE`      | Constant signature byte              |
+| 4          | Magic 4   | `0x01`      | Constant signature byte              |
+| 5          | Magic 5   | `0xFE`      | Constant signature byte              |
+| 6-9        | Padding   | `0x00`      | Only used in Wireless Mode (Adapter) |
 
-Wired Mode (6 bytes)
+### Mode Differences
 
-Index 0: Report ID = 0x0C
-Index 1: Magic 1 = 0x0A (observed constant)
-Index 2: Magic 2 = 0x01 (observed constant)
-Index 3: Magic 3 = 0xFE (observed constant)
-Index 4: Magic 4 = 0x01 (observed constant)
-Index 5: Magic 5 = 0xFE (observed constant)
+1.  **Wired Mode**: The device expects exactly **6 bytes** (`0C 0A 01 FE 01 FE`).
+2.  **Wireless/Adapter Mode**: The device expects **10 bytes**, where the last 4 bytes are null padding (`0C 0A 01 FE 01 FE 00 00 00 00`).
 
-Hex example (wired):
-0C 0A 01 FE 01 FE
+## Critical Warnings ⚠️
 
-Wireless or Adapter Mode (10 bytes)
+### 1. Partial Dysfunction Risk
+Sending this command without a subsequent configuration update will leave the mouse in an undefined state. Since button mappings are cleared from RAM, the mouse may stop responding to clicks or movement until settings are reapplied or the device is power-cycled.
 
-Index 0: Report ID = 0x0C
-Index 1: Magic 1 = 0x0A (observed constant)
-Index 2: Magic 2 = 0x01 (observed constant)
-Index 3: Magic 3 = 0xFE (observed constant)
-Index 4: Magic 4 = 0x01 (observed constant)
-Index 5: Magic 5 = 0xFE (observed constant)
-Index 6: Reserved = 0x00 (padding)
-Index 7: Reserved = 0x00 (padding)
-Index 8: Reserved = 0x00 (padding)
-Index 9: Reserved = 0x00 (padding)
+### 2. Implementation Order
+This report **must** be followed by the reapplication of:
+- DPI Stages and Active Stage
+- Polling Rate
+- Button Mappings
+- Macros
+- User Preferences (Lighting, Key Response, etc.)
 
-Hex example (wireless):
-0C 0A 01 FE 01 FE 00 00 00 00
+## Implementation Workflow
 
-Notes:
-- The exact semantic meaning of these constants is unknown; behavior is empirically confirmed as a RAM config reset.
-- There is no per-report checksum for this message.
+The following sequence reflects the logic used in the `AttackSharkX11.reset()` method:
 
-Checksum
+```typescript
+// 1. Initialize Reset
+await driver.sendInternalStateResetReport(); // Sends the 0x0C report
 
-No checksum is used for this report. The builder calculateChecksum() returns 0x00 and no checksum bytes are appended.
+// 2. Re-apply Factory Defaults or User Config
+await driver.resetDpi();            // Sends DPI configuration
+await driver.resetUserPreferences(); // Sends LED and Key Response settings
+await driver.resetPollingRate();     // Sends Polling Rate configuration
+await driver.resetMacro();           // Clears/Resets standard buttons
+await driver.resetCustomMacro();     // Clears/Resets advanced macros
+```
 
-Build Logic and Mode Differences
-
-- build(ConnectionMode.Wired) returns the first 6 bytes.
-- build(ConnectionMode.Wireless) returns all 10 bytes with trailing zeros as padding.
-
-Safe Usage Guidelines
-
-- Never send this report on its own.
-- Never send it twice in a row.
-- Only send it as the first step in a complete configuration update and immediately follow with all configuration blocks (DPI, user preferences, button mappings or macros, lighting, etc.).
-- If a complete sequence is not sent, the device may require a physical power cycle to recover.
-
-Example Sequence (pseudocode)
-
-// 1) Reset in-RAM state
-send InternalStateResetReportBuilder.build(mode)
-
-// 2) Reapply all settings
-send DpiBuilder.build(mode)
-send UserPreferencesBuilder.build(mode)
-// ... send button mappings, macros, lighting, etc.
-
-Troubleshooting
-
-- After sending the reset, if the mouse stops responding or buttons do not work, ensure you have sent all later configuration reports in the correct order. If still unresponsive, perform a power cycle (unplug and replug or toggle power) to restore normal behavior.
+## Summary
+- **Report ID**: 0x0C
+- **Interface**: 2
+- **Wired Payload**: 6 bytes
+- **Wireless Payload**: 10 bytes
+- **Primary Use**: Cleaning RAM before full configuration sync.
