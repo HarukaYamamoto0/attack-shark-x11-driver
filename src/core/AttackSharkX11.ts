@@ -10,14 +10,7 @@ import { InternalStateResetReportBuilder } from '../protocols/InternalStateReset
 import { type MacroBuilderOptions, MacrosBuilder } from '../protocols/MacrosBuilder.js';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
 import { UserPreferencesBuilder, type UserPreferencesBuilderOptions } from '../protocols/UserPreferencesBuilder.js';
-import {
-	Button,
-	ConnectionMode,
-	type ControlTransferIn,
-	type ControlTransferOptions,
-	type ControlTransferOut,
-	type Logger,
-} from '../types.js';
+import { Button, ConnectionMode, type ControlTransferOptions, type ControlTransferOut, type Logger } from '../types.js';
 import { bufferStartsWith } from '../utils/bufferUtils.js';
 import { delay } from '../utils/delay.js';
 import { ConsoleLogger } from '../logger/index.js';
@@ -245,7 +238,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.isOpen) throw new DriverError('You have to open the device first');
 	}
 
-	controlTransfer(options: ControlTransferIn): Promise<Buffer>;
 	controlTransfer(options: ControlTransferOut): Promise<number>;
 	async controlTransfer(options: ControlTransferOptions): Promise<number | Buffer> {
 		this.checkIsOpen();
@@ -520,6 +512,121 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			wValue: builder.wValue,
 			wIndex: builder.wIndex,
 		});
+	}
+
+	/**
+	 * Sends a read request via Report 0xA0 and waits for the firmware response.
+	 *
+	 * The firmware uses 0xA0 as an RPC transport layer:
+	 *   SET_REPORT 0xA0  →  firmware queues the read
+	 *   GET_REPORT (ack) →  firmware returns 0x90 when data is ready
+	 *   GET_REPORT (data)→  firmware returns the actual payload
+	 *
+	 * @param reportId    Target report ID to read (e.g. 0x04 for DPI).
+	 * @param payloadSize Expected payload size in bytes (wireless size).
+	 * @throws {ControlTransferError} If the ACK byte is not 0x90.
+	 */
+	private async readReport(reportId: number, payloadSize: number): Promise<Buffer> {
+		// Drena o buffer do firmware com GETs até estabilizar
+		// antes de mandar o comando real
+		await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: 64,
+		});
+
+		await this.controlTransfer({
+			bmRequestType: 0x21,
+			bRequest: 0x09,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: Buffer.from([0xa0, reportId, payloadSize, 0x00, 0x01, 0x00, 0x00, 0x00]),
+		});
+
+		// ACK
+		await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: 64,
+		});
+
+		await delay(this.delayMs);
+
+		// Dado real
+		return (await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: (0x03 << 8) | reportId,
+			wIndex: 2,
+			data: 64,
+		})) as unknown as Promise<Buffer>;
+	}
+	/**
+	 * Reads the current DPI configuration from the device.
+	 *
+	 * @returns Raw 64-byte buffer. Parse with DpiBuilder when decoding is needed.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const raw = await driver.getDpi();
+	 * console.log(raw.toString('hex'));
+	 * ```
+	 */
+	getDpi(): Promise<Buffer> {
+		this.checkIsOpen();
+		return this.readReport(0x04, 0x38);
+	}
+
+	/**
+	 * Reads the current user preferences from the device (lighting, sleep timers, debounce).
+	 *
+	 * @returns Raw 64-byte buffer. Parse with UserPreferencesBuilder when decoding is needed.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const raw = await driver.getUserPreferences();
+	 * console.log(raw.toString('hex'));
+	 * ```
+	 */
+	getUserPreferences(): Promise<Buffer> {
+		this.checkIsOpen();
+		return this.readReport(0x05, 0x0f);
+	}
+
+	/**
+	 * Reads the current polling rate from the device.
+	 *
+	 * @returns Raw 64-byte buffer. Parse with PollingRateBuilder when decoding is needed.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const raw = await driver.getPollingRate();
+	 * console.log(raw.toString('hex'));
+	 * ```
+	 */
+	getPollingRate(): Promise<Buffer> {
+		this.checkIsOpen();
+		return this.readReport(0x06, 0x09);
+	}
+
+	/**
+	 * Reads the current button mapping from the device.
+	 *
+	 * @returns Raw 64-byte buffer. Parse with MacrosBuilder when decoding is needed.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const raw = await driver.getButtons();
+	 * console.log(raw.toString('hex'));
+	 * ```
+	 */
+	getButtons(): Promise<Buffer> {
+		this.checkIsOpen();
+		return this.readReport(0x08, 0x3b);
 	}
 
 	resetDpi(): Promise<number> {

@@ -35,7 +35,7 @@ export interface ControlTransferIn extends ControlTransferBase {
  */
 export interface ControlTransferOut extends ControlTransferBase {
 	/** Buffer of data to be sent */
-	data: Buffer;
+	data: Buffer | number;
 }
 
 /**
