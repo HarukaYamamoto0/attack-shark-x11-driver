@@ -239,10 +239,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	controlTransfer(options: ControlTransferOut): Promise<number>;
-	async controlTransfer(options: ControlTransferOptions): Promise<number | Buffer> {
+	controlTransfer(options: ControlTransferOptions): Promise<number | Buffer> {
 		this.checkIsOpen();
 
-		const result = await new Promise<number | Buffer>((resolve, reject) => {
+		return new Promise<number | Buffer>((resolve, reject) => {
 			this.device.controlTransfer(
 				options.bmRequestType,
 				options.bRequest,
@@ -251,26 +251,68 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				options.data,
 				(err, res) => {
 					if (err) {
-						reject(new ControlTransferError('Control transfer failed', { cause: err }));
-						return;
+						return reject(new ControlTransferError('Control transfer failed', { cause: err }));
 					}
 
 					if (res === undefined) {
-						reject(new ControlTransferError('Control transfer returned undefined'));
-						return;
+						return reject(new ControlTransferError('Control transfer returned undefined'));
 					}
 
 					resolve(res);
 				},
 			);
 		});
+	}
 
-		// If it's an output transfer (writing to a device), we apply a delay to prevent packet flooding
-		if (Buffer.isBuffer(options.data)) {
-			await delay(this.delayMs);
-		}
+	/**
+	 * Sends a read request via Report 0xA0 and waits for the firmware response.
+	 *
+	 * The firmware uses 0xA0 as an RPC transport layer:
+	 *   SET_REPORT 0xA0 → firmware queues the read
+	 *   GET_REPORT (ack) → firmware returns 0x90 when data is ready
+	 *   GET_REPORT (data)→ firmware returns the actual payload
+	 *
+	 * @param reportId    Target report ID to read (e.g., 0x04 for DPI).
+	 * @param payloadSize Expected payload size in bytes (wireless size).
+	 * @throws {ControlTransferError} If the ACK byte is not 0x90.
+	 */
+	async getReport(reportId: number, payloadSize: number): Promise<Buffer<ArrayBufferLike>> {
+		this.checkIsOpen();
 
-		return result;
+		await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: 64,
+		});
+
+		await this.controlTransfer({
+			bmRequestType: 0x21,
+			bRequest: 0x09,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: Buffer.from([0xa0, reportId, payloadSize, 0x00, 0x01, 0x00, 0x00, 0x00]),
+		});
+
+		// ACK
+		await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: 0x03a0,
+			wIndex: 2,
+			data: 64,
+		});
+
+		await delay(this.delayMs);
+
+		return (await this.controlTransfer({
+			bmRequestType: 0xa1,
+			bRequest: 0x01,
+			wValue: (0x03 << 8) | reportId,
+			wIndex: 2,
+			data: payloadSize,
+		})) as unknown as Promise<Buffer>;
 	}
 
 	/**
@@ -515,60 +557,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Sends a read request via Report 0xA0 and waits for the firmware response.
-	 *
-	 * The firmware uses 0xA0 as an RPC transport layer:
-	 *   SET_REPORT 0xA0  →  firmware queues the read
-	 *   GET_REPORT (ack) →  firmware returns 0x90 when data is ready
-	 *   GET_REPORT (data)→  firmware returns the actual payload
-	 *
-	 * @param reportId    Target report ID to read (e.g. 0x04 for DPI).
-	 * @param payloadSize Expected payload size in bytes (wireless size).
-	 * @throws {ControlTransferError} If the ACK byte is not 0x90.
-	 */
-	private async readReport(reportId: number, payloadSize: number): Promise<Buffer> {
-		// Drena o buffer do firmware com GETs até estabilizar
-		// antes de mandar o comando real
-		await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: 64,
-		});
-
-		await this.controlTransfer({
-			bmRequestType: 0x21,
-			bRequest: 0x09,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: Buffer.from([0xa0, reportId, payloadSize, 0x00, 0x01, 0x00, 0x00, 0x00]),
-		});
-
-		// ACK
-		await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: 64,
-		});
-
-		await delay(this.delayMs);
-
-		// Dado real
-		return (await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: (0x03 << 8) | reportId,
-			wIndex: 2,
-			data: 64,
-		})) as unknown as Promise<Buffer>;
-	}
-	/**
 	 * Reads the current DPI configuration from the device.
 	 *
-	 * @returns Raw 64-byte buffer. Parse with DpiBuilder when decoding is needed.
+	 * @returns Raw buffer. Parse with DpiBuilder when decoding is needed.
 	 *
 	 * @example
 	 * ```TypeScript
@@ -578,7 +569,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	getDpi(): Promise<Buffer> {
 		this.checkIsOpen();
-		return this.readReport(0x04, 0x38);
+		return this.getReport(0x04, this.connectionMode === ConnectionMode.Wired ? 0x38 : 0x34);
 	}
 
 	/**
@@ -594,7 +585,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	getUserPreferences(): Promise<Buffer> {
 		this.checkIsOpen();
-		return this.readReport(0x05, 0x0f);
+		return this.getReport(0x05, 0x0f);
 	}
 
 	/**
@@ -610,7 +601,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	getPollingRate(): Promise<Buffer> {
 		this.checkIsOpen();
-		return this.readReport(0x06, 0x09);
+		return this.getReport(0x06, 0x09);
 	}
 
 	/**
@@ -626,7 +617,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	getButtons(): Promise<Buffer> {
 		this.checkIsOpen();
-		return this.readReport(0x08, 0x3b);
+		return this.getReport(0x08, 0x3b);
 	}
 
 	resetDpi(): Promise<number> {

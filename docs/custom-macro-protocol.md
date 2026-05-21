@@ -27,8 +27,6 @@ The first packet assigns a specific button to execute the custom macro. It uses 
 
 The packet structure follows the standard button mapping protocol, where the target button's action is set to a specific firmware action that triggers macro playback.
 
----
-
 ## Packet 2: Macro Header & Events (Page 0)
 
 This packet contains the macro configuration, playback options, and the first set of macro events.
@@ -36,16 +34,16 @@ This packet contains the macro configuration, playback options, and the first se
 - **wValue**: `0x0309` (Report Type: Feature, Report ID: 0x09)
 - **Payload size**: 64 bytes
 
-| Offset | Field              | Type    | Description                                                                 |
-|:-------|:-------------------|:--------|:----------------------------------------------------------------------------|
-| 0      | Header 1           | `uint8` | Fixed value `0x09`                                                          |
-| 1      | Header 2           | `uint8` | Fixed value `0x40`                                                          |
-| 2      | Button ID          | `uint8` | Target button (e.g., `0x08` for Extra Button 5)                             |
-| 3      | Page Index         | `uint8` | Fixed value `0x00` (Page 0)                                                 |
-| 4      | Repeat Count       | `uint8` | Number of times to repeat (used if Play Mode is 0x00)                       |
-| 8      | Play Mode Flag     | `uint8` | Playback mode: `0x00` (Times), `0x01` (Toggle), `0x02` (Hold), `0xFF` (Loop)|
-| 29     | Event Count        | `uint8` | Total number of macro events (2 bytes per event)                            |
-| 30-63  | Macro Events (P0)  | `uint8` | Up to 17 macro events (34 bytes)                                            |
+| Offset | Field             | Type    | Description                                                                  |
+|:-------|:------------------|:--------|:-----------------------------------------------------------------------------|
+| 0      | Header 1          | `uint8` | Fixed value `0x09`                                                           |
+| 1      | Header 2          | `uint8` | Fixed value `0x40`                                                           |
+| 2      | Button ID         | `uint8` | Target button (e.g., `0x08` for Extra Button 5)                              |
+| 3      | Page Index        | `uint8` | Fixed value `0x00` (Page 0)                                                  |
+| 4      | Repeat Count      | `uint8` | Number of times to repeat (used if Play Mode is 0x00)                        |
+| 8      | Play Mode Flag    | `uint8` | Playback mode: `0x00` (Times), `0x01` (Toggle), `0x02` (Hold), `0xFF` (Loop) |
+| 29     | Event Count       | `uint8` | Total number of macro events (2 bytes per event)                             |
+| 30-63  | Macro Events (P0) | `uint8` | Up to 17 macro events (34 bytes)                                             |
 
 ### Playback Modes (`MacroSettings`)
 
@@ -53,8 +51,6 @@ This packet contains the macro configuration, playback options, and the first se
 - **0x01**: Play until any key is pressed.
 - **0x02**: Play while the button is pressed, stop on release.
 - **0xFF**: Special flag used when "Play N times" is selected with N > 1.
-
----
 
 ## Packet 3: Macro Events (Page 1)
 
@@ -70,8 +66,6 @@ This packet contains the continuation of the macro events.
 | 2      | Button ID          | `uint8` | Target button ID                                                            |
 | 3      | Page Index         | `uint8` | Fixed value `0x01` (Page 1)                                                 |
 | 4-63   | Macro Events (P1)  | `uint8` | Up to 30 macro events (60 bytes)                                            |
-
----
 
 ## Packet 4: Validation & Footer (Page 2)
 
@@ -135,13 +129,13 @@ When a delay exceeds 1070ms, it is decomposed into a base delay and extra delay 
 
 ### Mouse Event Codes
 
-| Event         | Code   |
-|:--------------|:-------|
-| Left Click    | `0xF1` |
-| Right Click   | `0xF2` |
-| Middle Click  | `0xF3` |
-| Backward Click| `0xF4` |
-| Forward Click | `0xF5` |
+| Event          | Code   |
+|:---------------|:-------|
+| Left Click     | `0xF1` |
+| Right Click    | `0xF2` |
+| Middle Click   | `0xF3` |
+| Backward Click | `0xF4` |
+| Forward Click  | `0xF5` |
 
 ---
 

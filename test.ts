@@ -13,7 +13,7 @@ function parsePollingRate(raw: Buffer): string {
 		0x02: '500 Hz',
 		0x01: '1000 Hz',
 	};
-	// @ts-expect-error aaaaaaaaa
+	// @ts-expect-error lol
 	return map[encoded] ?? `unknown (0x${encoded?.toString(16)})`;
 }
 
@@ -46,7 +46,7 @@ function parseUserPreferences(raw: Buffer): object {
 	return {
 		lightMode: lightModeMap[raw[3] ?? 0] ?? `unknown (0x${(raw[3] ?? 0).toString(16)})`,
 		deepSleepMin: deepSleep === 0xaa ? 'disabled' : `${deepSleep} min`,
-		ledSpeed: 6 - ledSpeed, // inverted: encoded = 6 - userSpeed
+		ledSpeed: 6 - ledSpeed,
 		brightness,
 		rgb: {
 			r: raw[6],
@@ -66,19 +66,18 @@ try {
 	const rawDpi = await driver.getDpi();
 	const rawPrefs = await driver.getUserPreferences();
 	const rawRate = await driver.getPollingRate();
-	const rawBtns = await driver.getButtons();
+	const rawButtons = await driver.getButtons();
 
 	console.log('DPI:      ', rawDpi.toString('hex'));
 	console.log('Prefs:    ', rawPrefs.toString('hex'));
 	console.log('Rate:     ', rawRate.toString('hex'));
-	console.log('Buttons:  ', rawBtns.toString('hex'));
+	console.log('Buttons:  ', rawButtons.toString('hex'));
 
 	console.log('\n─── Parsed ───────────────────────────────────────');
 
 	console.log('Polling Rate:     ', parsePollingRate(rawRate));
 	console.log('User Preferences: ', parseUserPreferences(rawPrefs));
 
-	// DPI raw — decoder completo depende do DPI_STEP_MAP, mas dá pra ver os stages
 	const dpiStages = [rawDpi[8], rawDpi[9], rawDpi[10], rawDpi[11], rawDpi[12], rawDpi[13]];
 	console.log(
 		'DPI stage bytes (encoded):',

@@ -30,8 +30,6 @@ The payload consists of 13 bytes for Wired mode or 15 bytes for Wireless (Adapte
 | 12    | Checksum      | Sum of bytes from index 3 to 10 (modulo 256).        |
 | 13-14 | Padding       | `0x00 0x00` (Wireless mode only).                    |
 
----
-
 ## Field Details
 
 ### 1. Light Modes (Index 3)
@@ -85,6 +83,8 @@ Normal sleep (standby) before deep sleep.
     - 4ms -> `2`
     - 8ms -> `4`
     - 50ms -> `25`
+
+[//]: # (**Note for MS_4 &#40;X11&#41;**: In the MS_4 profile, this setting is largely superseded by the sensor-level debounce configuration found in **Report 0x0304** &#40;at Offset 46&#41;. The software for X11 typically uses the sensor-level configuration for more precise control.)
 
 ### 7. State Flag (Index 11)
 
