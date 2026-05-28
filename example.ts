@@ -3,7 +3,6 @@ import {
 	Button,
 	ConnectionMode,
 	CustomMacroBuilder,
-	delay,
 	DpiBuilder,
 	KeyCode,
 	LightMode,
@@ -39,6 +38,7 @@ try {
 		ledSpeed: 5,
 		keyResponse: 4,
 	});
+
 	await driver.setCustomMacro(
 		new CustomMacroBuilder()
 			.setPlayOptions(MacroMode.THE_NUMBER_OF_TIME_TO_PLAY, 9)
@@ -46,15 +46,6 @@ try {
 			.addEvent(KeyCode.A)
 			.addEvent(KeyCode.A, 10, true),
 	);
-
-	const batteryStatus = await driver.getBatteryLevel(1000);
-	logger.info(`battery status: ${batteryStatus}%`);
-
-	driver.on('batteryChange', (level: number) => {
-		logger.info(`battery status in listening mode: ${level}%`);
-	});
-
-	await delay(10000); // Keep the system active for another 10 seconds to demonstrate the batteryChange event
 } catch (error) {
 	logger.error('An error occurred:', error);
 } finally {
