@@ -120,7 +120,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			this.deviceInterface = iface;
 
 			try {
-				if (iface.isKernelDriverActive()) {
+				if (process.platform !== 'win32' && iface.isKernelDriverActive()) {
 					iface.detachKernelDriver();
 				}
 
