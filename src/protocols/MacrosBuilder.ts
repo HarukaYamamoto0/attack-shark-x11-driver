@@ -15,7 +15,7 @@ export enum Modifiers {
 // noinspection JSUnusedGlobalSymbols
 export enum KeyCode {
 	NONE = 0x00,
-	ONLY_USED_BY_EASY_AIM = 0x03, // used by easy-aim
+	ONLY_USED_BY_EASY_AIM_AND_LED_LOOP = 0x03,
 
 	// Letters
 	A = 0x04,
@@ -166,6 +166,9 @@ export enum MacroName {
 	GLOBAL_SCROLL_UP = 'global-scroll-up',
 	GLOBAL_SCROLL_DOWN = 'global-scroll-down',
 	GLOBAL_EASY_AIM = 'global-easy-aim',
+	GLOBAL_LED_LOOP = 'global-led-loop',
+	GLOBAL_SCROLL_TO_RIGHT = 'global-scroll-to-right',
+	GLOBAL_SCROLL_TO_LEFT = 'global-scroll-to-left',
 	GLOBAL_DPI_CYCLE = 'global-dpi-cycle',
 	GLOBAL_DPI_PLUS = 'global-dpi-+',
 	GLOBAL_DPI_MINUS = 'global-dpi--',
@@ -256,9 +259,21 @@ export enum FirmwareAction {
 	BROWSER_REFRESH = 0x24,
 	BROWSER_HOME = 0x25,
 	BROWSER_SEARCH = 0x26,
+	LED_LOOP = 0x29,
+	SCROLL_TO_RIGHT = 0x0c,
+	SCROLL_TO_LEFT = 0x0b,
 }
 
 export type MacroTemplate = Record<MacroName, MacroTuple>;
+
+/*
+<Text id="profile_cycle_text" value="Profile Cycle"/>
+<Text id="profile_up_text" value="Profile +"/>
+<Text id="profile_down_text" value="Profile -"/>
+
+I'm not sure if this was ever implemented in any model, but based on my current knowledge, the firmware doesn't
+support it, unless some newer model allows it, or with the help of software
+ */
 
 export const macroTemplates: MacroTemplate = {
 	[MacroName.GLOBAL_DISABLE_BUTTON]: [FirmwareAction.DISABLE_BUTTON, Modifiers.NONE, KeyCode.NONE],
@@ -270,8 +285,11 @@ export const macroTemplates: MacroTemplate = {
 	[MacroName.GLOBAL_DOUBLE_CLICK]: [FirmwareAction.DOUBLE_CLICK, Modifiers.NONE, KeyCode.NONE],
 	[MacroName.GLOBAL_FIRE_BUTTON]: [FirmwareAction.FIRE, Modifiers.NONE, KeyCode.NONE],
 	[MacroName.GLOBAL_SCROLL_UP]: [FirmwareAction.SCROLL_UP, Modifiers.NONE, KeyCode.NONE],
-	[MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.ONLY_USED_BY_EASY_AIM],
+	[MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.NONE, KeyCode.ONLY_USED_BY_EASY_AIM_AND_LED_LOOP],
+	[MacroName.GLOBAL_LED_LOOP]: [FirmwareAction.LED_LOOP, Modifiers.NONE, KeyCode.ONLY_USED_BY_EASY_AIM_AND_LED_LOOP],
 	[MacroName.GLOBAL_SCROLL_DOWN]: [FirmwareAction.SCROLL_DOWN, Modifiers.NONE, KeyCode.NONE],
+	[MacroName.GLOBAL_SCROLL_TO_RIGHT]: [FirmwareAction.SCROLL_TO_RIGHT, Modifiers.NONE, KeyCode.NONE],
+	[MacroName.GLOBAL_SCROLL_TO_LEFT]: [FirmwareAction.SCROLL_TO_LEFT, Modifiers.NONE, KeyCode.NONE],
 	[MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.GLOBAL_DPI_CYCLE, Modifiers.NONE, KeyCode.NONE],
 	[MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.GLOBAL_DPI_PLUS, Modifiers.NONE, KeyCode.NONE],
 	[MacroName.GLOBAL_DPI_MINUS]: [FirmwareAction.GLOBAL_DPI_MINUS, Modifiers.NONE, KeyCode.NONE],
@@ -399,23 +417,65 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 	constructor(options?: MacroBuilderOptions) {
 		this.buffer = Buffer.alloc(59);
 
-		// Header: Report ID 0x08, Length 0x3b (59), Protocol version 0x01
-		this.buffer[0] = 0x08;
-		this.buffer[1] = 0x3b;
-		this.buffer[2] = 0x01;
-
-		// Initialize all 18 button slots (3 bytes each) with [0x01, 0x00, 0x00]
-		// This is the "Inactive" or "Disabled" default state for most slots.
-		for (let i = 3; i <= 54; i += 3) {
-			this.buffer[i] = 0x01;
-			this.buffer[i + 1] = 0x00;
-			this.buffer[i + 2] = 0x00;
-		}
-
-		// Default internal assignments
+		this.buffer[0] = 0x08; // Report ID
+		this.buffer[1] = 0x3b; // Report Length
+		this.buffer[2] = 0x01; // Pagination?
+		this.buffer[3] = 0x02; // Slot 1 (Left CLick)
+		this.buffer[4] = 0x00; // Slot 1 (Left CLick)
+		this.buffer[5] = 0x00; // Slot 1 (Left CLick)
+		this.buffer[6] = 0x03; // Slot 2 (Right CLick)
+		this.buffer[7] = 0x00; // Slot 2 (Right CLick)
+		this.buffer[8] = 0x00; // Slot 2 (Right CLick)
+		this.buffer[9] = 0x04; // Slot 3 (Middle CLick)
+		this.buffer[10] = 0x00; // Slot 3 (Middle CLick)
+		this.buffer[11] = 0x00; // Slot 3 (Middle CLick)
+		this.buffer[12] = 0x01;
+		this.buffer[13] = 0x00;
+		this.buffer[14] = 0x00;
+		this.buffer[15] = 0x01;
+		this.buffer[16] = 0x00;
+		this.buffer[17] = 0x00;
 		this.buffer[18] = 0x0d; // Slot 6 (DPI Cycle)
+		this.buffer[19] = 0x00; // Slot 6 (DPI Cycle)
+		this.buffer[20] = 0x00; // Slot 6 (DPI Cycle)
+		this.buffer[21] = 0x06;
+		this.buffer[22] = 0x00;
+		this.buffer[23] = 0x00;
+		this.buffer[24] = 0x05;
+		this.buffer[25] = 0x00;
+		this.buffer[26] = 0x00;
+		this.buffer[27] = 0x01;
+		this.buffer[28] = 0x00;
+		this.buffer[29] = 0x00;
+		this.buffer[30] = 0x01;
+		this.buffer[31] = 0x00;
+		this.buffer[32] = 0x00;
+		this.buffer[33] = 0x01;
+		this.buffer[34] = 0x00;
+		this.buffer[35] = 0x00;
+		this.buffer[36] = 0x01;
+		this.buffer[37] = 0x00;
+		this.buffer[38] = 0x00;
+		this.buffer[39] = 0x01;
+		this.buffer[40] = 0x00;
+		this.buffer[41] = 0x00;
+		this.buffer[42] = 0x01;
+		this.buffer[43] = 0x00;
+		this.buffer[44] = 0x00;
+		this.buffer[45] = 0x01;
+		this.buffer[46] = 0x00;
+		this.buffer[47] = 0x00;
+		this.buffer[48] = 0x01;
+		this.buffer[49] = 0x00;
+		this.buffer[50] = 0x00;
 		this.buffer[51] = 0x09; // Slot 17 (Scroll Up)
+		this.buffer[52] = 0x00; // Slot 17 (Scroll Up)
+		this.buffer[53] = 0x00; // Slot 17 (Scroll Up)
 		this.buffer[54] = 0x0a; // Slot 18 (Scroll Down)
+		this.buffer[55] = 0x00; // Slot 18 (Scroll Down)
+		this.buffer[56] = 0x00; // Slot 18 (Scroll Down)
+		this.buffer[57] = 0x00; // Possible checksum high byte
+		this.buffer[58] = 0x3e; // Checksum
 
 		const config = { ...MacrosBuilder.DEFAULT_MACROS, ...options };
 

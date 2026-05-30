@@ -1,6 +1,6 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { ConnectionMode } from '../types.js';
+import { ConnectionMode, type RGB } from '../types.js';
 
 /**
  * Enum representing different light modes for a device or application.
@@ -48,22 +48,6 @@ export interface UserPreferencesBuilderOptions {
 
 	/** Key response in ms (4–50, step 2) */
 	keyResponse?: KeyResponse;
-}
-
-/**
- * Represents a color in the RGB color model.
- *
- * The RGB model describes colors through their red, green, and blue components.
- * Each component is represented as a numerical value.
- *
- * The `r` property corresponds to the red component,
- * the `g` property corresponds to the green component,
- * and the `b` property corresponds to the blue component.
- */
-export interface RGB {
-	r: number;
-	g: number;
-	b: number;
 }
 
 /**

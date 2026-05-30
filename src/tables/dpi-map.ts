@@ -1,4 +1,5 @@
 export const DPI_STEP_MAP: Record<number, number> = {
+	0: 0x00,
 	50: 0x01,
 	100: 0x02,
 	150: 0x03,
