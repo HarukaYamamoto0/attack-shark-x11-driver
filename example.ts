@@ -1,5 +1,14 @@
-import { ConnectionMode, DpiBuilder } from './src/index.js';
+import { AttackSharkX11, ConnectionMode, MacrosBuilder } from './src/index.js';
 
-const dpi = new DpiBuilder();
+const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter, delayMs: 500 });
 
-console.log(dpi.build(ConnectionMode.Wired).toHex());
+try {
+	await driver.open();
+
+	const macroBuilder = new MacrosBuilder();
+	await driver.setMacro(macroBuilder);
+} catch (error) {
+	console.error('An error occurred:', error);
+} finally {
+	await driver.close();
+}

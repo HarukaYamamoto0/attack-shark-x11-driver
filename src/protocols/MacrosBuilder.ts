@@ -389,11 +389,6 @@ export interface MacroBuilderOptions {
  * Allows mapping buttons to mouse clicks, keyboard keys, multimedia controls, etc.
  */
 export class MacrosBuilder implements BaseProtocolBuilder {
-	public static readonly BM_REQUEST_TYPE = 0x21;
-	public static readonly B_REQUEST = 0x09;
-	public static readonly W_VALUE = 0x0308;
-	public static readonly W_INDEX = 2;
-
 	public static readonly DEFAULT_MACROS: MacroBuilderOptions = {
 		left: macroTemplates[MacroName.GLOBAL_LEFT_CLICK],
 		right: macroTemplates[MacroName.GLOBAL_RIGHT_CLICK],
@@ -403,10 +398,10 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 	};
 
 	readonly buffer: Buffer;
-	public readonly bmRequestType: number = MacrosBuilder.BM_REQUEST_TYPE;
-	public readonly bRequest: number = MacrosBuilder.B_REQUEST;
-	public readonly wValue: number = MacrosBuilder.W_VALUE;
-	public readonly wIndex: number = MacrosBuilder.W_INDEX;
+	public readonly bmRequestType: number = 0x21;
+	public readonly bRequest: number = 0x09;
+	public readonly wValue: number = 0x0308;
+	public readonly wIndex: number = 2;
 
 	// noinspection FunctionTooLongJS
 	/**
@@ -420,54 +415,54 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 		this.buffer[0] = 0x08; // Report ID
 		this.buffer[1] = 0x3b; // Report Length
 		this.buffer[2] = 0x01; // Pagination?
-		this.buffer[3] = 0x02; // Slot 1 (Left CLick)
-		this.buffer[4] = 0x00; // Slot 1 (Left CLick)
-		this.buffer[5] = 0x00; // Slot 1 (Left CLick)
-		this.buffer[6] = 0x03; // Slot 2 (Right CLick)
-		this.buffer[7] = 0x00; // Slot 2 (Right CLick)
-		this.buffer[8] = 0x00; // Slot 2 (Right CLick)
-		this.buffer[9] = 0x04; // Slot 3 (Middle CLick)
-		this.buffer[10] = 0x00; // Slot 3 (Middle CLick)
-		this.buffer[11] = 0x00; // Slot 3 (Middle CLick)
-		this.buffer[12] = 0x01;
-		this.buffer[13] = 0x00;
-		this.buffer[14] = 0x00;
-		this.buffer[15] = 0x01;
-		this.buffer[16] = 0x00;
-		this.buffer[17] = 0x00;
+		this.buffer[3] = 0x02; // Slot 1 (Left Button)
+		this.buffer[4] = 0x00; // Slot 1 (Left Button)
+		this.buffer[5] = 0x00; // Slot 1 (Left Button)
+		this.buffer[6] = 0x03; // Slot 2 (Right Button)
+		this.buffer[7] = 0x00; // Slot 2 (Right Button)
+		this.buffer[8] = 0x00; // Slot 2 (Right Button)
+		this.buffer[9] = 0x04; // Slot 3 (Middle Button)
+		this.buffer[10] = 0x00; // Slot 3 (Middle Button)
+		this.buffer[11] = 0x00; // Slot 3 (Middle Button)
+		this.buffer[12] = 0x01; // Slot 7
+		this.buffer[13] = 0x00; // Slot 7
+		this.buffer[14] = 0x00; // Slot 7
+		this.buffer[15] = 0x01; // Slot 8
+		this.buffer[16] = 0x00; // Slot 8
+		this.buffer[17] = 0x00; // Slot 8
 		this.buffer[18] = 0x0d; // Slot 6 (DPI Cycle)
 		this.buffer[19] = 0x00; // Slot 6 (DPI Cycle)
 		this.buffer[20] = 0x00; // Slot 6 (DPI Cycle)
-		this.buffer[21] = 0x06;
-		this.buffer[22] = 0x00;
-		this.buffer[23] = 0x00;
-		this.buffer[24] = 0x05;
-		this.buffer[25] = 0x00;
-		this.buffer[26] = 0x00;
-		this.buffer[27] = 0x01;
-		this.buffer[28] = 0x00;
-		this.buffer[29] = 0x00;
-		this.buffer[30] = 0x01;
-		this.buffer[31] = 0x00;
-		this.buffer[32] = 0x00;
-		this.buffer[33] = 0x01;
-		this.buffer[34] = 0x00;
-		this.buffer[35] = 0x00;
-		this.buffer[36] = 0x01;
-		this.buffer[37] = 0x00;
-		this.buffer[38] = 0x00;
-		this.buffer[39] = 0x01;
-		this.buffer[40] = 0x00;
-		this.buffer[41] = 0x00;
-		this.buffer[42] = 0x01;
-		this.buffer[43] = 0x00;
-		this.buffer[44] = 0x00;
-		this.buffer[45] = 0x01;
-		this.buffer[46] = 0x00;
-		this.buffer[47] = 0x00;
-		this.buffer[48] = 0x01;
-		this.buffer[49] = 0x00;
-		this.buffer[50] = 0x00;
+		this.buffer[21] = 0x06; // Slot 4 (Forward Button)
+		this.buffer[22] = 0x00; // Slot 4 (Forward Button)
+		this.buffer[23] = 0x00; // Slot 4 (Forward Button)
+		this.buffer[24] = 0x05; // Slot 5 (Backward Button)
+		this.buffer[25] = 0x00; // Slot 5 (Backward Button)
+		this.buffer[26] = 0x00; // Slot 5 (Backward Button)
+		this.buffer[27] = 0x01; // Slot 9
+		this.buffer[28] = 0x00; // Slot 9
+		this.buffer[29] = 0x00; // Slot 9
+		this.buffer[30] = 0x01; // Slot 10
+		this.buffer[31] = 0x00; // Slot 10
+		this.buffer[32] = 0x00; // Slot 10
+		this.buffer[33] = 0x01; // Slot 11
+		this.buffer[34] = 0x00; // Slot 11
+		this.buffer[35] = 0x00; // Slot 11
+		this.buffer[36] = 0x01; // Slot 12
+		this.buffer[37] = 0x00; // Slot 12
+		this.buffer[38] = 0x00; // Slot 12
+		this.buffer[39] = 0x01; // Slot 13
+		this.buffer[40] = 0x00; // Slot 13
+		this.buffer[41] = 0x00; // Slot 13
+		this.buffer[42] = 0x01; // Slot 14
+		this.buffer[43] = 0x00; // Slot 14
+		this.buffer[44] = 0x00; // Slot 14
+		this.buffer[45] = 0x01; // Slot 15
+		this.buffer[46] = 0x00; // Slot 15
+		this.buffer[47] = 0x00; // Slot 15
+		this.buffer[48] = 0x01; // Slot 16
+		this.buffer[49] = 0x00; // Slot 16
+		this.buffer[50] = 0x00; // Slot 16
 		this.buffer[51] = 0x09; // Slot 17 (Scroll Up)
 		this.buffer[52] = 0x00; // Slot 17 (Scroll Up)
 		this.buffer[53] = 0x00; // Slot 17 (Scroll Up)

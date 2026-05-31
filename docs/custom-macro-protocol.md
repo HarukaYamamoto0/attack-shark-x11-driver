@@ -1,4 +1,4 @@
-# Custom Macro Communication Protocol (Report 0x0308 / 0x0309)
+# Custom Macro Communication Protocol (0x0309)
 
 This document describes the USB HID communication protocol used to configure custom macros for the Attack Shark X11 mouse, as implemented in the `CustomMacroBuilder` class.
 
