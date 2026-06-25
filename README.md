@@ -100,6 +100,29 @@ This project is a reverse-engineering effort. Contributions such as protocol doc
 - **Protocol Docs**: See `docs/` for packet analysis.
 - **Tools used**: Wireshark, USBPcap.
 
+## Support the Project
+
+This project exists because of many hours spent reverse engineering proprietary drivers, analyzing USB HID traffic, documenting protocols, and testing hardware behavior.
+
+Recently, I gained partial access to the official driver codebase, which revealed support for dozens of additional mouse models and many undocumented features. While this opens the door for significantly broader hardware support, understanding and documenting these protocols requires a substantial amount of time and effort.
+
+If this project is useful to you, consider supporting its development. Financial contributions help justify spending more time on reverse engineering, protocol research, testing, documentation, and implementing support for additional devices.
+
+Your support directly contributes to:
+
+* Expanding support for new mouse models
+* Documenting undocumented protocol features
+* Improving stability and reliability
+* Developing configuration and tooling utilities
+* Maintaining long-term compatibility across platforms
+
+### Sponsor
+
+* GitHub Sponsors: https://github.com/sponsors/HarukaYamamoto0
+* Ko-fi: https://ko-fi.com/harukayamamoto0
+
+Even if you cannot contribute financially, bug reports, protocol captures, testing, and documentation improvements are greatly appreciated.
+
 ## License
 
 MIT © [HarukaYamamoto0](https://github.com/HarukaYamamoto0)
