@@ -1,14 +1,15 @@
-import { AttackSharkX11, ConnectionMode, MacrosBuilder } from './src/index.js';
+import HID, { HIDAsync } from 'node-hid';
+import { delay } from './src';
 
-const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter, delayMs: 500 });
+const dev = await HIDAsync.open(0x1d57, 0xfa60);
 
-try {
-	await driver.open();
+await dev.sendFeatureReport([0xa0, 0x05, 0xf, 0x00, 0x01, 0x00, 0x00, 0x00]);
 
-	const macroBuilder = new MacrosBuilder();
-	await driver.setMacro(macroBuilder);
-} catch (error) {
-	console.error('An error occurred:', error);
-} finally {
-	await driver.close();
-}
+await delay(600);
+
+await dev.getFeatureReport(0xa0, 8); // status check
+
+const data = await dev.getFeatureReport(0x05, 0xf);
+console.log(data.toHex());
+
+dev.close();
