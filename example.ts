@@ -1,15 +1,44 @@
-import HID, { HIDAsync } from 'node-hid';
-import { delay } from './src';
+import { AttackSharkX11, ConnectionMode, delay, PacketLength, ReportId } from './src';
 
-const dev = await HIDAsync.open(0x1d57, 0xfa60);
+const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter });
 
-await dev.sendFeatureReport([0xa0, 0x05, 0xf, 0x00, 0x01, 0x00, 0x00, 0x00]);
+const reportId = ReportId.DPI;
+const payloadSize = PacketLength.DPI;
 
-await delay(600);
+try {
+	await driver.open();
 
-await dev.getFeatureReport(0xa0, 8); // status check
+	const statusCheckResponseStart = await driver.device.getFeatureReport(0xa0, 8); // status check
+	console.log('Status Check Start Response: ' + statusCheckResponseStart.toHex());
 
-const data = await dev.getFeatureReport(0x05, 0xf);
-console.log(data.toHex());
+	const headerResponse = await driver.controlTransfer(
+		Buffer.from([0xa0, reportId, payloadSize, 0x01, 0x00, 0x00, 0x00, 0x00]),
+	);
+	console.log('Header Response: ' + headerResponse.toString(16).padStart(2, '0'));
 
-dev.close();
+	await delay(250);
+
+	const statusCheckResponseMiddle = await driver.device.getFeatureReport(0xa0, 8); // status check
+	console.log('Status Check Middle Response: ' + statusCheckResponseMiddle.toHex());
+
+	const data = await driver.device.getFeatureReport(reportId, payloadSize);
+	console.log('Data: ' + data.toHex());
+
+	const statusCheckResponseEnd = await driver.device.getFeatureReport(0xa0, 8); // status check
+	console.log('Status Check End Response: ' + statusCheckResponseEnd.toHex());
+
+	// const dataView = new DataView(data.buffer);
+	//
+	// if (data.length !== payloadSize) throw new Error('Invalid data length');
+	// // 0b 08 01 55 00 83 01 01
+	//
+	// const deviceId = dataView.getUint8(1);
+	// const versionHigh = dataView.getUint8(4);
+	// const versionLow = dataView.getUint8(5);
+	// const version = (versionHigh << 8) | versionLow;
+	//
+	// console.log('Device ID: ' + deviceId.toString(16).padStart(0, '0'));
+	// console.log('Version: ' + version.toString(16).padStart(0, '0'));
+} finally {
+	await driver.close();
+}

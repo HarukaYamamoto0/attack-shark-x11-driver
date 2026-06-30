@@ -1,23 +1,22 @@
 // noinspection JSUnusedGlobalSymbols
 
-import type { Device, InEndpoint, Interface } from 'usb';
-import * as usb from 'usb';
+// import type { Device, InEndpoint, Interface } from 'usb';
+// import * as usb from 'usb';
 import { EventEmitter } from 'node:events';
-import { ControlTransferError, DeviceError, DriverError, InterfaceError, TimeoutError } from '../errors.js';
+import { DeviceError, DriverError, TimeoutError } from '../errors.js';
 import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { InternalStateResetReportBuilder } from '../protocols/InternalStateResetReportBuilder.js';
 import { type MacroBuilderOptions, MacrosBuilder } from '../protocols/MacrosBuilder.js';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
 import { UserPreferencesBuilder, type UserPreferencesBuilderOptions } from '../protocols/UserPreferencesBuilder.js';
-import { Button, ConnectionMode, type ControlTransferOptions, type ControlTransferOut, type Logger } from '../types.js';
-import { bufferStartsWith } from '../utils/bufferUtils.js';
-import { delay } from '../utils/delay.js';
+import { Button, ConnectionMode, type Logger, PacketLength, ReportId } from '../types.js';
 import { ConsoleLogger } from '../logger/index.js';
+import HID, { HIDAsync } from 'node-hid';
+import { delay } from '../utils/delay.ts';
+import { handleLightingSettingsResponse, LightSettingsBuilder } from '../utils/handleLightingSettingsResponse.ts';
 
 const VID = 0x1d57;
-const DEVICE_INTERFACE = 0x02;
-const INTERRUPT_ENDPOINT = 0x83;
 
 /**
  * Events emitted by the AttackSharkX11 class.
@@ -43,10 +42,8 @@ export interface AttackSharkX11Events {
  * ```
  */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
-	public readonly productId: number;
-	device: Device;
-	deviceInterface!: Interface;
-	interruptEndpoint!: InEndpoint;
+	private productId: ConnectionMode;
+	device!: HIDAsync;
 	/**
 	 * Delay in milliseconds between packets to prevent the device from locking up.
 	 */
@@ -67,21 +64,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			throw new DriverError('The type of connection was not specified');
 		}
 
+		this.productId = options.connectionMode;
 		this.logger = options.logger ?? new ConsoleLogger();
 		this.delayMs = options.delayMs ?? 250;
-
-		const device = usb
-			.getDeviceList()
-			.find(
-				(d) => d.deviceDescriptor.idVendor === VID && d.deviceDescriptor.idProduct === options.connectionMode,
-			);
-
-		if (!device) {
-			throw new DeviceError(`Device with idProduct ${options.connectionMode} not found`);
-		}
-
-		this.device = device;
-		this.productId = device.deviceDescriptor.idProduct;
 	}
 
 	/**
@@ -99,10 +84,19 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @throws {InterfaceError} If the required interface is not found or cannot be claimed.
 	 * @returns A promise that resolves when the device is ready.
 	 */
-	open(): Promise<unknown> {
-		return new Promise((resolve, reject) => {
+	open(): Promise<void> {
+		// eslint-disable-next-line no-async-promise-executor
+		return new Promise(async (resolve, reject) => {
 			try {
-				this.device.open();
+				const devices = await HID.devicesAsync();
+				const info = devices.find((d) => d.vendorId === VID && d.productId === this.connectionMode && d.interface === 2);
+
+				if (!info) {
+					throw new DeviceError(`Device with idProduct ${this.connectionMode} not found`);
+				}
+				this.productId = info.productId;
+				console.log(info.path);
+				this.device = await HIDAsync.open(info.path);
 			} catch (e: unknown) {
 				reject(
 					new DeviceError(`An unexpected error occurred while trying to open device ${this.connectionMode}`, {
@@ -111,36 +105,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				);
 			}
 
-			const iface = this.device.interface(DEVICE_INTERFACE);
-
-			if (!iface) {
-				reject(new InterfaceError(`interface ${DEVICE_INTERFACE} not found`, DEVICE_INTERFACE));
-			}
-
-			this.deviceInterface = iface;
-
-			try {
-				if (process.platform !== 'win32' && iface.isKernelDriverActive()) {
-					iface.detachKernelDriver();
-				}
-
-				iface.claim();
-			} catch (e: unknown) {
-				this.logger.error('An unexpected error occurred', e);
-				return reject(
-					new InterfaceError(`Could not claim interface ${DEVICE_INTERFACE}`, DEVICE_INTERFACE, { cause: e }),
-				);
-			}
-
-			const interruptEndpoint = iface.endpoints.find((e) => e.address === INTERRUPT_ENDPOINT);
-
-			if (!interruptEndpoint) {
-				return reject(
-					new InterfaceError(`interruptEndpoint ${INTERRUPT_ENDPOINT} not found`, INTERRUPT_ENDPOINT),
-				);
-			}
-
-			this.interruptEndpoint = interruptEndpoint as InEndpoint;
 			this.setupListeners();
 			this.isOpen = true;
 			resolve(true);
@@ -148,50 +112,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	private setupListeners(): void {
-		this.interruptEndpoint.on('data', (data: Buffer) => {
-			if (bufferStartsWith(data, Buffer.from([0x03, 0x55, 0x40, 0x01]))) {
-				if (data.length < 5) return;
-				const battery = data[4];
-				if (battery !== undefined && battery !== this.lastBattery) {
-					this.lastBattery = battery;
-					this.emit('batteryChange', battery);
-				}
-			}
+		this.device.on('data', (data: Buffer) => {
+			console.log(data.toHex());
 		});
-
-		this.interruptEndpoint.on('error', (err: Error) => {
-			this.emit('error', err);
+		this.device.on('error', (err) => {
+			console.error(err);
 		});
-
-		this.on('newListener', (event) => {
-			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.startPolling();
-			}
-		});
-
-		this.on('removeListener', (event) => {
-			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.stopPolling();
-			}
-		});
-	}
-
-	private startPolling(): void {
-		if (!this.isOpen || !this.interruptEndpoint) return;
-		try {
-			this.interruptEndpoint.startPoll(1, 64);
-		} catch (e) {
-			this.logger.error('Failed to start polling', e);
-		}
-	}
-
-	private stopPolling(): void {
-		if (!this.interruptEndpoint) return;
-		try {
-			this.interruptEndpoint.stopPoll();
-		} catch {
-			/* empty */
-		}
 	}
 
 	/**
@@ -202,35 +128,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.isOpen) return;
 
 		this.removeAllListeners();
-		if (this.interruptEndpoint) {
-			try {
-				this.interruptEndpoint.stopPoll();
-			} catch {
-				/* empty */
-			}
-		}
 
-		if (!this.deviceInterface) {
-			this.device?.close();
-			return;
-		}
-
-		await new Promise<void>((resolve, reject) => {
-			this.deviceInterface.release(true, (err) => {
-				if (err) {
-					reject(
-						new InterfaceError('Error releasing interface', this.deviceInterface.interfaceNumber, {
-							cause: err,
-						}),
-					);
-					return;
-				}
-
-				resolve();
-			});
-		});
-
-		this.device?.close();
+		await this.device?.close();
 		this.isOpen = false;
 	}
 
@@ -238,92 +137,24 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.isOpen) throw new DriverError('You have to open the device first');
 	}
 
-	controlTransfer(options: ControlTransferOut): Promise<number>;
-	controlTransfer(options: ControlTransferOptions): Promise<number | Buffer> {
+	controlTransfer(message: Buffer): Promise<number> {
 		this.checkIsOpen();
 
-		return new Promise<number | Buffer>((resolve, reject) => {
-			this.device.controlTransfer(
-				options.bmRequestType,
-				options.bRequest,
-				options.wValue,
-				options.wIndex,
-				options.data,
-				(err, res) => {
-					if (err) {
-						return reject(new ControlTransferError('Control transfer failed', { cause: err }));
-					}
-
-					if (res === undefined) {
-						return reject(new ControlTransferError('Control transfer returned undefined'));
-					}
-
-					resolve(res);
-				},
-			);
-		});
+		return this.device.sendFeatureReport(message);
 	}
 
-	/**
-	 * Sends a read request via Report 0xA0 and waits for the firmware response.
-	 *
-	 * The firmware uses 0xA0 as an RPC transport layer:
-	 *   SET_REPORT 0xA0 → firmware queues the read
-	 *   GET_REPORT (ack) → firmware returns 0x90 when data is ready
-	 *   GET_REPORT (data)→ firmware returns the actual payload
-	 *
-	 * @param reportId    Target report ID to read (e.g., 0x04 for DPI).
-	 * @param payloadSize Expected payload size in bytes (wireless size).
-	 * @throws {ControlTransferError} If the ACK byte is not 0x90.
-	 */
-	async getReport(reportId: number, payloadSize: number): Promise<Buffer<ArrayBufferLike>> {
+	async getFeatureReport(reportId: number, payloadSize: number): Promise<Buffer> {
 		this.checkIsOpen();
 
-		await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: 64,
-		});
+		await this.controlTransfer(Buffer.from([0xa0, reportId, payloadSize, 0x00, 0x01, 0x00, 0x00, 0x00]));
 
-		await this.controlTransfer({
-			bmRequestType: 0x21,
-			bRequest: 0x09,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: Buffer.from([0xa0, reportId, payloadSize, 0x00, 0x01, 0x00, 0x00, 0x00]),
-		});
+		await delay(250);
 
-		// ACK
-		await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: 0x03a0,
-			wIndex: 2,
-			data: 64,
-		});
+		await this.device.getFeatureReport(0xa0, 8); // status check
 
-		await delay(this.delayMs);
-
-		return (await this.controlTransfer({
-			bmRequestType: 0xa1,
-			bRequest: 0x01,
-			wValue: (0x03 << 8) | reportId,
-			wIndex: 2,
-			data: payloadSize,
-		})) as unknown as Promise<Buffer>;
+		return this.device.getFeatureReport(reportId, payloadSize);
 	}
 
-	/**
-	 * Gets the current battery level of the mouse.
-	 * Note that the value is only returned if the mouse is in wireless mode (Adapter).
-	 * In Wired mode, it returns -1.
-	 *
-	 * @param timeoutMs Maximum time to wait for the device response (default: 1000ms).
-	 * @throws {TimeoutError} If the device does not respond within the specified time.
-	 * @returns The battery level in percentage (0-100) or -1 if unavailable.
-	 */
 	getBatteryLevel(timeoutMs = 1000): Promise<number> {
 		this.checkIsOpen();
 
@@ -389,13 +220,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setRate(rate);
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	/**
@@ -418,37 +243,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		const builder = options instanceof CustomMacroBuilder ? options : new CustomMacroBuilder(options);
 		const [setMacroBuffer, secondPacket, thirdPacket, fourthPacket] = builder.build(this.connectionMode);
 
-		await this.controlTransfer({
-			data: setMacroBuffer,
-			bmRequestType: 0x21,
-			bRequest: 0x09,
-			wValue: 0x0308,
-			wIndex: 2,
-		});
+		await this.controlTransfer(setMacroBuffer);
 
-		await this.controlTransfer({
-			data: secondPacket,
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		await this.controlTransfer(secondPacket);
 
-		await this.controlTransfer({
-			data: thirdPacket,
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		await this.controlTransfer(thirdPacket);
 
-		await this.controlTransfer({
-			data: fourthPacket,
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		await this.controlTransfer(fourthPacket);
 	}
 
 	/**
@@ -466,13 +267,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		const builder = config instanceof MacrosBuilder ? config : new MacrosBuilder(config);
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	/**
@@ -493,39 +288,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		const builder = options instanceof UserPreferencesBuilder ? options : new UserPreferencesBuilder(options);
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	sendInternalStateResetReportBuilder(): Promise<number> {
 		this.checkIsOpen();
 		const builder = new InternalStateResetReportBuilder();
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	resetPollingRate(): Promise<number> {
 		this.checkIsOpen();
 		const builder = new PollingRateBuilder();
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	/**
@@ -547,13 +324,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	/**
@@ -569,7 +340,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	getDpi(): Promise<Buffer> {
 		this.checkIsOpen();
-		return this.getReport(0x04, this.connectionMode === ConnectionMode.Wired ? 0x38 : 0x34);
+		return this.getFeatureReport(0x04, this.connectionMode === ConnectionMode.Wired ? 0x38 : 0x34);
 	}
 
 	/**
@@ -583,9 +354,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * console.log(raw.toString('hex'));
 	 * ```
 	 */
-	getUserPreferences(): Promise<Buffer> {
+	async getLightSettings(): Promise<LightSettingsBuilder> {
 		this.checkIsOpen();
-		return this.getReport(0x05, 0x0f);
+		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, PacketLength.LIGHTING_SETTINGS);
+		return handleLightingSettingsResponse(Uint8Array.from(response));
 	}
 
 	/**
@@ -599,10 +371,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * console.log(raw.toString('hex'));
 	 * ```
 	 */
-	getPollingRate(): Promise<Buffer> {
-		this.checkIsOpen();
-		return this.getReport(0x06, 0x09);
-	}
+	// getPollingRate(): Promise<Buffer> {
+	// 	this.checkIsOpen();
+	// 	return this.getReport(0x06, 0x09);
+	// }
 
 	/**
 	 * Reads the current button mapping from the device.
@@ -615,35 +387,23 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * console.log(raw.toString('hex'));
 	 * ```
 	 */
-	getButtons(): Promise<Buffer> {
-		this.checkIsOpen();
-		return this.getReport(0x08, 0x3b);
-	}
+	// getButtons(): Promise<Buffer> {
+	// 	this.checkIsOpen();
+	// 	return this.getReport(0x08, 0x3b);
+	// }
 
 	resetDpi(): Promise<number> {
 		this.checkIsOpen();
 		const builder = new DpiBuilder();
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	resetMacro(): Promise<number> {
 		this.checkIsOpen();
 		const builder = new MacrosBuilder();
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	async resetCustomMacro(): Promise<void> {
@@ -664,13 +424,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		const builder = new UserPreferencesBuilder().setKeyResponse(8);
 
-		return this.controlTransfer({
-			data: builder.build(this.connectionMode),
-			bmRequestType: builder.bmRequestType,
-			bRequest: builder.bRequest,
-			wValue: builder.wValue,
-			wIndex: builder.wIndex,
-		});
+		return this.controlTransfer(builder.build(this.connectionMode));
 	}
 
 	/**
@@ -688,5 +442,3 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		await this.resetCustomMacro();
 	}
 }
-
-export default AttackSharkX11;

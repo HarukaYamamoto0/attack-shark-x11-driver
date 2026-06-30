@@ -102,3 +102,33 @@ export interface RGB {
 	g: number;
 	b: number;
 }
+
+export enum ReportId {
+	DPI = 0x04,
+	POLLING_RATE = 0x06,
+	LIGHTING_SETTINGS = 0x05,
+	BUTTON_MAPPING = 0x08,
+	MACRO = 0x09,
+	// READ_REPORT_ID = 0xa0,
+	WAKE_UP_MODE = 0x07,
+	DEVICE_VERSION = 0x0b,
+	Profile = 0xa0,
+	PROFILE = 0x0c,
+}
+
+export enum PacketLength {
+	DPI = 0x38,
+	POLLING_RATE = 0x09,
+	LIGHTING_SETTINGS = 0x0f,
+	BUTTON_MAPPING = 0x3b,
+	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+	MACRO = 0x09,
+	DEVICE_VERSION = 0x08,
+	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+	WAKE_UP_MODE = 0x08,
+	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+	ReadSoftwareVersionNumber = 0x08, // supposition
+	PROFILE = 0x80,
+	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+	Profile = 0x80,
+}
