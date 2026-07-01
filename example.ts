@@ -3,6 +3,7 @@ import {
 	Button,
 	ConnectionMode,
 	CustomMacroBuilder,
+	delay,
 	DpiBuilder,
 	KeyCode,
 	LightMode,
@@ -19,25 +20,32 @@ const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter, dela
 
 try {
 	await driver.open();
-	await driver.reset();
+	await delay(250);
+
+	// await driver.reset();
+	await delay(250);
 
 	const macroBuilder = new MacrosBuilder().setMacro(Button.DPI, macroTemplates[MacroName.SHORTCUT_SWAP_WINDOW]);
 	await driver.setMacro(macroBuilder);
+	await delay(250);
 
 	const dpiBuilder = new DpiBuilder({
 		dpiValues: [800, 1600, 2400, 3400, 5000, 22000],
 		activeStage: 2,
 	});
 	await driver.setDpi(dpiBuilder);
+	await delay(250);
 
 	const pollingRateBuilder = new PollingRateBuilder().setRate(Rate.eSports);
 	await driver.setPollingRate(pollingRateBuilder);
+	await delay(250);
 
 	await driver.setUserPreferences({
 		lightMode: LightMode.Neon,
 		ledSpeed: 5,
 		keyResponse: 4,
 	});
+	await delay(250);
 
 	await driver.setCustomMacro(
 		new CustomMacroBuilder()

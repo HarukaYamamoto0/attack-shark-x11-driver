@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
 import { ConnectionMode } from '../types.js';
