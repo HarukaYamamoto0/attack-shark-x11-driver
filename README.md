@@ -4,6 +4,7 @@
 [![license](https://img.shields.io/npm/l/attack-shark-x11-driver.svg)](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/blob/main/LICENSE)
 [![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HarukaYamamoto0/attack-shark-x11-driver)
+[![codecov](https://codecov.io/gh/HarukaYamamoto0/attack-shark-x11-driver/branch/main/graph/badge.svg?token=6GURT5NZJ3)](https://codecov.io/gh/HarukaYamamoto0/attack-shark-x11-driver)
 
 A TypeScript driver for the **Attack Shark X11 gaming mouse**, providing cross-platform support (focused on Linux) to configure DPI, macros, lighting, and polling rates via USB HID.
 
