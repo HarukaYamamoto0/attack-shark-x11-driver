@@ -38,7 +38,7 @@ export default defineConfig([
 			'no-bitwise': 'off',
 			'@typescript-eslint/no-explicit-any': 'error',
 			'require-atomic-updates': 'error',
-			'no-duplicate-imports': 'error',
+			// 'no-duplicate-imports': 'error', // import type
 			'no-useless-constructor': 'error',
 			'no-useless-return': 'error',
 			'no-empty-pattern': 'error',

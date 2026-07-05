@@ -186,22 +186,22 @@ export class DpiBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
-	calculateChecksum(): number {
+	calculateChecksum(): this {
 		let sum = 0;
 
 		for (let i = 3; i <= 49; i++) {
 			sum += this.buffer[i] ?? 0x00;
 		}
 
-		return sum & 0xffff;
+		this.buffer.writeUInt16BE(sum, OFFSET.CHECKSUM_HIGH_BYTE);
+
+		return this;
 	}
 
 	public build(mode: ConnectionMode): Buffer {
 		this.updateStageMask();
 		this.updateHighStageFlags();
-
-		const checksum = this.calculateChecksum();
-		this.buffer.writeUInt16BE(checksum, OFFSET.CHECKSUM_HIGH_BYTE);
+		this.calculateChecksum();
 
 		return mode === ConnectionMode.Wired ? this.buffer.subarray(0, OFFSET.CHECKSUM_LOW_BYTE + 1) : this.buffer;
 	}

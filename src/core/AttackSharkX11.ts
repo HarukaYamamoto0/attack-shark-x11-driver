@@ -6,16 +6,16 @@ import { EventEmitter } from 'node:events';
 import { ControlTransferError, DeviceError, DriverError, TimeoutError } from '../errors.js';
 import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
-import { InternalStateResetReportBuilder } from '../protocols/InternalStateResetReportBuilder.js';
+import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
 import { type MacroBuilderOptions, MacrosBuilder } from '../protocols/MacrosBuilder.js';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
-import { UserPreferencesBuilder, type UserPreferencesBuilderOptions } from '../protocols/UserPreferencesBuilder.js';
-import type { PacketLength, ReportId, Logger } from '../types.js';
-// eslint-disable-next-line no-duplicate-imports
-import { ConnectionMode, Button } from '../types.js';
+import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
+import { Button, ConnectionMode, type Logger, PacketLength, ReportId, type Option, type Result } from '../types.js';
 import { bufferStartsWith } from '../utils/bufferUtils.js';
-import { ConsoleLogger } from '../logger/index.js';
+import { ConsoleLogger } from '../logger';
 import { delay } from '../utils/delay.js';
+import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
+import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -46,7 +46,7 @@ export interface AttackSharkX11Events {
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public readonly productId: number;
 	private devicePath?: string;
-	private hidDevice?: HIDAsync;
+	public hidDevice?: HIDAsync;
 	/**
 	 * Delay in milliseconds between packets to prevent the device from locking up.
 	 */
@@ -204,16 +204,24 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	async getFeatureReport(
-		report_id: ReportId,
-		report_length: PacketLength,
-	): Promise<Buffer<ArrayBufferLike> | number> {
-		this.checkIsOpen();
+	async getFeatureReport(reportId: ReportId, report_length: PacketLength): Promise<Result<Uint8Array, number>> {
+		if (!this.isOpen || !this.hidDevice) throw new DriverError('You have to open the device first');
 
 		try {
-			// We add 1 to the size because node-hid includes the report ID in the returned buffer
-			const res: Buffer | undefined = await this.hidDevice?.getFeatureReport(report_id, report_length + 1);
-			if (res) return Buffer.from(res).subarray(1);
+			await this.sendFeatureReport(Buffer.from([0xa0, reportId, report_length, 0x01, 0x00, 0x00, 0x00, 0x00]));
+
+			await delay(250);
+
+			const checkStatus = await this.hidDevice?.getFeatureReport(0xa0, 8); // status check
+
+			if (checkStatus && checkStatus?.[1] !== 0x01) {
+				throw new DriverError(
+					`Something went wrong, and the firmware did not enable reading of reportId: ${reportId.toString(16).padStart(2, '0')}`,
+				);
+			}
+
+			const data: Buffer = await this.hidDevice.getFeatureReport(reportId, report_length);
+			if (data) return Uint8Array.fromHex(data.toHex());
 			else return -1;
 		} catch (err) {
 			throw new ControlTransferError('Control transfer (sendFeatureReport) failed', { cause: err });
@@ -395,16 +403,18 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * });
 	 * ```
 	 */
-	setUserPreferences(options: UserPreferencesBuilder | UserPreferencesBuilderOptions): Promise<number | undefined> {
+	setLightingSettings(
+		options: LightingSettingsBuilder | LightingSettingsBuilderOptions,
+	): Promise<number | undefined> {
 		this.checkIsOpen();
-		const builder = options instanceof UserPreferencesBuilder ? options : new UserPreferencesBuilder(options);
+		const builder = options instanceof LightingSettingsBuilder ? options : new LightingSettingsBuilder(options);
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
 	sendInternalStateResetReportBuilder(): Promise<number | undefined> {
 		this.checkIsOpen();
-		const builder = new InternalStateResetReportBuilder();
+		const builder = new ChangeProfileBuilder();
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
@@ -438,6 +448,20 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
+	async getPollingRate(): Promise<Option<Rate>> {
+		const response = await this.getFeatureReport(ReportId.POLLING_RATE, PacketLength.POLLING_RATE);
+		if (typeof response === 'number') return null;
+
+		return handleResponsePollingRate(Uint8Array.fromHex(response.toHex()));
+	}
+
+	async getLightingSettings(): Promise<Option<LightingSettingsBuilder>> {
+		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, PacketLength.LIGHTING_SETTINGS);
+		if (typeof response === 'number') return null;
+
+		return handleResponseLightingSettings(Uint8Array.fromHex(response.toHex()));
+	}
+
 	resetDpi(): Promise<number | undefined> {
 		this.checkIsOpen();
 		const builder = new DpiBuilder();
@@ -468,7 +492,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	resetUserPreferences(): Promise<number | undefined> {
 		this.checkIsOpen();
-		const builder = new UserPreferencesBuilder().setKeyResponse(8);
+		const builder = new LightingSettingsBuilder().setKeyResponse(8);
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}

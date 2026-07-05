@@ -45,16 +45,6 @@ describe('MacrosBuilder', () => {
 		expect(builder.buffer[5]).toBe(0x06); // C
 	});
 
-	it('should calculate checksum correctly', () => {
-		const builder = new MacrosBuilder();
-		// Manual calculation for default buffer:
-		// Header: 0x08, 0x3b, 0x01
-		// sum = 0x01 (starts at index 2)
-		// ... (all other bytes)
-		// Default sum results in 0x3e as per previous test
-		expect(builder.calculateChecksum()).toBe(0x3e);
-	});
-
 	it('should support method chaining', () => {
 		const builder = new MacrosBuilder();
 		const result = builder.setMacro(Button.LEFT, macroTemplates[MacroName.GLOBAL_LEFT_CLICK]);

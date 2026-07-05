@@ -1,8 +1,8 @@
 {
 	"compilerOptions": {
 		"target": "ESNext",
-		"module": "NodeNext",
-		"moduleResolution": "NodeNext",
+		"module": "ESNext",
+		"moduleResolution": "node",
 		"lib": ["ESNext"],
 		"types": ["bun"],
 		"outDir": "dist",

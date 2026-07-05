@@ -107,3 +107,17 @@ export enum PacketLength {
 	MACRO = 0x09,
 	DEVICE_VERSION = 0x08,
 }
+
+/**
+ * Represents an optional value that can either be of type `T` or `null`.
+ *
+ * The `Option` type is useful for representing values that might be absent or explicitly empty. It is often used
+ * in scenarios where a value may or may not exist, providing a way to handle nullability at the type level.
+ *
+ * @template T The type of the underlying value.
+ */
+export type Option<T> = T | null;
+
+export type Result<T, E = Error> = T | E;
+
+export type ProfileId = number;

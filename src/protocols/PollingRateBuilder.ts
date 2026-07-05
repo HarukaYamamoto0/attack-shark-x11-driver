@@ -9,6 +9,13 @@ export enum Rate {
 	eSports = 1000,
 }
 
+export const hexToRate: Record<number, Rate> = {
+	0x08: Rate.powerSaving,
+	0x04: Rate.office,
+	0x02: Rate.gaming,
+	0x01: Rate.eSports,
+};
+
 export interface PollingRateBuilderOptions {
 	rate?: Rate;
 }

@@ -60,10 +60,8 @@ export interface BaseProtocolBuilder {
 
 	/**
 	 * Calculates the checksum of the buffer
-	 *
-	 * @return {number} The computed checksum value as an integer.
 	 */
-	calculateChecksum(): number;
+	calculateChecksum(): this;
 
 	/**
 	 * Returns the final buffer to be sent to the device
