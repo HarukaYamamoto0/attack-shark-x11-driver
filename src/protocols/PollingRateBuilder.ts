@@ -58,8 +58,9 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 		return new PollingRateBuilder().setRate(rate);
 	}
 
-	calculateChecksum(): number {
-		return 0xff - (this.buffer[3] ?? 0x00);
+	calculateChecksum(): this {
+		this.buffer[4] = 0xff - (this.buffer[3] ?? 0x00);
+		return this;
 	}
 
 	/**
@@ -91,7 +92,7 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 
 	build(_mode: ConnectionMode): Buffer {
 		// In both connection modes, the buffer is the same.
-		this.buffer[4] = this.calculateChecksum();
+		this.calculateChecksum();
 		return this.buffer;
 	}
 
