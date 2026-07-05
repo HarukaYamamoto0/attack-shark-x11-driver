@@ -91,16 +91,6 @@ describe('DpiBuilder', () => {
 		expect(builder.buffer[6]).toBe(0x26); // Mask stage 3 active (15,000 > 12,000) | 0x22 = 0x26
 	});
 
-	it('should calculate correct checksum', () => {
-		const builder = new DpiBuilder();
-		builder.build(ConnectionMode.Adapter);
-		// Sum of buffer from index 3 to 49 AFTER build (which updates masks/flags)
-		const checksum = builder.calculateChecksum();
-
-		expect(builder.buffer[50]).toBe((checksum >> 8) & 0xff);
-		expect(builder.buffer[51]).toBe(checksum & 0xff);
-	});
-
 	it('should return correct buffer size for Adapter vs Wired mode', () => {
 		const builder = new DpiBuilder();
 

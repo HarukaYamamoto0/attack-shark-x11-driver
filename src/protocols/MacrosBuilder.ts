@@ -464,14 +464,15 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 	 *
 	 * @return {number} The calculated 8-bit checksum.
 	 */
-	calculateChecksum(): number {
+	calculateChecksum(): this {
 		let sum = 0;
 
 		for (let i = 2; i < this.buffer.length - 1; i++) {
 			sum = (sum + (this.buffer[i] ?? 0x00)) & 0xff;
 		}
 
-		return (sum - 1) & 0xff;
+		this.buffer[58] = (sum - 1) & 0xff;
+		return this;
 	}
 
 	/**
@@ -481,7 +482,7 @@ export class MacrosBuilder implements BaseProtocolBuilder {
 	 * @return {Buffer} The built macro configuration buffer.
 	 */
 	build(_mode: ConnectionMode): Buffer {
-		this.buffer[58] = this.calculateChecksum();
+		this.calculateChecksum();
 		return this.buffer;
 	}
 

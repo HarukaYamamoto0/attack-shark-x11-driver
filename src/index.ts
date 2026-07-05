@@ -4,7 +4,7 @@ export * from './protocols/CustomMacroBuilder.js';
 export * from './protocols/DpiBuilder.js';
 export * from './protocols/MacrosBuilder.js';
 export * from './protocols/PollingRateBuilder.js';
-export * from './protocols/UserPreferencesBuilder.js';
+export * from './protocols/LightingSettingsBuilder';
 export * from './types.js';
 export * from './utils/delay.js';
 export * from './logger/index.js';

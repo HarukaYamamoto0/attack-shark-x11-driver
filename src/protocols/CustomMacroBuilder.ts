@@ -228,7 +228,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
-	calculateChecksum(): number {
+	calculateChecksum(): this {
 		let sum = 0;
 
 		for (let i = 8; i < this.secondPacket.length; i++) {
@@ -238,7 +238,10 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		for (let i = 4; i < this.thirdPacket.length; i++) {
 			sum += this.thirdPacket[i] ?? 0x00;
 		}
-		return sum;
+
+		this.fourthPacket[10] = (sum >> 8) & 0xff;
+		this.fourthPacket[11] = sum & 0xff;
+		return this;
 	}
 
 	build(mode: ConnectionMode): [Buffer, Buffer, Buffer, Buffer] {
@@ -260,11 +263,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 		for (let i = 4; i < 64 && eventByteIndex < this.macroEvents.length; i++) {
 			this.thirdPacket[i] = this.macroEvents[eventByteIndex++] ?? 0x00;
 		}
-
-		const checksum = this.calculateChecksum();
-
-		this.fourthPacket[10] = (checksum >> 8) & 0xff;
-		this.fourthPacket[11] = checksum & 0xff;
+		this.calculateChecksum();
 
 		return [this.defineMacroButton.build(mode), this.secondPacket, this.thirdPacket, this.fourthPacket];
 	}
