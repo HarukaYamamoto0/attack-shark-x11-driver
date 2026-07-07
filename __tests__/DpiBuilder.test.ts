@@ -27,10 +27,10 @@ describe('DpiBuilder', () => {
 		builder.setAngleSnap(false);
 		expect(builder.buffer[3]).toBe(0x00);
 
-		builder.setRipplerControl(true);
+		builder.setRippleControl(true);
 		expect(builder.buffer[4]).toBe(0x01);
 
-		builder.setRipplerControl(false);
+		builder.setRippleControl(false);
 		expect(builder.buffer[4]).toBe(0x00);
 	});
 

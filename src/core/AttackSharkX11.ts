@@ -16,6 +16,7 @@ import { ConsoleLogger } from '../logger';
 import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
+import { handleResponseDpi } from '../handles/handleResponseDpi';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -446,6 +447,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
+	}
+
+	async getDpi(): Promise<Option<DpiBuilder>> {
+		const response = await this.getFeatureReport(ReportId.DPI, PacketLength.DPI);
+		if (typeof response === 'number') return null;
+
+		return handleResponseDpi(Uint8Array.fromHex(response.toHex()));
 	}
 
 	async getPollingRate(): Promise<Option<Rate>> {
