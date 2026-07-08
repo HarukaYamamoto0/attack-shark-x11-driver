@@ -12,6 +12,7 @@ import {
 import { type Option, PacketLength } from '../types';
 
 export function handleResponseLightingSettings(buffer: Uint8Array): Option<LightingSettingsBuilder> {
+	console.log('Raw: ' + buffer.toHex());
 	if (buffer.length !== 15)
 		throw new Error(
 			`Invalid lighting settings buffer size; expected ${PacketLength.LIGHTING_SETTINGS} but received ${buffer.length}`,
@@ -20,17 +21,18 @@ export function handleResponseLightingSettings(buffer: Uint8Array): Option<Light
 	const view = new DataView(buffer.buffer);
 	// const reportId = view.getUint8(0); // not used
 	// const packetLength = view.getUint8(1); // not used
+	const profileId = view.getUint8(2);
 
-	const lightModeByte = view.getUint8(2);
-	const deepSleepHTimeAndLedSpeedByte = view.getUint8(3);
-	const deepSleepLTimeAndBrightnessLevelByte = view.getUint8(4);
-	const redByte = view.getUint8(5);
-	const greenByte = view.getUint8(6);
-	const blueByte = view.getUint8(7);
-	const sleepTimeByte = view.getUint8(8);
-	const keyResponseByte = view.getUint8(9);
+	const lightModeByte = view.getUint8(3);
+	const deepSleepHTimeAndLedSpeedByte = view.getUint8(4);
+	const deepSleepLTimeAndBrightnessLevelByte = view.getUint8(5);
+	const redByte = view.getUint8(6);
+	const greenByte = view.getUint8(7);
+	const blueByte = view.getUint8(8);
+	const sleepTimeByte = view.getUint8(9);
+	const keyResponseByte = view.getUint8(10);
 
-	const checksumByte = view.getUint16(10);
+	const checksumByte = view.getUint16(11);
 
 	const lightMode = lightModeByte as LightMode;
 
@@ -45,7 +47,7 @@ export function handleResponseLightingSettings(buffer: Uint8Array): Option<Light
 	const blue = blueByte;
 
 	let checksum = 0x00;
-	for (let i = 2; i <= 9; i++) {
+	for (let i = 3; i <= 10; i++) {
 		checksum += view.getUint8(i);
 	}
 
@@ -55,6 +57,7 @@ export function handleResponseLightingSettings(buffer: Uint8Array): Option<Light
 		);
 
 	return new LightingSettingsBuilder({
+		profileId: profileId,
 		lightMode: lightMode,
 		ledSpeed: ledSpeed,
 		deepSleepTime: ((iSleepH << 4) | iSleepL) as DeepSleepTime,

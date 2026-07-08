@@ -209,7 +209,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.isOpen || !this.hidDevice) throw new DriverError('You have to open the device first');
 
 		try {
-			await this.sendFeatureReport(Buffer.from([0xa0, reportId, report_length, 0x01, 0x00, 0x00, 0x00, 0x00]));
+			await this.sendFeatureReport(Buffer.from([0xa0, reportId, report_length, 0x00, 0x01, 0x00, 0x00, 0x00]));
 
 			await delay(250);
 
@@ -436,7 +436,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @example
 	 * ```TypeScript
 	 * const dpiBuilder = new DpiBuilder({
-	 *   dpiValues: [800, 1600, 2400, 3200, 5000, 22000],
+	 *   dpiValues: [800, 1600, 2400, 3200, 5000, 22000, 0, 0],
 	 *   activeStage: 2
 	 * });
 	 * await driver.setDpi(dpiBuilder);
