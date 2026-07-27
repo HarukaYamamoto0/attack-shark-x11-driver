@@ -7,7 +7,7 @@ import { ControlTransferError, DeviceError, DriverError, TimeoutError } from '..
 import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
-import { type MacroBuilderOptions, MacrosBuilder } from '../protocols/MacrosBuilder.js';
+import { type ButtonMappingBuilderOptions, ButtonMappingBuilder } from '../protocols/ButtonMappingBuilder';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
 import { Button, ConnectionMode, type Logger, PacketLength, ReportId, type Option, type Result } from '../types.js';
@@ -17,6 +17,7 @@ import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
 import { handleResponseDpi } from '../handles/handleResponseDpi';
+import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -71,18 +72,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.logger = options.logger ?? new ConsoleLogger();
 		this.delayMs = options.delayMs ?? 250;
 
-		// const devices = HID.devices();
-		// const deviceInfo = devices.find(
-		// 	(d) => d.vendorId === VID && d.productId === options.connectionMode && d.interface === DEVICE_INTERFACE,
-		// );
-		//
-		// if (!deviceInfo || !deviceInfo.path) {
-		// 	throw new DeviceError(
-		// 		`Device with idProduct ${options.connectionMode} and interface ${DEVICE_INTERFACE} not found`,
-		// 	);
-		// }
-		//
-		// this.devicePath = deviceInfo.path;
 		this.productId = options.connectionMode;
 	}
 
@@ -383,9 +372,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * await driver.setMacro(macroBuilder);
 	 * ```
 	 */
-	setMacro(config: MacroBuilderOptions | MacrosBuilder): Promise<number | undefined> {
+	setMapping(config: ButtonMappingBuilderOptions | ButtonMappingBuilder): Promise<number | undefined> {
 		this.checkIsOpen();
-		const builder = config instanceof MacrosBuilder ? config : new MacrosBuilder(config);
+		const builder = config instanceof ButtonMappingBuilder ? config : new ButtonMappingBuilder(config);
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
@@ -456,6 +445,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleResponseDpi(Uint8Array.fromHex(response.toHex()));
 	}
 
+	async getButtonMapping(): Promise<Option<ButtonMappingBuilder>> {
+		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, PacketLength.BUTTON_MAPPING);
+		if (typeof response === 'number') return null;
+
+		return handleResponseButtonMapping(Uint8Array.fromHex(response.toHex()));
+	}
+
 	async getPollingRate(): Promise<Option<Rate>> {
 		const response = await this.getFeatureReport(ReportId.POLLING_RATE, PacketLength.POLLING_RATE);
 		if (typeof response === 'number') return null;
@@ -479,7 +475,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	resetMacro(): Promise<number | undefined> {
 		this.checkIsOpen();
-		const builder = new MacrosBuilder();
+		const builder = new ButtonMappingBuilder();
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}

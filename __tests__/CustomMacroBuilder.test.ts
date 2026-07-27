@@ -1,6 +1,6 @@
 import { expect, test, describe } from 'bun:test';
 import { CustomMacroBuilder, MouseMacroEvent } from '../src/protocols/CustomMacroBuilder.js';
-import { KeyCode, MacrosBuilder, FirmwareAction } from '../src/protocols/MacrosBuilder.js';
+import { KeyCode, ButtonMappingBuilder, FirmwareAction } from '../src/protocols/ButtonMappingBuilder.js';
 import { Button, ConnectionMode } from '../src/types.js';
 
 describe('CustomMacroBuilder Delays', () => {
@@ -55,9 +55,9 @@ describe('CustomMacroBuilder Delays', () => {
 
 describe('CustomMacroBuilder Configuration', () => {
 	test('should allow providing custom MacrosBuilder to avoid overwriting other buttons', () => {
-		const customMacros = new MacrosBuilder();
+		const customMacros = new ButtonMappingBuilder();
 		// Change Forward to Middle-Click (index 21)
-		customMacros.setMacro(Button.FORWARD, [FirmwareAction.MIDDLE_CLICK, 0x00, 0x00]);
+		customMacros.setButton(Button.FORWARD, [FirmwareAction.MIDDLE_CLICK, 0x00, 0x00]);
 
 		const builder = new CustomMacroBuilder({
 			macrosBuilder: customMacros,
@@ -87,8 +87,8 @@ describe('CustomMacroBuilder Configuration', () => {
 	});
 
 	test('should allow setting target button with custom MacrosBuilder via method', () => {
-		const customMacros = new MacrosBuilder();
-		customMacros.setMacro(Button.FORWARD, [FirmwareAction.DISABLE_BUTTON, 0x00, 0x00]);
+		const customMacros = new ButtonMappingBuilder();
+		customMacros.setButton(Button.FORWARD, [FirmwareAction.DISABLE_BUTTON, 0x00, 0x00]);
 
 		const builder = new CustomMacroBuilder();
 		builder.setTargetButton(Button.BACKWARD, customMacros);
