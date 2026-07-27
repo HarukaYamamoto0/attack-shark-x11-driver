@@ -1,14 +1,8 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
 import { Button, type ConnectionMode } from '../types.js';
-import {
-	type KeyCode,
-	type MacroBuilderOptions,
-	MacroName,
-	MacrosBuilder,
-	macroTemplates,
-	type MacroTuple,
-} from './MacrosBuilder.js';
+import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from './ButtonMappingBuilder';
+import { type KeyCode, MacroName, macroTemplates, type MacroTuple } from '../core/keyboard-keypad-page';
 
 export enum CUSTOM_MACRO_BUTTONS {
 	LEFT_BUTTON = 0x01,
@@ -42,7 +36,7 @@ export interface CustomMacroBuilderOptions {
 	targetButton?: Button;
 	// ⚠️ Use these parameters unless you are certain that this class works; I do not recommend using them directly ⚠️
 	macroEvents?: number[];
-	macrosBuilder?: MacrosBuilder | MacroBuilderOptions;
+	macrosBuilder?: ButtonMappingBuilder | ButtonMappingBuilderOptions;
 }
 
 /**
@@ -56,14 +50,14 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 			mode: MacroMode.THE_NUMBER_OF_TIME_TO_PLAY,
 			times: 1,
 		},
-		macrosBuilder: new MacrosBuilder(),
+		macrosBuilder: new ButtonMappingBuilder(),
 	};
 	readonly buffer: Buffer = Buffer.alloc(0);
 	public readonly bmRequestType: number = 0x21;
 	public readonly bRequest: number = 0x09;
 	public readonly wValue: number = 0x0309;
 	public readonly wIndex: number = 2;
-	private defineMacroButton: MacrosBuilder;
+	private defineMacroButton: ButtonMappingBuilder;
 	private readonly secondPacket: Buffer = Buffer.alloc(64);
 	private readonly thirdPacket: Buffer = Buffer.alloc(64);
 	private readonly fourthPacket: Buffer = Buffer.alloc(64);
@@ -127,12 +121,12 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 
 		const config = { ...CustomMacroBuilder.DEFAULT_OPTIONS, ...options };
 
-		this.defineMacroButton = CustomMacroBuilder.DEFAULT_OPTIONS.macrosBuilder as MacrosBuilder;
+		this.defineMacroButton = CustomMacroBuilder.DEFAULT_OPTIONS.macrosBuilder as ButtonMappingBuilder;
 		if (config.macrosBuilder !== undefined)
 			this.defineMacroButton =
-				config.macrosBuilder instanceof MacrosBuilder
+				config.macrosBuilder instanceof ButtonMappingBuilder
 					? config.macrosBuilder
-					: new MacrosBuilder(config.macrosBuilder);
+					: new ButtonMappingBuilder(config.macrosBuilder);
 		if (config.playOptions !== undefined) this.setPlayOptions(config.playOptions.mode, config.playOptions.times);
 		if (config.targetButton !== undefined) this.setTargetButton(config.targetButton);
 		if (config.macroEvents && config.macroEvents.length > 0) this.macroEvents.push(...config.macroEvents);
@@ -186,10 +180,10 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 	 * @param button Mouse button.
 	 * @param macrosBuilder Optionally, an existing macros builder to avoid overwriting other settings.
 	 */
-	setTargetButton(button: Button, macrosBuilder?: MacrosBuilder | MacroBuilderOptions): this {
+	setTargetButton(button: Button, macrosBuilder?: ButtonMappingBuilder | ButtonMappingBuilderOptions): this {
 		if (macrosBuilder !== undefined) {
 			this.defineMacroButton =
-				macrosBuilder instanceof MacrosBuilder ? macrosBuilder : new MacrosBuilder(macrosBuilder);
+				macrosBuilder instanceof ButtonMappingBuilder ? macrosBuilder : new ButtonMappingBuilder(macrosBuilder);
 		}
 		let buttonMap: CUSTOM_MACRO_BUTTONS;
 		let macroTemplate: MacroTuple;
@@ -219,7 +213,7 @@ export class CustomMacroBuilder implements BaseProtocolBuilder {
 				throw new ParamsError('button', `Unsupported button for custom macro: ${button}`);
 		}
 
-		this.defineMacroButton.setMacro(button, macroTemplate);
+		this.defineMacroButton.setButton(button, macroTemplate);
 
 		this.secondPacket[2] = buttonMap;
 		this.thirdPacket[2] = buttonMap;

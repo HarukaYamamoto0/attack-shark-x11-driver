@@ -1,17 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import {
-	Button,
-	ConnectionMode,
-	ParamsError,
-	FirmwareAction,
-	MacroName,
-	MacrosBuilder,
-	macroTemplates,
-} from '../src/index.js';
+import { Button, ConnectionMode, ParamsError, ButtonMappingBuilder } from '../src';
 
 describe('MacrosBuilder', () => {
 	it('should initialize with default buffer', () => {
-		const builder = new MacrosBuilder();
+		const builder = new ButtonMappingBuilder();
 		// Check header
 		expect(builder.buffer[0]).toBe(0x08);
 		expect(builder.buffer[1]).toBe(0x3b);
@@ -35,10 +27,10 @@ describe('MacrosBuilder', () => {
 	});
 
 	it('should set a macro correctly', () => {
-		const builder = new MacrosBuilder();
+		const builder = new ButtonMappingBuilder();
 		const macro = macroTemplates[MacroName.SHORTCUT_COPY]; // [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.C]
 
-		builder.setMacro(Button.LEFT, macro);
+		builder.setButton(Button.LEFT, macro);
 
 		expect(builder.buffer[3]).toBe(0x11); // KEYBOARD
 		expect(builder.buffer[4]).toBe(0x01); // CTRL
@@ -46,24 +38,24 @@ describe('MacrosBuilder', () => {
 	});
 
 	it('should support method chaining', () => {
-		const builder = new MacrosBuilder();
-		const result = builder.setMacro(Button.LEFT, macroTemplates[MacroName.GLOBAL_LEFT_CLICK]);
+		const builder = new ButtonMappingBuilder();
+		const result = builder.setButton(Button.LEFT, macroTemplates[MacroName.GLOBAL_LEFT_CLICK]);
 		expect(result).toBe(builder);
 	});
 
 	it('should support new descriptive button names', () => {
-		const builder = new MacrosBuilder();
-		builder.setMacro(Button.LEFT, macroTemplates[MacroName.GLOBAL_LEFT_CLICK]);
-		builder.setMacro(Button.FORWARD, macroTemplates[MacroName.GLOBAL_FORWARD]);
+		const builder = new ButtonMappingBuilder();
+		builder.setButton(Button.LEFT, macroTemplates[MacroName.GLOBAL_LEFT_CLICK]);
+		builder.setButton(Button.FORWARD, macroTemplates[MacroName.GLOBAL_FORWARD]);
 
 		expect(builder.buffer[3]).toBe(0x02); // Left-Click
 		expect(builder.buffer[21]).toBe(0x06); // Forward
 	});
 
 	it('should support remapping DPI button', () => {
-		const builder = new MacrosBuilder();
+		const builder = new ButtonMappingBuilder();
 		// Remap the DPI button (index 18) to Middle-Click
-		builder.setMacro(Button.DPI, macroTemplates[MacroName.GLOBAL_MIDDLE]);
+		builder.setButton(Button.DPI, macroTemplates[MacroName.GLOBAL_MIDDLE]);
 
 		expect(builder.buffer[18]).toBe(0x04); // MIDDLE_CLICK
 		expect(builder.buffer[19]).toBe(0x00);
@@ -71,12 +63,12 @@ describe('MacrosBuilder', () => {
 	});
 
 	it('should support remapping scroll wheel', () => {
-		const builder = new MacrosBuilder();
-		builder.setMacro(
+		const builder = new ButtonMappingBuilder();
+		builder.setButton(
 			Button.SCROLL_UP,
 			macroTemplates[MacroName.MULTIMEDIA_VOLUME_PLUS] ?? [FirmwareAction.VOL_PLUS, 0, 0],
 		);
-		builder.setMacro(
+		builder.setButton(
 			Button.SCROLL_DOWN,
 			macroTemplates[MacroName.MULTIMEDIA_VOLUME_MINUS] ?? [FirmwareAction.VOL_MINUS, 0, 0],
 		);
@@ -86,16 +78,16 @@ describe('MacrosBuilder', () => {
 	});
 
 	it('should throw error for invalid button identifier', () => {
-		const builder = new MacrosBuilder();
+		const builder = new ButtonMappingBuilder();
 		// @ts-expect-error test
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		expect(() => builder.setMacro(99 as any, [0, 0, 0])).toThrow(ParamsError);
+		expect(() => builder.setButton(99 as any, [0, 0, 0])).toThrow(ParamsError);
 	});
 
 	it('should initialize with custom options in constructor', () => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const customMacro: any = [0x11, 0x01, 0x04]; // Keyboard, Ctrl, A
-		const builder = new MacrosBuilder({
+		const builder = new ButtonMappingBuilder({
 			left: customMacro,
 			forward: macroTemplates[MacroName.GLOBAL_FIRE_BUTTON],
 			dpi: macroTemplates[MacroName.GLOBAL_DPI_PLUS],

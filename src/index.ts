@@ -2,7 +2,7 @@ export * from './core/AttackSharkX11.js';
 export * from './core/BaseProtocolBuilder.js';
 export * from './protocols/CustomMacroBuilder.js';
 export * from './protocols/DpiBuilder.js';
-export * from './protocols/MacrosBuilder.js';
+export * from './protocols/ButtonMappingBuilder';
 export * from './protocols/PollingRateBuilder.js';
 export * from './protocols/LightingSettingsBuilder';
 export * from './types.js';
