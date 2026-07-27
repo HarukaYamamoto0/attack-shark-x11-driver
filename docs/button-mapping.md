@@ -1,91 +1,132 @@
 # Button Mapping
 
-Esete documento explica como fazer a escrita e leitura do mapeamento dos botões.
+This document explains how to read and write the button mapping configuration for the device.
 
-The firmware exposes 18 button configuration slots. Each slot occupies 3 bytes and stores the action assigned to one
-button. The association between physical buttons and slots is model-dependent and, on some devices, the read operation
-may return the slots in a different order than they were written.
+## Overview
 
-Gosto de chamar o primeiro byte de um slot de `Firmware Action` porque ele indica o que exatamente aquela tecla faz, o
-signficado do segundo e terceiro byte depende do `Firmware Action`, mas gosto de chamar eles de `Modifiers`
-e `Usage Id` respectivamente.
+The firmware exposes **18 button configuration slots**. Each slot occupies 3 bytes and stores the action assigned to a
+button.
 
-O motivo desses nomes é que normalmente voce só vai usar o primeiro byte, voce só usa o segundo quando precisa de
-informaçõa extra, como por exemplo essa simples macro: `0x11, 0x01, 0x06`, o primeiro byte `0x11` diz que é uma macro
-simples de teclado, o segundo diz os modifiers, e o terceiro diz o usage id, logo seguindo a tabela de usage id dos
-teclados, isso é uma macro que faz `Ctrl + c`.
+### Slot Structure
 
-Porem como falei, existe as `Firmware Action` que já fazem bastante coisa por si só, sem precisar de nenhum modificador
-ou usage id, como por exemplo no exemplo do `0x07` que é uma `Firmware Action` de double click que usa apenas o primeiro
-byte e deixa os outros campos em branco (`0x00`).
+Each 3-byte slot is structured as follows:
 
-## Write
+| Byte | Name                | Description                                                                    |
+|------|---------------------|--------------------------------------------------------------------------------|
+| 1    | **Firmware Action** | The primary action (e.g., Left Click, Keyboard Macro, DPI Cycle).              |
+| 2    | **Modifiers**       | Extra information for the action (e.g., Ctrl, Shift, Alt for keyboard macros). |
+| 3    | **Usage ID**        | The specific key or button identifier (e.g., Key Code for keyboard actions).   |
 
-| Offset | Example            | Description      |
-|--------|--------------------|------------------|
-| 0      | `0x08`             | Report Id        |
-| 1      | `0x3b`             | Packet Length    |
-| 2      | `0x01`             | Profile Id       |
-| 3-5    | `0x02, 0x00, 0x00` | Slot 1           |
-| 6-8    | `0x03, 0x00, 0x00` | Slot 2           |
-| 9-11   | `0x04, 0x00, 0x00` | Slot 3           |
-| 12-14  | `0x01, 0x00, 0x00` | Slot 4           |
-| 15-17  | `0x01, 0x00, 0x00` | Slot 5           |
-| 18-20  | `0x0d, 0x00, 0x00` | Slot 6           |
-| 21-23  | `0x06, 0x00, 0x00` | Slot 7           |
-| 24-26  | `0x01, 0x00, 0x00` | Slot 8           |
-| 27-29  | `0x01, 0x00, 0x00` | Slot 9           |
-| 30-32  | `0x01, 0x00, 0x00` | Slot 10          |
-| 33-35  | `0x01, 0x00, 0x00` | Slot 11          |
-| 36-38  | `0x01, 0x00, 0x00` | Slot 12          |
-| 39-40  | `0x01, 0x00, 0x00` | Slot 13          |
-| 42-44  | `0x01, 0x00, 0x00` | Slot 14          |
-| 45-47  | `0x01, 0x00, 0x00` | Slot 15          |
-| 48-50  | `0x01, 0x00, 0x00` | Slot 16          |
-| 51-53  | `0x09, 0x00, 0x00` | Slot 17          |
-| 54-57  | `0x0a, 0x00, 0x00` | Slot 18          |
-| 58-60  | `0x00, 0x3e`       | Checksum 16 bits |
+For example, a keyboard macro for `Ctrl + C` would be represented as `0x11, 0x01, 0x06`:
 
-- Slot 5 tem seu uso desencorajado, pois pelo menos enquanto fazia testes usando o Attack Shark X11, notei que qualquer
-  valor escrito aqui vai para o limbo, nada é de fato gravado no slot 5.
-- Slot 7 não pode ser desabilitado, caso tente desabilitar ele com `0x01` ele apenas retona para o valor default `0x3c`
+- `0x11`: Firmware Action (Keyboard Macro)
+- `0x01`: Modifiers (Ctrl)
+- `0x06`: Usage ID (Key 'C')
 
-Para saber mais sobre os valores de firmware action e usage id, recomendo buscar diretamente no codigo fonte, e sobre
-macros customizadas (report id `0x08`) existe um documento propio para isso.
+Many actions (like `0x02` for Left Click) only use the first byte and leave the others as `0x00`.
 
-## Read
+## Write Operation
 
-| Offset | Example            | Description      |
-|--------|--------------------|------------------|
-| 0      | `0x08`             | Report Id        |
-| 1      | `0x3b`             | Packet Length    |
-| 2      | `0x01`             | Profile Id       |
-| 3-5    | `0x02, 0x00, 0x00` | Slot 1           |
-| 6-8    | `0x03, 0x00, 0x00` | Slot 2           |
-| 9-11   | `0x04, 0x00, 0x00` | Slot 3           |
-| 12-14  | `0x01, 0x00, 0x00` | Slot 4           |
-| 15-17  | `0x06, 0x00, 0x00` | Slot 5           |
-| 18-20  | `0x05, 0x00, 0x00` | Slot 8           |
-| 21-23  | `0x3c, 0x00, 0x00` | Slot 5           |
-| 24-26  | `0x0d, 0x00, 0x00` | Slot 6           |
-| 27-29  | `0x01, 0x00, 0x00` | Slot 9           |
-| 30-32  | `0x01, 0x00, 0x00` | Slot 10          |
-| 33-35  | `0x01, 0x00, 0x00` | Slot 11          |
-| 36-38  | `0x01, 0x00, 0x00` | Slot 12          |
-| 39-40  | `0x01, 0x00, 0x00` | Slot 13          |
-| 42-44  | `0x01, 0x00, 0x00` | Slot 14          |
-| 45-47  | `0x01, 0x00, 0x00` | Slot 15          |
-| 48-50  | `0x01, 0x00, 0x00` | Slot 16          |
-| 51-53  | `0x0a, 0x00, 0x00` | Slot 18          |
-| 54-57  | `0x09, 0x00, 0x00` | Slot 17          |
-| 58-60  | `0x00, 0x79`       | Checksum 16 bits |
+To write the button mapping, a 59-byte packet (Report ID `0x08`) is sent to the device.
 
-### Example
+| Offset | Description           | Default Example    |
+|--------|-----------------------|--------------------|
+| 0      | Report ID             | `0x08`             |
+| 1      | Packet Length         | `0x3b` (59)        |
+| 2      | Profile Id            | `0x01`             |
+| 3-5    | Slot 1 (Left Click)   | `0x02, 0x00, 0x00` |
+| 6-8    | Slot 2 (Right Click)  | `0x03, 0x00, 0x00` |
+| 9-11   | Slot 3 (Middle Click) | `0x04, 0x00, 0x00` |
+| 12-14  | Slot 4                | `0x01, 0x00, 0x00` |
+| 15-17  | Slot 5                | `0x01, 0x00, 0x00` |
+| 18-20  | Slot 6 (DPI Cycle)    | `0x0d, 0x00, 0x00` |
+| 21-23  | Slot 7 (Forward)      | `0x06, 0x00, 0x00` |
+| 24-26  | Slot 8 (Backward)     | `0x05, 0x00, 0x00` |
+| 27-29  | Slot 9                | `0x01, 0x00, 0x00` |
+| 30-32  | Slot 10               | `0x01, 0x00, 0x00` |
+| 33-35  | Slot 11               | `0x01, 0x00, 0x00` |
+| 36-38  | Slot 12               | `0x01, 0x00, 0x00` |
+| 39-41  | Slot 13               | `0x01, 0x00, 0x00` |
+| 42-44  | Slot 14               | `0x01, 0x00, 0x00` |
+| 45-47  | Slot 15               | `0x01, 0x00, 0x00` |
+| 48-50  | Slot 16               | `0x01, 0x00, 0x00` |
+| 51-53  | Slot 17 (Scroll Up)   | `0x09, 0x00, 0x00` |
+| 54-56  | Slot 18 (Scroll Down) | `0x0a, 0x00, 0x00` |
+| 57-58  | Checksum (16-bit)     | `0x00, 0x3e`       |
 
-Aqui está 2 buffer o primeiro é um exemplo de escrita, onde ele mapeia todos os slots para o valor default do Attack
-Shark X11, e o segundo é um exemplo de leitura desses valores defaults.
+### Write Checksum Calculation
 
-````text
-083b01 020000 030000 040000 010000 010000 0d000 0060000 050000 010000 010000 010000 010000 010000 010000 010000 010000 090000 0a0000 003e
-083b01 020000 030000 040000 010000 060000 05000 03c0000 0d0000 010000 010000 010000 010000 010000 010000 010000 010000 0a0000 090000 0079
-````
+The checksum is stored as a big-endian unsigned 16-bit integer (high byte at index 57, low byte at index 58) calculated
+as:
+`Checksum = (Sum of bytes from index 3 to 56) - 1`
+
+## Read Operation
+
+When reading the button mapping, the device returns the same 59-byte structure, but **the returned slot order differs
+from the write order**. The firmware applies an internal mapping, and some slots may be reserved for internal use.
+
+| Offset | Represented Logical Slot | Description                   |
+|--------|--------------------------|-------------------------------|
+| 0      | -                        | Report ID (`0x08`)            |
+| 1      | -                        | Packet Length (`0x3b`)        |
+| 2      | -                        | Profile ID                    |
+| 3-5    | **Slot 1**               | Logical Slot 1                |
+| 6-8    | **Slot 2**               | Logical Slot 2                |
+| 9-11   | **Slot 3**               | Logical Slot 3                |
+| 12-14  | **Slot 4**               | Logical Slot 4                |
+| 15-17  | **Slot 5**               | Logical Slot 5                |
+| 18-20  | **Slot 8**               | Logical Slot 8 (Backward)     |
+| 21-23  | **Slot 7**               | Logical Slot 7 (Forward)      |
+| 24-26  | **Slot 6**               | Logical Slot 6 (DPI Cycle)    |
+| 27-29  | **Slot 9**               | Logical Slot 9                |
+| 30-32  | **Slot 10**              | Logical Slot 10               |
+| 33-35  | **Slot 11**              | Logical Slot 11               |
+| 36-38  | **Slot 12**              | Logical Slot 12               |
+| 39-41  | **Slot 13**              | Logical Slot 13               |
+| 42-44  | **Slot 14**              | Logical Slot 14               |
+| 45-47  | **Slot 15**              | Logical Slot 15               |
+| 48-50  | **Slot 16**              | Logical Slot 16               |
+| 51-53  | **Slot 18**              | Logical Slot 18 (Scroll Down) |
+| 54-56  | **Slot 17**              | Logical Slot 17 (Scroll Up)   |
+| 57-58  | -                        | Checksum                      |
+
+### Attack Shark X11 Read Mapping
+
+This mapping documents the translation between logical slots and read offsets specifically for the Attack Shark X11.
+This mapping may differ between other firmware models.
+
+| Logical Slot | Read Offset |
+|--------------|-------------|
+| Slot 1       | 3-5         |
+| Slot 2       | 6-8         |
+| Slot 3       | 9-11        |
+| Slot 4       | 12-14       |
+| Slot 5       | 15-17       |
+| Slot 6       | 24-26       |
+| Slot 7       | 21-23       |
+| Slot 8       | 18-20       |
+| Slot 9       | 27-29       |
+| ...          | ...         |
+| Slot 17      | 54-56       |
+| Slot 18      | 51-53       |
+
+### Read Checksum Calculation
+
+For reading, the checksum is stored as a big-endian unsigned 16-bit integer calculated as the raw sum without the
+subtraction:
+`Checksum = Sum of bytes from index 3 to 56`
+
+## Important Notes
+
+- **Slot 5**: This slot behaves differently on some devices.
+	- At least on the Attack Shark X11, the values saved in this slot are not reliably preserved; I am not sure about
+	  the behavior on other models.
+	- The returned value may correspond to another internal button mapping instead of the written value.
+- **Slot 7**: This slot cannot be disabled in some firmwares. Attempting to disable it (action `0x01`) might cause it to
+  revert to its default value.
+- **Slot Mapping**: The physical button association is model-dependent.
+
+For a full list of **Firmware Action** and **Usage ID** values, refer to the source code:
+
+- `src/core/keyboard-keypad-page.ts` (Keyboard usages)
+- `src/protocols/ButtonMappingBuilder.ts` (Firmware actions)
