@@ -103,8 +103,16 @@ export enum PacketLength {
 	POLLING_RATE = 0x09,
 	LIGHTING_SETTINGS = 0x0f,
 	BUTTON_MAPPING = 0x3b,
-	// eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
-	MACRO = 0x09,
+	MACRO = 0x28,
+	DEVICE_VERSION = 0x08,
+}
+
+export enum PacketLengthRead {
+	DPI = 0x38,
+	POLLING_RATE = 0x09,
+	LIGHTING_SETTINGS = 0x0f,
+	BUTTON_MAPPING = 0x3b,
+	MACRO = 0x83,
 	DEVICE_VERSION = 0x08,
 }
 

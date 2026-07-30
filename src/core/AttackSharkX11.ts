@@ -18,6 +18,7 @@ import { handleResponsePollingRate } from '../handles/handleResponsePollingRate'
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
 import { handleResponseDpi } from '../handles/handleResponseDpi';
 import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
+import { handleMacroResponse, type MacroBuilder } from '../handles/hadleMacroResponse';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -307,17 +308,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		};
 	}
 
-	/**
-	 * Sets the polling rate of the mouse.
-	 *
-	 * @param rate A value from the Rate enum or a PollingRateBuilder instance.
-	 * @returns The result of the USB control transfer.
-	 *
-	 * @example
-	 * ```TypeScript
-	 * await driver.setPollingRate(Rate.eSports); // 1000Hz
-	 * ```
-	 */
 	setPollingRate(rate: Rate | PollingRateBuilder): Promise<number | undefined> {
 		this.checkIsOpen();
 		const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setRate(rate);
@@ -325,21 +315,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	/**
-	 * Configures an advanced custom macro with multiple events and repetitions.
-	 *
-	 * @param options CustomMacroBuilder instance or configuration options.
-	 *
-	 * @example
-	 * ```TypeScript
-	 * const builder = new CustomMacroBuilder()
-	 *   .setPlayOptions(MacroMode.THE_NUMBER_OF_TIME_TO_PLAY, 5)
-	 *   .setTargetButton(Button.BACKWARD, macroBuilder)
-	 *   .addEvent(KeyCode.A)
-	 *   .addEvent(KeyCode.A, 10, true); // Release key A after 10ms
-	 * await driver.setCustomMacro(builder);
-	 * ```
-	 */
 	async setCustomMacro(
 		options: CustomMacroBuilder | CustomMacroBuilderOptions,
 	): Promise<[number | undefined, number | undefined, number | undefined, number | undefined]> {
@@ -379,20 +354,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	/**
-	 * Sets user preferences, such as lighting, key response time, and sleep timers.
-	 *
-	 * @param options UserPreferencesBuilder instance or configuration options.
-	 *
-	 * @example
-	 * ```TypeScript
-	 * await driver.setUserPreferences({
-	 *   lightMode: LightMode.Neon,
-	 *   ledSpeed: 5,
-	 *   keyResponse: 4
-	 * });
-	 * ```
-	 */
 	setLightingSettings(
 		options: LightingSettingsBuilder | LightingSettingsBuilderOptions,
 	): Promise<number | undefined> {
@@ -416,21 +377,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	/**
-	 * Configures the DPI stages and values for the mouse.
-	 *
-	 * @param options DpiBuilder instance or configuration options.
-	 * @returns The result of the USB control transfer.
-	 *
-	 * @example
-	 * ```TypeScript
-	 * const dpiBuilder = new DpiBuilder({
-	 *   dpiValues: [800, 1600, 2400, 3200, 5000, 22000, 0, 0],
-	 *   activeStage: 2
-	 * });
-	 * await driver.setDpi(dpiBuilder);
-	 * ```
-	 */
 	setDpi(options: DpiBuilder | DpiBuilderOptions): Promise<number | undefined> {
 		this.checkIsOpen();
 		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
@@ -439,6 +385,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getDpi(): Promise<Option<DpiBuilder>> {
+		this.checkIsOpen();
 		const response = await this.getFeatureReport(ReportId.DPI, PacketLength.DPI);
 		if (typeof response === 'number') return null;
 
@@ -446,13 +393,23 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getButtonMapping(): Promise<Option<ButtonMappingBuilder>> {
+		this.checkIsOpen();
 		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, PacketLength.BUTTON_MAPPING);
 		if (typeof response === 'number') return null;
 
 		return handleResponseButtonMapping(Uint8Array.fromHex(response.toHex()));
 	}
 
+	async getMacro(): Promise<Option<MacroBuilder>> {
+		this.checkIsOpen();
+		const response = await this.getFeatureReport(ReportId.MACRO, PacketLength.MACRO);
+		if (typeof response === 'number') return null;
+
+		return handleMacroResponse(Uint8Array.fromHex(response.toHex()));
+	}
+
 	async getPollingRate(): Promise<Option<Rate>> {
+		this.checkIsOpen();
 		const response = await this.getFeatureReport(ReportId.POLLING_RATE, PacketLength.POLLING_RATE);
 		if (typeof response === 'number') return null;
 
@@ -460,6 +417,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getLightingSettings(): Promise<Option<LightingSettingsBuilder>> {
+		this.checkIsOpen();
 		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, PacketLength.LIGHTING_SETTINGS);
 		if (typeof response === 'number') return null;
 
@@ -501,11 +459,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	/**
-	 * Resets the mouse to factory settings (all profiles and definitions).
-	 *
-	 * @returns A promise that resolves when the reset is complete.
-	 */
 	async reset(): Promise<void> {
 		this.checkIsOpen();
 		await this.sendInternalStateResetReportBuilder();
