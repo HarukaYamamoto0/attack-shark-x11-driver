@@ -5,7 +5,7 @@ import { ParamsError } from '../src';
 describe('LightingSettingsBuilder', () => {
 	it('should initialize with correct default values', () => {
 		const builder = new LightingSettingsBuilder();
-		const buffer = builder.build(ConnectionMode.Adapter);
+		const buffer = builder.build(ConnectionMode.Wireless);
 
 		// Header
 		expect(buffer[0]).toBe(0x05); // Report ID
@@ -127,7 +127,7 @@ describe('LightingSettingsBuilder', () => {
 
 		it('should return 15 bytes for Adapter mode', () => {
 			const builder = new LightingSettingsBuilder();
-			const buffer = builder.build(ConnectionMode.Adapter);
+			const buffer = builder.build(ConnectionMode.Wireless);
 			expect(buffer.length).toBe(15);
 		});
 	});
@@ -143,7 +143,7 @@ describe('LightingSettingsBuilder', () => {
 
 		// Sum: 0x10 + 0x01 + 0xA1 + 0xFF + 0x00 + 0x00 + 0x02 + 0x02
 		// 16 + 1 + 161 + 255 + 0 + 0 + 2 + 2 = 437 = 0x01B5
-		const buffer = builder.build(ConnectionMode.Adapter);
+		const buffer = builder.build(ConnectionMode.Wireless);
 		builder.calculateChecksum();
 		expect(buffer[11]).toBe(0x01);
 		expect(buffer[12]).toBe(0xb5);
@@ -151,7 +151,7 @@ describe('LightingSettingsBuilder', () => {
 
 	it('should support toString and compareWithHexString', () => {
 		const builder = new LightingSettingsBuilder();
-		const hex = builder.build(ConnectionMode.Adapter).toString('hex');
+		const hex = builder.build(ConnectionMode.Wireless).toString('hex');
 		expect(builder.toString()).toBe(hex);
 		expect(builder.compareWithHexString(hex)).toBe(true);
 		expect(builder.compareWithHexString('invalid')).toBe(false);

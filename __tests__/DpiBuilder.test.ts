@@ -97,7 +97,7 @@ describe('DpiBuilder', () => {
 		const wiredBuffer = builder.build(ConnectionMode.Wired);
 		expect(wiredBuffer.length).toBe(52); // indices 0 to 51
 
-		const adapterBuffer = builder.build(ConnectionMode.Adapter);
+		const adapterBuffer = builder.build(ConnectionMode.Wireless);
 		expect(adapterBuffer.length).toBe(56);
 	});
 });

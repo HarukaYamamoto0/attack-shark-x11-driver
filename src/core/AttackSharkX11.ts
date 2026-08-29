@@ -20,7 +20,6 @@ import {
 	ReportId,
 	type Result,
 } from '../types.js';
-import { ConsoleLogger } from '../logger';
 import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
@@ -48,7 +47,7 @@ export interface AttackSharkX11Events {
  *
  * @example
  * ```TypeScript
- * const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Adapter });
+ * const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Wireless });
  * await driver.open();
  * const battery = await driver.getBatteryLevel();
  * console.log(`Battery: ${battery}%`);
@@ -57,8 +56,8 @@ export interface AttackSharkX11Events {
  */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public readonly productId: number;
-	private devicePath?: string;
-	public hidDevice?: HIDAsync;
+	private devicePath?: string | undefined;
+	public hidDevice?: HIDAsync | undefined;
 	/**
 	 * Delay in milliseconds between packets to prevent the device from locking up.
 	 */
@@ -66,7 +65,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	private isOpen: boolean = false;
 	private battery_status: BatteryStatus = BatteryStatus.CHARGING_IN_PROGRESS;
 	private battery_percentage: number = -1;
-	private logger: Logger;
+	private logger: Logger | undefined;
 
 	/**
 	 * @param options Configuration options for the driver
@@ -80,7 +79,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			throw new DriverError('The type of connection was not specified');
 		}
 
-		this.logger = options.logger ?? new ConsoleLogger();
+		this.logger = options.logger ?? undefined;
 		this.delayMs = options.delayMs ?? 250;
 
 		this.productId = options.connectionMode;
@@ -100,25 +99,33 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async open(): Promise<void> {
 		try {
 			const devices = await HID.devicesAsync();
-			const deviceInfo = devices.find(
-				(d) => d.vendorId === VID && d.productId === this.connectionMode && d.interface === DEVICE_INTERFACE,
+			const matchingDevices = devices.filter(
+				(d) =>
+					d.vendorId === VID &&
+					d.productId === this.connectionMode &&
+					(d.interface === DEVICE_INTERFACE || (d.path && d.path.toLowerCase().includes('mi_02'))),
 			);
 
+			const deviceInfo =
+				matchingDevices.find((d) => d.usagePage === 11 || (d.path && d.path.toLowerCase().includes('col04'))) ??
+				matchingDevices[0];
+
 			if (!deviceInfo || !deviceInfo.path) {
-				throw new DriverError(
-					`[AttackSharkX11-open] - Device with product id ${this.connectionModeAsString} not found`,
-				);
+				throw new DriverError(`[AttackSharkX11-open] - Device with product id ${this.hexTo} not found`);
 			}
 			this.devicePath = deviceInfo.path;
 			this.hidDevice = await HIDAsync.open(this.devicePath);
 
+			this.isOpen = true;
 			this.setupListeners();
 
-			this.isOpen = true;
-			this.logger.debug(`[AttackSharkX11-open] - the device was opened, path: ${this.devicePath}`);
+			this.logger?.debug(`[AttackSharkX11-open] - the device was opened, path: ${this.devicePath}`);
 		} catch (e: unknown) {
+			if (e instanceof DriverError) {
+				throw e;
+			}
 			throw new DeviceError(
-				`An unexpected error occurred while trying to open device 0x${this.devicePath.toString(16)}`,
+				`An unexpected error occurred while trying to open device ${this.devicePath ?? this.hexTo}`,
 				{
 					cause: e,
 				},
@@ -132,7 +139,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.hidDevice.on('error', (err: Error) => {
 			// Suppress "could not read" errors if they are expected on some Windows HID collections
 			if (err.message.includes('could not read')) {
-				this.logger.debug('Suppressed HID read error:', err.message);
+				this.logger?.debug('Suppressed HID read error:', err.message);
 				return;
 			}
 			this.emit('error', err);
@@ -153,12 +160,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
-	private handleData(data: Uint8Array): void {
+	private handleData = (data: Uint8Array): void => {
 		const view = new DataView(data.buffer);
 
 		switch (view.byteLength) {
 			case MessageTypesLength: {
-				if (view.getUint8(2) === MessageTypes.Battery) {
+				if (view.getUint8(2) === MessageTypes.BATTERY) {
 					const battery_status = view.getUint8(3);
 					const battery_percentage = view.getUint8(4);
 
@@ -173,14 +180,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				/* empty */
 			}
 		}
-	}
+	};
 
 	private startPolling(): void {
 		if (!this.isOpen || !this.hidDevice) return;
 		try {
 			this.hidDevice.resume();
 		} catch (e) {
-			this.logger.error('Failed to start polling', e);
+			this.logger?.error('Failed to start polling', e);
 		}
 	}
 
@@ -200,6 +207,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async close(): Promise<void> {
 		if (!this.isOpen) return;
 
+		this.stopPolling();
 		this.removeAllListeners();
 
 		try {
@@ -209,6 +217,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 
 		this.isOpen = false;
+		this.hidDevice = undefined;
 	}
 
 	checkIsOpen(): void {
@@ -221,11 +230,11 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		try {
 			const response = await this.hidDevice?.sendFeatureReport(buffer);
 
-			this.logger.debug(`[sendFeatureReport] buffer=${buffer.toString('hex')} response=${response}`);
+			this.logger?.debug(`[sendFeatureReport] buffer=${buffer.toString('hex')} response=${response}`);
 
 			return response;
 		} catch (err) {
-			this.logger.error(`[sendFeatureReport] failed: ${buffer.toString('hex')}`);
+			this.logger?.error(`[sendFeatureReport] failed: ${buffer.toString('hex')}`);
 
 			throw new ControlTransferError('Control transfer (sendFeatureReport) failed', { cause: err });
 		}

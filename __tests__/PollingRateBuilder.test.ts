@@ -68,11 +68,11 @@ describe('PollingRateBuilder', () => {
 		const builder = new PollingRateBuilder();
 
 		builder.setRate(Rate.office); // 0x04
-		builder.build(ConnectionMode.Adapter);
+		builder.build(ConnectionMode.Wireless);
 		expect(builder.buffer[4]).toBe(0xfb); // 0xFF - 0x04
 
 		builder.setRate(Rate.gaming); // 0x02
-		builder.build(ConnectionMode.Adapter);
+		builder.build(ConnectionMode.Wireless);
 		expect(builder.buffer[4]).toBe(0xfd); // 0xFF - 0x02
 	});
 });

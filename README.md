@@ -6,21 +6,28 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HarukaYamamoto0/attack-shark-x11-driver)
 [![codecov](https://codecov.io/gh/HarukaYamamoto0/attack-shark-x11-driver/branch/main/graph/badge.svg?token=6GURT5NZJ3)](https://codecov.io/gh/HarukaYamamoto0/attack-shark-x11-driver)
 
-A TypeScript driver for the **Attack Shark X11 gaming mouse**, providing cross-platform support, primarily focused on Linux, for configuring DPI, button mappings, macros, lighting, and polling rates through USB HID.
+A TypeScript driver for the **Attack Shark X11 gaming mouse**, providing cross-platform support, primarily focused on
+Linux, for configuring DPI, button mappings, macros, lighting, and polling rates through USB HID.
 
-The official software is Windows-only. This project provides a way to communicate with the device from any platform supported by Node.js, Bun, and the underlying HID implementation.
+The official software is Windows-only. This project provides a way to communicate with the device from any platform
+supported by Node.js, Bun, and the underlying HID implementation.
 
 ## Project Status
 
 Reverse engineering is currently ongoing, albeit at a slower pace.
 
-Reverse engineering proprietary hardware and undocumented protocols requires a significant amount of time. Although I truly enjoy this work, it does not generate a direct financial return at the moment, and I need to balance my time between work, studies, and other responsibilities.
+Reverse engineering proprietary hardware and undocumented protocols requires a significant amount of time. Although I
+truly enjoy this work, it does not generate a direct financial return at the moment, and I need to balance my time
+between work, studies, and other responsibilities.
 
-Under different circumstances, I would gladly dedicate most of my time to reverse engineering. Unfortunately, maintaining that level of dedication is not sustainable right now.
+Under different circumstances, I would gladly dedicate most of my time to reverse engineering. Unfortunately,
+maintaining that level of dedication is not sustainable right now.
 
-The existing implementation, documentation, data captures, and research will remain publicly available so that other developers can continue the work.
+The existing implementation, documentation, data captures, and research will remain publicly available so that other
+developers can continue the work.
 
-Issues and pull requests are still welcome. I will review them whenever my time permits, but there is no guarantee regarding response times, release schedules, or development roadmaps.
+Issues and pull requests are still welcome. I will review them whenever my time permits, but there is no guarantee
+regarding response times, release schedules, or development roadmaps.
 
 ## Features
 
@@ -36,46 +43,44 @@ Issues and pull requests are still welcome. I will review them whenever my time 
 
 ## Package Limitations
 
-The package can be used directly in Node.js and Bun applications, but some environments such as Electron and Tauri may exhibit unexpected behavior depending on their HID implementation and process architecture.
+The package can be used directly in Node.js and Bun applications, but some environments such as Electron and Tauri may
+exhibit unexpected behavior depending on their HID implementation and process architecture.
 
-As discussed in issue [#9](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/issues/9), a lower-level implementation using Rust would likely provide better control and reliability.
+As discussed in issue [#9](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/issues/9), a lower-level
+implementation using Rust would likely provide better control and reliability.
 
-For Tauri, use this package solely for generating, parsing, and manipulating protocol buffers, while sending the actual HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/latest/hidapi/).
+For Tauri, use this package solely for generating, parsing, and manipulating protocol buffers, while sending the actual
+HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/latest/hidapi/).
 
 ## Quick Start
 
 ```typescript
-import {
-	AttackSharkX11,
-	ConnectionMode,
-	Rate,
-} from 'attack-shark-x11-driver';
+import { AttackSharkX11, ConnectionMode, delay, Rate } from './src';
 
-const driver = new AttackSharkX11({
-	connectionMode: ConnectionMode.Adapter, // Or ConnectionMode.Wired
-	delayMs: 300,
-});
+const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Wireless });
 
 try {
 	await driver.open();
+	await delay(250);
 
 	await driver.setPollingRate(Rate.eSports);
+	await delay(250);
 
-	await driver.setDpi({
-		// The device supports eight DPI stages, though the official software exposes fewer
-		dpiValues: [800, 1600, 2400, 3200, 5000, 22000, 0, 0],
-		activeStage: 2,
-	});
+	const polling_rate = await driver.getPollingRate();
+	console.log(`Polling rate: ${polling_rate}`);
 } catch (error) {
-	console.error('Driver error:', error);
+	console.error('Error:', error instanceof Error ? error.message : error);
 } finally {
 	await driver.close();
+	console.log('\nDriver closed.');
 }
+
 ```
 
 The `delayMs` option exists because the protocol currently lacks reliable command acknowledgment handling.
 
-Until response validation is implemented, a delay of approximately 250–300 ms between commands is recommended. Sending packets too quickly may cause commands to be ignored or leave the device in an inconsistent state.
+Until response validation is implemented, a delay of approximately 250–300 ms between commands is recommended. Sending
+packets too quickly may cause commands to be ignored or leave the device in an inconsistent state.
 
 ## Linux Setup
 
@@ -109,12 +114,13 @@ sudo udevadm trigger
 
 Disconnect and reconnect the mouse.
 
-Depending on the distribution and session manager, logging out and back in may also be required before the new permissions are applied.
+Depending on the distribution and session manager, logging out and back in may also be required before the new
+permissions are applied.
 
 ## Supported Hardware
 
 | Device           | Connection mode  | Status     |
-| ---------------- | ---------------- | ---------- |
+|------------------|------------------|------------|
 | Attack Shark X11 | Wired            | Supported  |
 | Attack Shark X11 | 2.4 GHz wireless | Supported  |
 | Attack Shark X11 | Bluetooth        | Not tested |
@@ -124,7 +130,7 @@ The Attack Shark R1 may use a compatible protocol, but this has not been verifie
 ### Supported Runtimes
 
 | Runtime  | Status       |
-| -------- | ------------ |
+|----------|--------------|
 | Node.js  | Supported    |
 | Bun      | Supported    |
 | Electron | Experimental |
@@ -132,8 +138,10 @@ The Attack Shark R1 may use a compatible protocol, but this has not been verifie
 
 ## Important Warnings
 
-* **Device recovery:** If the mouse stops responding, switch it to Bluetooth mode for a few seconds and then switch it back to wired or 2.4 GHz mode.
-* **Protocol safety:** Avoid sending unknown or malformed packets. Some configuration fields may be persisted directly to the device.
+* **Device recovery:** If the mouse stops responding, switch it to Bluetooth mode for a few seconds and then switch it
+  back to wired or 2.4 GHz mode.
+* **Protocol safety:** Avoid sending unknown or malformed packets. Some configuration fields may be persisted directly
+  to the device.
 * **Command timing:** Sending multiple commands without sufficient delay may cause packets to be dropped.
 * **Platform support:** The project is designed to be cross-platform, but Linux has received the most testing.
 * **No firmware recovery:** This project does not currently provide firmware flashing or recovery capabilities.
@@ -155,7 +163,8 @@ Some protocol fields remain undocumented or only partially understood.
 
 ## Contributing
 
-Contributions are welcome, particularly in areas where physical hardware access or additional protocol captures are required.
+Contributions are welcome, particularly in areas where physical hardware access or additional protocol captures are
+required.
 
 Useful contributions include:
 
@@ -182,18 +191,22 @@ Pull requests and issues will be reviewed when time permits.
 
 ## Supporting the Project
 
-This project exists because of many hours spent analyzing proprietary software, capturing USB HID traffic, documenting undocumented protocols, testing hardware behavior, and building an independent cross-platform implementation.
+This project exists because of many hours spent analyzing proprietary software, capturing USB HID traffic, documenting
+undocumented protocols, testing hardware behavior, and building an independent cross-platform implementation.
 
-Active reverse-engineering work is paused because this level of research is challenging to sustain without financial support.
+Active reverse-engineering work is paused because this level of research is challenging to sustain without financial
+support.
 
-Financial contributions do not guarantee new features or releases, but they may make it possible for me to dedicate additional time to protocol research, documentation, testing, and broader device support in the future.
+Financial contributions do not guarantee new features or releases, but they may make it possible for me to dedicate
+additional time to protocol research, documentation, testing, and broader device support in the future.
 
 ### Sponsors
 
 * GitHub Sponsors: https://github.com/sponsors/HarukaYamamoto0
 * Ko-fi: https://ko-fi.com/harukayamamoto0
 
-Non-financial contributions are also valuable. Protocol captures, device testing, documentation, hardware information, issues, and pull requests can help keep the research useful to the community.
+Non-financial contributions are also valuable. Protocol captures, device testing, documentation, hardware information,
+issues, and pull requests can help keep the research useful to the community.
 
 ## License
 
