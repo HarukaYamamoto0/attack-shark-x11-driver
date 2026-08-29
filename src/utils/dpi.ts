@@ -60,13 +60,13 @@ export function convertDpiToBytes(dpi: number): DpiBytes {
  * @param xByte DPI X byte
  * @param yByte DPI Y byte
  * @param isDouble Double speed flag
- * @param isTriple Triple speed flag (ignored for X11)
+ * @param _isTriple Triple speed flag (ignored for X11)
  * @returns Calculated DPI value
  */
 export function convertBytesToDpi(xByte: number, yByte: number, isDouble: boolean, _isTriple: boolean): number {
 	if (xByte === 0 && yByte === 0) return 0;
 
-	let dpiValue = 0;
+	let dpiValue: number;
 
 	if (yByte === 0) {
 		// Single byte mode, ≤ 10000 DPI, step 50

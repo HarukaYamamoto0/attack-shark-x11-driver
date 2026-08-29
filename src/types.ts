@@ -145,7 +145,7 @@ export enum MessageTypes {
 	BATTERY1 = 0x41,
 	FEATURE_REPORT_STATUS = 0x50,
 	VIBRATION_MODE_NOTIFICATION = 0x11,
-	DPI_CYCLE=0x10
+	DPI_CYCLE = 0x10,
 }
 
 export const MessageTypesLength = 5;

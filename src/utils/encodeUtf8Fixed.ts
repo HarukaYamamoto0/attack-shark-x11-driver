@@ -1,4 +1,4 @@
-export type UnicodeNormalizationForm = "NFC" | "NFD" | "NFKC" | "NFKD";
+export type UnicodeNormalizationForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
 
 export interface EncodeFixedUtf8Options {
 	/**
@@ -112,16 +112,11 @@ export function encodeFixedUtf8(
 ): FixedUtf8EncodingResult {
 	assertValidByteLength(byteLength);
 
-	const {
-		normalization = "NFC",
-		paddingByte = 0x00,
-		preserveGraphemes = true,
-	} = options;
+	const { normalization = 'NFC', paddingByte = 0x00, preserveGraphemes = true } = options;
 
-	assertValidByte(paddingByte, "paddingByte");
+	assertValidByte(paddingByte, 'paddingByte');
 
-	const normalizedText =
-		normalization === false ? text : text.normalize(normalization);
+	const normalizedText = normalization === false ? text : text.normalize(normalization);
 
 	const completeEncoding = UTF8_ENCODER.encode(normalizedText);
 	const output = new Uint8Array(byteLength);
@@ -143,10 +138,7 @@ export function encodeFixedUtf8(
 
 	let offset = 0;
 
-	for (const segment of iterateUnicodeSegments(
-		normalizedText,
-		preserveGraphemes,
-	)) {
+	for (const segment of iterateUnicodeSegments(normalizedText, preserveGraphemes)) {
 		const encodedSegment = UTF8_ENCODER.encode(segment);
 
 		if (offset + encodedSegment.length > byteLength) {
@@ -169,17 +161,10 @@ export function encodeFixedUtf8(
  * Iterates over grapheme clusters when possible, falling back to Unicode
  * code points when `Intl.Segmenter` is unavailable or disabled.
  */
-function* iterateUnicodeSegments(
-	text: string,
-	preserveGraphemes: boolean,
-): Generator<string> {
-	if (
-		preserveGraphemes &&
-		typeof Intl !== "undefined" &&
-		typeof Intl.Segmenter === "function"
-	) {
+function* iterateUnicodeSegments(text: string, preserveGraphemes: boolean): Generator<string> {
+	if (preserveGraphemes && typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
 		const segmenter = new Intl.Segmenter(undefined, {
-			granularity: "grapheme",
+			granularity: 'grapheme',
 		});
 
 		for (const entry of segmenter.segment(text)) {
@@ -198,16 +183,12 @@ function* iterateUnicodeSegments(
 
 function assertValidByteLength(value: number): void {
 	if (!Number.isSafeInteger(value) || value < 0) {
-		throw new RangeError(
-			`byteLength must be a non-negative safe integer; received ${value}.`,
-		);
+		throw new RangeError(`byteLength must be a non-negative safe integer; received ${value}.`);
 	}
 }
 
 function assertValidByte(value: number, parameterName: string): void {
 	if (!Number.isInteger(value) || value < 0x00 || value > 0xff) {
-		throw new RangeError(
-			`${parameterName} must be an integer between 0x00 and 0xFF; received ${value}.`,
-		);
+		throw new RangeError(`${parameterName} must be an integer between 0x00 and 0xFF; received ${value}.`);
 	}
 }

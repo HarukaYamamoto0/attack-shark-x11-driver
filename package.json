@@ -53,8 +53,8 @@
 	},
 	"lint-staged": {
 		"*.{ts,js,json}": [
-			"prettier --write",
-			"eslint --fix"
+			"bunx prettier --write",
+			"bunx eslint --fix"
 		]
 	},
 	"dependencies": {
