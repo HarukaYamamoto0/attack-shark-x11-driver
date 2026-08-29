@@ -3,7 +3,7 @@
  */
 export enum ConnectionMode {
 	/** Wireless mode via 2.4GHz adapter */
-	Adapter = 0xfa60,
+	Wireless = 0xfa60,
 	/** Wired mode via USB cable */
 	Wired = 0xfa55,
 }
@@ -126,6 +126,32 @@ export enum PacketLengthRead {
  */
 export type Option<T> = T | null;
 
+/**
+ * Represents the result of an operation that can either be a successful outcome of type T
+ * or an error of type E. By default, E is of type Error.
+ *
+ * This type can be used to model functions or processes where the result might not always
+ * be successful and an error may need to be handled.
+ *
+ * @template T The type of the successful result.
+ * @template E The type of the error result. Defaults to Error.
+ */
 export type Result<T, E = Error> = T | E;
 
 export type ProfileId = number;
+
+export enum MessageTypes {
+	BATTERY = 0x40,
+	BATTERY1 = 0x41,
+	FEATURE_REPORT_STATUS = 0x50,
+	VIBRATION_MODE_NOTIFICATION = 0x11,
+	DPI_CYCLE=0x10
+}
+
+export const MessageTypesLength = 5;
+
+export enum BatteryStatus {
+	NORMAL = 0x01,
+	FULLY_CHARGED = 0x02,
+	CHARGING_IN_PROGRESS = 0x03,
+}

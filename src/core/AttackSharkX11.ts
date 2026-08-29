@@ -4,21 +4,30 @@ import * as HID from 'node-hid';
 import { HIDAsync } from 'node-hid';
 import { EventEmitter } from 'node:events';
 import { ControlTransferError, DeviceError, DriverError, TimeoutError } from '../errors.js';
-import { CustomMacroBuilder, type CustomMacroBuilderOptions, MacroMode } from '../protocols/CustomMacroBuilder.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
-import { type ButtonMappingBuilderOptions, ButtonMappingBuilder } from '../protocols/ButtonMappingBuilder';
+import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
-import { Button, ConnectionMode, type Logger, PacketLength, ReportId, type Option, type Result } from '../types.js';
-import { bufferStartsWith } from '../utils/bufferUtils.js';
+import {
+	BatteryStatus,
+	ConnectionMode,
+	type Logger,
+	MessageTypes,
+	MessageTypesLength,
+	type Option,
+	PacketLength,
+	ReportId,
+	type Result,
+} from '../types.js';
 import { ConsoleLogger } from '../logger';
 import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
 import { handleResponseDpi } from '../handles/handleResponseDpi';
 import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
-import { handleMacroResponse, type MacroBuilder } from '../handles/hadleMacroResponse';
+import { handleMacroResponse } from '../handles/hadleMacroResponse';
+import type { MacroBuilder } from '../protocols/MacroBuilder';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -28,7 +37,7 @@ const DEVICE_INTERFACE = 2;
  */
 export interface AttackSharkX11Events {
 	/** Emitted when the battery level changes */
-	batteryChange: [battery: number];
+	batteryChange: [battery_status: BatteryStatus, battery_percentage: number];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
@@ -55,7 +64,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	public readonly delayMs: number;
 	private isOpen: boolean = false;
-	private lastBattery: number = -1;
+	private battery_status: BatteryStatus = BatteryStatus.CHARGING_IN_PROGRESS;
+	private battery_percentage: number = -1;
 	private logger: Logger;
 
 	/**
@@ -83,6 +93,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.productId as ConnectionMode;
 	}
 
+	get hexTo(): string {
+		return `0x${this.connectionMode.toString(16)}`;
+	}
+
 	async open(): Promise<void> {
 		try {
 			const devices = await HID.devicesAsync();
@@ -91,24 +105,29 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			);
 
 			if (!deviceInfo || !deviceInfo.path) {
-				// noinspection ExceptionCaughtLocallyJS
-				throw new DriverError(`Device with idProduct ${this.connectionMode} not found`);
+				throw new DriverError(
+					`[AttackSharkX11-open] - Device with product id ${this.connectionModeAsString} not found`,
+				);
 			}
-
 			this.devicePath = deviceInfo.path;
 			this.hidDevice = await HIDAsync.open(this.devicePath);
-		} catch (e: unknown) {
-			new DeviceError(`An unexpected error occurred while trying to open device ${this.connectionMode}`, {
-				cause: e,
-			});
-		}
 
-		this.setupListeners();
-		this.isOpen = true;
+			this.setupListeners();
+
+			this.isOpen = true;
+			this.logger.debug(`[AttackSharkX11-open] - the device was opened, path: ${this.devicePath}`);
+		} catch (e: unknown) {
+			throw new DeviceError(
+				`An unexpected error occurred while trying to open device 0x${this.devicePath.toString(16)}`,
+				{
+					cause: e,
+				},
+			);
+		}
 	}
 
 	private setupListeners(): void {
-		if (!this.hidDevice) return;
+		if (!this.isOpen || !this.hidDevice) throw new DriverError('You have to open the device first');
 
 		this.hidDevice.on('error', (err: Error) => {
 			// Suppress "could not read" errors if they are expected on some Windows HID collections
@@ -134,16 +153,27 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		});
 	}
 
-	private handleData = (data: Buffer): void => {
-		if (bufferStartsWith(data, Buffer.from([0x03, 0x55, 0x40, 0x01]))) {
-			if (data.length < 5) return;
-			const battery = data[4];
-			if (battery !== undefined && battery !== this.lastBattery) {
-				this.lastBattery = battery;
-				this.emit('batteryChange', battery);
+	private handleData(data: Uint8Array): void {
+		const view = new DataView(data.buffer);
+
+		switch (view.byteLength) {
+			case MessageTypesLength: {
+				if (view.getUint8(2) === MessageTypes.Battery) {
+					const battery_status = view.getUint8(3);
+					const battery_percentage = view.getUint8(4);
+
+					this.battery_status = battery_status;
+					this.battery_percentage = battery_percentage;
+
+					this.emit('batteryChange', this.battery_status, this.battery_percentage);
+				}
+				break;
+			}
+			default: {
+				/* empty */
 			}
 		}
-	};
+	}
 
 	private startPolling(): void {
 		if (!this.isOpen || !this.hidDevice) return;
@@ -189,8 +219,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 
 		try {
-			return await this.hidDevice?.sendFeatureReport(buffer);
+			const response = await this.hidDevice?.sendFeatureReport(buffer);
+
+			this.logger.debug(`[sendFeatureReport] buffer=${buffer.toString('hex')} response=${response}`);
+
+			return response;
 		} catch (err) {
+			this.logger.error(`[sendFeatureReport] failed: ${buffer.toString('hex')}`);
+
 			throw new ControlTransferError('Control transfer (sendFeatureReport) failed', { cause: err });
 		}
 	}
@@ -291,14 +327,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 			this.on('batteryChange', handleBattery);
 
-			if (this.lastBattery !== -1 && this.lastBattery <= 100) {
+			if (this.battery_percentage !== -1 && this.battery_percentage <= 100) {
 				cleanup();
-				resolve(this.lastBattery);
+				resolve(this.battery_percentage);
 			}
 		});
 	}
 
-	onBatteryChange(listener: (battery: number) => void): () => void {
+	onBatteryChange(listener: (battery_status: BatteryStatus, battery_percentage: number) => void): () => void {
 		this.checkIsOpen();
 
 		this.on('batteryChange', listener);
@@ -315,26 +351,26 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	async setCustomMacro(
-		options: CustomMacroBuilder | CustomMacroBuilderOptions,
-	): Promise<[number | undefined, number | undefined, number | undefined, number | undefined]> {
-		this.checkIsOpen();
-		const builder = options instanceof CustomMacroBuilder ? options : new CustomMacroBuilder(options);
-		const [setMacroBuffer, secondPacket, thirdPacket, fourthPacket] = builder.build(this.connectionMode);
-
-		const responseMacros = await this.sendFeatureReport(setMacroBuffer);
-		await delay(this.delayMs);
-
-		const responseSecondPacket = await this.sendFeatureReport(secondPacket);
-		await delay(this.delayMs);
-
-		const responseThirdPacket = await this.sendFeatureReport(thirdPacket);
-		await delay(this.delayMs);
-
-		const responseFourthPacket = await this.sendFeatureReport(fourthPacket);
-
-		return [responseMacros, responseSecondPacket, responseThirdPacket, responseFourthPacket];
-	}
+	// async setCustomMacro(
+	// 	options: CustomMacroBuilder | CustomMacroBuilderOptions,
+	// ): Promise<[number | undefined, number | undefined, number | undefined, number | undefined]> {
+	// 	this.checkIsOpen();
+	// 	const builder = options instanceof CustomMacroBuilder ? options : new CustomMacroBuilder(options);
+	// 	const [setMacroBuffer, secondPacket, thirdPacket, fourthPacket] = builder.build(this.connectionMode);
+	//
+	// 	const responseMacros = await this.sendFeatureReport(setMacroBuffer);
+	// 	await delay(this.delayMs);
+	//
+	// 	const responseSecondPacket = await this.sendFeatureReport(secondPacket);
+	// 	await delay(this.delayMs);
+	//
+	// 	const responseThirdPacket = await this.sendFeatureReport(thirdPacket);
+	// 	await delay(this.delayMs);
+	//
+	// 	const responseFourthPacket = await this.sendFeatureReport(fourthPacket);
+	//
+	// 	return [responseMacros, responseSecondPacket, responseThirdPacket, responseFourthPacket];
+	// }
 
 	/**
 	 * Maps mouse buttons to simple macros or keyboard functions.
@@ -438,19 +474,19 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	resetCustomMacro(): Promise<[number | undefined, number | undefined, number | undefined, number | undefined]> {
-		this.checkIsOpen();
-		const builder = new CustomMacroBuilder({
-			playOptions: {
-				mode: MacroMode.THE_NUMBER_OF_TIME_TO_PLAY,
-				times: 1,
-			},
-			targetButton: Button.BACKWARD,
-			macroEvents: [],
-		});
-
-		return this.setCustomMacro(builder);
-	}
+	// resetCustomMacro(): Promise<[number | undefined, number | undefined, number | undefined, number | undefined]> {
+	// 	this.checkIsOpen();
+	// 	const builder = new CustomMacroBuilder({
+	// 		playOptions: {
+	// 			mode: MacroMode.THE_NUMBER_OF_TIME_TO_PLAY,
+	// 			times: 1,
+	// 		},
+	// 		targetButton: Button.BACKWARD,
+	// 		macroEvents: [],
+	// 	});
+	//
+	// 	return this.setCustomMacro(builder);
+	// }
 
 	resetUserPreferences(): Promise<number | undefined> {
 		this.checkIsOpen();
@@ -466,7 +502,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		await this.resetUserPreferences();
 		await this.resetPollingRate();
 		await this.resetMacro();
-		await this.resetCustomMacro();
+		// await this.resetCustomMacro();
 	}
 }
 

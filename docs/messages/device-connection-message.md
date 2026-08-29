@@ -28,8 +28,11 @@ Indicates the battery state. Three values have been observed:
 | 2     | Fully charged        |
 | 3     | Charging in progress |
 
-It is worth noting that a value of `3` also indicates that the device is operating in **Wired** mode, since the battery
-is continuously charged while connected via USB.
+It is worth noting that a value of `0x03` also indicates that the device is operating in **Wired** mode, since the
+battery is continuously charged while connected via USB.
+
+and, when operating in mode `0x03`, the `params2` field retains the processed value from the last battery percentage reading;
+unfortunately, it does not display the charging request.
 
 ### params2
 
@@ -56,3 +59,8 @@ fully charged battery.
 03    Charging in progress
 45    Battery = 69%
 ```
+
+## Observed Behaviors
+
+1. a medição de porcetagem é meio imprecisa, o valor de porcentagem pode ser menor ou maior que o real.
+2. quando o dispositivo estiver no modo de carregamento e o carregamento for concluido ele manda o buffer `03 55 40 02 64` apenas uma unica vez, dizendo que está carregado.

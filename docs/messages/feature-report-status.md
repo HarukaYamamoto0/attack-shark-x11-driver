@@ -29,7 +29,7 @@ Represents the execution status of the Feature Report.
 | `0x00` | Success     |
 | `0x01` | Failed      |
 
-A value of `0x00` indicates that the Feature Report was successfully processed by the firmware.
+A value of `0x00` indicates that the firmware successfully processed the Feature Report.
 
 A value of `0x01` indicates that the operation failed. The protocol does not provide additional error information,
 making it impossible to determine the exact reason for the failure.
@@ -45,7 +45,7 @@ This allows the host application to correlate the status event with the original
 If the host sends Feature Report `0x06` (Polling Rate), the device may respond with:
 
 ```text
-03 55 50 01 06
+03 55 50 00 06
 ```
 
 | Byte | Value  | Description                      |
@@ -63,3 +63,8 @@ Likewise, if the operation fails, the device reports:
 ```
 
 where `0x01` indicates that Feature Report `0x06` could not be processed successfully.
+
+## Notes
+
+It was noted that there are still unexplained events, as shown in the [unknown-events.md](./unknown-events.md) document; from what I observed, the
+official software waits for this specific event after sending a command, but if it does not occur, it simply retries.
