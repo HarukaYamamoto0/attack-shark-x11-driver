@@ -56,7 +56,7 @@ HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/lates
 ```typescript
 import { AttackSharkX11, ConnectionMode, delay, Rate } from './src';
 
-const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Wireless });
+const driver = new AttackSharkX11({ delayMs: 250 });
 
 try {
 	await driver.open();

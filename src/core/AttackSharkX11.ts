@@ -55,7 +55,7 @@ export interface AttackSharkX11Events {
  * ```
  */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
-	public readonly productId: number;
+	public productId: number | undefined;
 	private devicePath?: string | undefined;
 	public hidDevice?: HIDAsync | undefined;
 	private dataDevice?: HIDAsync | undefined;
@@ -70,20 +70,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	/**
 	 * @param options Configuration options for the driver
-	 * @param options.connectionMode Connection mode (Wired or Adapter)
 	 * @param options.logger Optional custom logger
 	 * @param options.delayMs Optional delay in milliseconds between packets to prevent lock-up (default: 250)
 	 */
-	constructor(options: { connectionMode: ConnectionMode; logger?: Logger; delayMs?: number }) {
+	constructor(options: { logger?: Logger; delayMs?: number } = {}) {
 		super();
-		if (!options.connectionMode) {
-			throw new DriverError('The type of connection was not specified');
-		}
 
 		this.logger = options.logger ?? undefined;
 		this.delayMs = options.delayMs ?? 250;
-
-		this.productId = options.connectionMode;
 	}
 
 	/**
@@ -93,17 +87,45 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.productId as ConnectionMode;
 	}
 
-	get hexTo(): string {
-		return `0x${this.connectionMode.toString(16)}`;
+	get connectionModeInHex(): string {
+		return this.productId !== undefined ? `0x${this.productId.toString(16)}` : 'undefined';
 	}
 
-	async open(): Promise<void> {
+	/**
+	 * Opens a connection to the device using the specified connection mode.
+	 * If no connection mode is provided, it attempts to use the mode configured in the constructor or auto-detect an attached device.
+	 *
+	 * @param {ConnectionMode} [connectionMode] - The desired connection mode for the device.
+	 *                                            Can be one of the predefined modes such as Wired or Wireless.
+	 * @return {Promise<void>} A promise that resolves when the device connection is successfully established.
+	 *                         Rejects with an error if the device cannot be found or an unexpected error occurs.
+	 */
+	async open(connectionMode?: ConnectionMode): Promise<void> {
 		try {
 			const devices = await HID.devicesAsync();
+
+			let targetMode = connectionMode ?? this.productId;
+
+			if (!targetMode) {
+				const candidate = devices.find(
+					(d) =>
+						d.vendorId === VID &&
+						(d.productId === ConnectionMode.Wired || d.productId === ConnectionMode.Wireless) &&
+						(d.interface === DEVICE_INTERFACE || (d.path && d.path.toLowerCase().includes('mi_02'))),
+				);
+				if (candidate) {
+					targetMode = candidate.productId as ConnectionMode;
+				}
+			}
+
+			if (!targetMode) {
+				throw new DriverError('[AttackSharkX11-open] - No Attack Shark X11 device found');
+			}
+
 			const matchingDevices = devices.filter(
 				(d) =>
 					d.vendorId === VID &&
-					d.productId === this.connectionMode &&
+					d.productId === targetMode &&
 					(d.interface === DEVICE_INTERFACE || (d.path && d.path.toLowerCase().includes('mi_02'))),
 			);
 
@@ -112,7 +134,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				matchingDevices[0];
 
 			if (!deviceInfo || !deviceInfo.path) {
-				throw new DriverError(`[AttackSharkX11-open] - Device with product id ${this.hexTo} not found`);
+				throw new DriverError(
+					`[AttackSharkX11-open] - Device with productId 0x${targetMode.toString(16)} not found`,
+				);
 			}
 			this.devicePath = deviceInfo.path;
 			this.hidDevice = await HIDAsync.open(this.devicePath);
@@ -132,6 +156,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			}
 
 			this.isOpen = true;
+			this.productId = targetMode;
 			this.setupListeners();
 
 			this.logger?.debug(`[AttackSharkX11-open] - the device was opened, path: ${this.devicePath}`);
@@ -140,7 +165,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				throw e;
 			}
 			throw new DeviceError(
-				`An unexpected error occurred while trying to open device ${this.devicePath ?? this.hexTo}`,
+				`An unexpected error occurred while trying to open device ${this.devicePath ?? this.connectionModeInHex}`,
 				{
 					cause: e,
 				},
