@@ -58,6 +58,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public readonly productId: number;
 	private devicePath?: string | undefined;
 	public hidDevice?: HIDAsync | undefined;
+	private dataDevice?: HIDAsync | undefined;
 	/**
 	 * Delay in milliseconds between packets to prevent the device from locking up.
 	 */
@@ -116,6 +117,20 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			this.devicePath = deviceInfo.path;
 			this.hidDevice = await HIDAsync.open(this.devicePath);
 
+			// On Windows, the same HID interface is split into multiple collections with separate device paths
+			// (e.g., Col04/usagePage 11 for Feature Reports and Col03/usagePage 10 for Interrupt IN data reports).
+			// On Linux/macOS, interfaces are unified under a single device path.
+			// If a separate data collection path exists, open it as `dataDevice`; otherwise, reuse `hidDevice`.
+			const dataDeviceInfo =
+				matchingDevices.find((d) => d.usagePage === 10 || (d.path && d.path.toLowerCase().includes('col03'))) ??
+				deviceInfo;
+
+			if (dataDeviceInfo.path && dataDeviceInfo.path !== this.devicePath) {
+				this.dataDevice = await HIDAsync.open(dataDeviceInfo.path);
+			} else {
+				this.dataDevice = this.hidDevice;
+			}
+
 			this.isOpen = true;
 			this.setupListeners();
 
@@ -136,37 +151,47 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	private setupListeners(): void {
 		if (!this.isOpen || !this.hidDevice) throw new DriverError('You have to open the device first');
 
-		this.hidDevice.on('error', (err: Error) => {
+		const handleError = (err: unknown): void => {
+			const errorMessage = typeof err === 'string' ? err : err instanceof Error ? err.message : String(err);
 			// Suppress "could not read" errors if they are expected on some Windows HID collections
-			if (err.message.includes('could not read')) {
-				this.logger?.debug('Suppressed HID read error:', err.message);
+			if (errorMessage.includes('could not read')) {
+				this.logger?.debug('Suppressed HID read error:', errorMessage);
 				return;
 			}
-			this.emit('error', err);
-		});
+			const errorObj = err instanceof Error ? err : new Error(errorMessage);
+			if (this.listenerCount('error') > 0) {
+				this.emit('error', errorObj);
+			} else {
+				this.logger?.error('Unhandled HID error:', errorObj);
+			}
+		};
+
+		this.hidDevice.on('error', handleError);
+		if (this.dataDevice && this.dataDevice !== this.hidDevice) {
+			this.dataDevice.on('error', handleError);
+		}
 
 		this.on('newListener', (event) => {
 			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.hidDevice?.on('data', this.handleData);
-				this.startPolling();
+				this.dataDevice?.on('data', this.handleData);
 			}
 		});
 
 		this.on('removeListener', (event) => {
 			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.stopPolling();
-				this.hidDevice?.removeListener('data', this.handleData);
+				this.dataDevice?.removeListener('data', this.handleData);
 			}
 		});
 	}
 
 	private handleData = (data: Uint8Array): void => {
-		const view = new DataView(data.buffer);
+		const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
 		switch (view.byteLength) {
 			case MessageTypesLength: {
-				if (view.getUint8(2) === MessageTypes.BATTERY) {
-					const battery_status = view.getUint8(3);
+				const msgType = view.getUint8(2);
+				if (msgType === MessageTypes.BATTERY || msgType === MessageTypes.BATTERY1) {
+					const battery_status = view.getUint8(3) as BatteryStatus;
 					const battery_percentage = view.getUint8(4);
 
 					this.battery_status = battery_status;
@@ -182,24 +207,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	};
 
-	private startPolling(): void {
-		if (!this.isOpen || !this.hidDevice) return;
-		try {
-			this.hidDevice.resume();
-		} catch (e) {
-			this.logger?.error('Failed to start polling', e);
-		}
-	}
-
-	private stopPolling(): void {
-		if (!this.hidDevice) return;
-		try {
-			this.hidDevice.pause();
-		} catch {
-			/* empty */
-		}
-	}
-
 	/**
 	 * Closes the connection to the device, stops polling, and releases the interfaces.
 	 * It is important to call this method when finishing use to avoid resource leaks.
@@ -207,8 +214,16 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async close(): Promise<void> {
 		if (!this.isOpen) return;
 
-		this.stopPolling();
 		this.removeAllListeners();
+
+		if (this.dataDevice && this.dataDevice !== this.hidDevice) {
+			try {
+				await this.dataDevice.close();
+			} catch {
+				/* empty */
+			}
+			this.dataDevice = undefined;
+		}
 
 		try {
 			await this.hidDevice?.close();
@@ -321,7 +336,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				this.removeListener('batteryChange', handleBattery);
 			};
 
-			const handleBattery = (battery: number): void => {
+			const handleBattery = (_status: BatteryStatus, battery: number): void => {
 				if (finished) return;
 				if (battery <= 100) {
 					cleanup();
