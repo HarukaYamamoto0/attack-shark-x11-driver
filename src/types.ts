@@ -117,14 +117,28 @@ export enum PacketLengthRead {
 }
 
 /**
- * Represents an optional value that can either be of type `T` or `null`.
+ * Represents an optional value that can either hold a value of type `T`
+ * or be empty (`None`).
  *
- * The `Option` type is useful for representing values that might be absent or explicitly empty. It is often used
- * in scenarios where a value may or may not exist, providing a way to handle nullability at the type level.
+ * This type is typically used to represent values that may or may not exist.
+ * It provides a way to handle the absence of values in a more expressive way than
+ * using `null` or `undefined`, as it explicitly models the concept of a
+ * potentially missing value.
  *
- * @template T The type of the underlying value.
+ * @template T The type of the value that this option may hold.
  */
-export type Option<T> = T | null;
+export type Option<T> = T | None;
+
+/**
+ * Represents the absence of a value or a deliberate non-value.
+ *
+ * The `None` type is defined as `null` and is often used to signify
+ * that no value is present or applicable in a specific context.
+ *
+ * This can be useful for explicitly indicating intentional emptiness,
+ * absence of data, or results where other values are invalid or undefined.
+ */
+export type None = null;
 
 /**
  * Represents the result of an operation that can either be a successful outcome of type T
@@ -140,18 +154,50 @@ export type Result<T, E = Error> = T | E;
 
 export type ProfileId = number;
 
+/**
+ * Device event message codes received through the Interrupt IN endpoint.
+ *
+ * @see docs/messages/README.md
+ */
 export enum MessageTypes {
+	/** Device connection / battery status event (0x40) */
 	BATTERY = 0x40,
+	/** Alternate device connection / battery status event (0x41) */
 	BATTERY1 = 0x41,
+	/** Feature report execution status report (0x50) */
 	FEATURE_REPORT_STATUS = 0x50,
+	/** Vibration mode changed notification (0x11) */
 	VIBRATION_MODE_NOTIFICATION = 0x11,
+	/** DPI cycle switch event (0x10) */
 	DPI_CYCLE = 0x10,
 }
 
+/**
+ * Expected byte length for device event notification packets (5 bytes).
+ */
 export const MessageTypesLength = 5;
 
+/**
+ * Represents the charging and power states reported by the device connection message.
+ *
+ * @see docs/messages/device-connection-message.md
+ */
 export enum BatteryStatus {
 	NORMAL = 0x01,
 	FULLY_CHARGED = 0x02,
 	CHARGING_IN_PROGRESS = 0x03,
+}
+
+/**
+ * Structured snapshot representing the current battery state and charging flags.
+ */
+export interface BatteryInfo {
+	/**
+	 * Detailed battery state (NORMAL, FULLY_CHARGED, CHARGING_IN_PROGRESS).
+	 */
+	status: BatteryStatus;
+	/**
+	 * Battery level percentage (0 to 100).
+	 */
+	percentage: number;
 }

@@ -36,7 +36,7 @@ regarding response times, release schedules, or development roadmaps.
 * ✅ **Lighting Control**: Configure lighting modes and animation speeds.
 * ✅ **Polling Rate**: Support for 125 Hz to 1000 Hz.
 * ✅ **Cross-platform**: Primarily tested on Linux.
-* [ ] **Battery Status**: Real-time battery monitoring.
+* ✅ **Battery Status**: Real-time battery monitoring.
 * [ ] **Reading Settings**: Read the current configuration from the mouse.
 * [ ] **Command Acknowledgment**: Confirm whether commands were received and accepted by the device.
 

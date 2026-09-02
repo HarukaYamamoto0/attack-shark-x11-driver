@@ -3,7 +3,7 @@
 import * as HID from 'node-hid';
 import { HIDAsync } from 'node-hid';
 import { EventEmitter } from 'node:events';
-import { ControlTransferError, DeviceError, DriverError, TimeoutError } from '../errors.js';
+import { ControlTransferError, DeviceError, DriverError } from '../errors.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
 import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
@@ -27,6 +27,7 @@ import { handleResponseDpi } from '../handles/handleResponseDpi';
 import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
 import { handleMacroResponse } from '../handles/hadleMacroResponse';
 import type { MacroBuilder } from '../protocols/MacroBuilder';
+import { handleBatteryMessage } from '../handles/messages/handleBatteryMessage';
 
 const VID = 0x1d57;
 const DEVICE_INTERFACE = 2;
@@ -36,23 +37,15 @@ const DEVICE_INTERFACE = 2;
  */
 export interface AttackSharkX11Events {
 	/** Emitted when the battery level changes */
-	batteryChange: [battery_status: BatteryStatus, battery_percentage: number];
+	batteryChange: [status: BatteryStatus, percentage: number];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
 
 /**
- * Main driver for the Attack Shark X11 mouse.
- * This class manages the USB connection, DPI settings, polling rate, macros, and user preferences.
- *
- * @example
- * ```TypeScript
- * const driver = new AttackSharkX11({ connectionMode: ConnectionMode.Wireless });
- * await driver.open();
- * const battery = await driver.getBatteryLevel();
- * console.log(`Battery: ${battery}%`);
- * await driver.close();
- * ```
+ * Represents the AttackSharkX11, a driver for controlling and interacting with an Attack Shark X11 device.
+ * This class manages device connections, data communication, and event handling for the device.
+ * Extends the EventEmitter for event-driven programming.
  */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	public productId: number | undefined;
@@ -159,7 +152,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			this.productId = targetMode;
 			this.setupListeners();
 
-			this.logger?.debug(`[AttackSharkX11-open] - the device was opened, path: ${this.devicePath}`);
+			this.logger?.debug(`the device was opened, path: ${this.devicePath}`, 'AttackSharkX11-open');
 		} catch (e: unknown) {
 			if (e instanceof DriverError) {
 				throw e;
@@ -196,17 +189,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			this.dataDevice.on('error', handleError);
 		}
 
-		this.on('newListener', (event) => {
-			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.dataDevice?.on('data', this.handleData);
-			}
-		});
-
-		this.on('removeListener', (event) => {
-			if (event === 'batteryChange' && this.listenerCount('batteryChange') === 0) {
-				this.dataDevice?.removeListener('data', this.handleData);
-			}
-		});
+		this.dataDevice?.on('data', this.handleData);
 	}
 
 	private handleData = (data: Uint8Array): void => {
@@ -215,19 +198,34 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		switch (view.byteLength) {
 			case MessageTypesLength: {
 				const msgType = view.getUint8(2);
-				if (msgType === MessageTypes.BATTERY || msgType === MessageTypes.BATTERY1) {
-					const battery_status = view.getUint8(3) as BatteryStatus;
-					const battery_percentage = view.getUint8(4);
+				this.logger?.info(`received a new message: ${data.toHex()}`, 'AttackSharkX11-handleData'); // TODO: configure the logLevel
 
-					this.battery_status = battery_status;
-					this.battery_percentage = battery_percentage;
+				switch (msgType) {
+					case MessageTypes.BATTERY || MessageTypes.BATTERY1: {
+						const subArray = new Uint8Array(data.subarray(3, 5)); // I create a new array to avoid strange bugs
+						const response = handleBatteryMessage(subArray);
 
-					this.emit('batteryChange', this.battery_status, this.battery_percentage);
+						if (response) {
+							this.battery_status = response.status;
+							this.battery_percentage = response.percentage;
+
+							this.emit('batteryChange', this.battery_status, this.battery_percentage);
+						}
+						break;
+					}
+					// TODO: add more messages types
+					default: {
+						this.logger?.debug(
+							`In the messaging event, an event was ignored because it lacked proper handling;` +
+								` event code: 0x${msgType}, params1: ${view.getUint8(3)}, params2: ${view.getUint8(4)}`,
+							'AttackSharkX11-handleData-messages',
+						);
+					}
 				}
 				break;
 			}
 			default: {
-				/* empty */
+				// TODO: add handlers
 			}
 		}
 	};
@@ -335,55 +333,25 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	// }
 
 	/**
-	 * Gets the current battery level of the mouse.
-	 * Note that the value is only returned if the mouse is in wireless mode (Adapter).
-	 * In Wired mode, it returns -1.
+	 * Registers a listener function to be called whenever the battery status or percentage changes.
+	 * The listener will receive real-time updates about the device's battery state.
 	 *
-	 * @param timeoutMs Maximum time to wait for the device response (default: 1000ms).
-	 * @throws {TimeoutError} If the device does not respond within the specified time.
-	 * @returns The battery level in percentage (0-100) or -1 if unavailable.
+	 * @param listener A callback function that receives the updated battery status and percentage.
+	 *   - `status`: The current battery status (e.g., charging, discharging, fully charged).
+	 *   - `percentage`: The current battery percentage level (0-100).
+	 * @return A function to remove the registered listener when it's no longer needed.
+	 *
+	 * @example
+	 * ```TypeScript
+	 * const unsubscribe = device.onBatteryChange((status, percentage) => {
+	 *   console.log(`Battery: ${percentage}%`, status);
+	 * });
+	 *
+	 * // Later, when you want to stop listening:
+	 * unsubscribe();
+	 * ```
 	 */
-	getBatteryLevel(timeoutMs = 1000): Promise<number> {
-		this.checkIsOpen();
-
-		return new Promise((resolve, reject) => {
-			if (this.connectionMode === ConnectionMode.Wired) {
-				return resolve(-1); // -1 indicates that it was not possible to get the exact battery status value
-			}
-
-			let finished = false;
-
-			const cleanup = (): void => {
-				if (finished) return;
-				finished = true;
-
-				clearTimeout(timeout);
-				this.removeListener('batteryChange', handleBattery);
-			};
-
-			const handleBattery = (_status: BatteryStatus, battery: number): void => {
-				if (finished) return;
-				if (battery <= 100) {
-					cleanup();
-					resolve(battery);
-				}
-			};
-
-			const timeout = setTimeout(() => {
-				cleanup();
-				reject(new TimeoutError('Timeout waiting for battery report'));
-			}, timeoutMs);
-
-			this.on('batteryChange', handleBattery);
-
-			if (this.battery_percentage !== -1 && this.battery_percentage <= 100) {
-				cleanup();
-				resolve(this.battery_percentage);
-			}
-		});
-	}
-
-	onBatteryChange(listener: (battery_status: BatteryStatus, battery_percentage: number) => void): () => void {
+	onBatteryChange(listener: (status: BatteryStatus, percentage: number) => void): () => void {
 		this.checkIsOpen();
 
 		this.on('batteryChange', listener);
