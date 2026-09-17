@@ -1,7 +1,7 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ConnectionMode } from '../types.js';
 
-// This protocol is still under development; its logic has not yet been fully documented.
+// TODO: This protocol is still under development; its logic has not yet been fully documented.
 export class ChangeProfileBuilder implements BaseProtocolBuilder {
 	public static readonly BM_REQUEST_TYPE = 0x21;
 	public static readonly B_REQUEST = 0x09;

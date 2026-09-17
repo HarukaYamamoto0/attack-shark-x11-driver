@@ -62,3 +62,48 @@ export class ControlTransferError extends TransferError {
  * An error is thrown when an operation exceeds the expected timeout
  */
 export class TimeoutError extends DriverError {}
+
+/**
+ * Represents an error that occurs during transportation
+ *
+ * @class TransportError
+ * @extends DriverError
+ */
+export class TransportError extends DriverError {}
+
+/**
+ * Represents an error that occurs when a command cannot be sent successfully.
+ *
+ * This class extends the `DriverError` class and is used specifically
+ * to handle errors related to sending commands within the driver context.
+ * It provides richer semantics for error handling in scenarios where a
+ * command transmission fails.
+ *
+ * Common scenarios for this error might include:
+ * - Network-related issues preventing the command from reaching its destination.
+ * - Protocol violations or unexpected conditions during command processing.
+ * - Failures arising from transport layer interruptions or shutdowns.
+ *
+ * Instances of this error class allow you to identify and isolate these
+ * command-specific failures from other general driver errors.
+ */
+export class SendCommandError extends DriverError {}
+
+/**
+ * This class represents an error that occurs when an attempt is made to issue a
+ * new command while another command is already in progress.
+ *
+ * The `CommandInProgressError` extends the generic `DriverError` to provide a
+ * specific error type for situations where command queuing or parallel execution
+ * is not supported or allowed.
+ *
+ * @class
+ * @extends DriverError
+ * @param {Object} [options] - Optional settings for the error.
+ * @param {unknown} [options.cause] - The underlying cause of the error, if any.
+ */
+export class CommandInProgressError extends DriverError {
+	constructor(options?: { cause?: unknown }) {
+		super('another command is already pending', options);
+	}
+}

@@ -46,6 +46,14 @@ The following packets have been observed on the Attack Shark X11:
 
 ---
 
+03 55 10 00 00
+
+---
+
+03 55 00 00 01 // Device successfully opened?
+
+---
+
 03 55 00 00 ff
 ```
 

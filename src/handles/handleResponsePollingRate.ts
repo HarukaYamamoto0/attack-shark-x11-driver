@@ -9,7 +9,7 @@ export function handleResponsePollingRate(buffer: Uint8Array): Option<Rate> {
 
 	const dataView = new DataView(buffer.buffer);
 
-	const rateByte = dataView.getUint8(2);
+	const rateByte = dataView.getUint8(3);
 
 	const rate = hexToRate[rateByte];
 

@@ -1,16 +1,16 @@
 import { type BatteryInfo, BatteryStatus, type Option } from '../../types.js';
 
-export function handleBatteryMessage(buffer: Uint8Array): Option<BatteryInfo> {
-	const view = new DataView(buffer.buffer);
-
-	if (view.byteLength !== 2) {
-		throw new Error(
-			`[handleBatteryMessage] - Invalid polling rate buffer size; expected 2 but received ${view.byteLength}`,
-		);
-	}
-
-	const statusByte = view.getUint8(0);
-	const percentage = view.getUint8(1);
+/**
+ * Processes battery status and percentage data received as inputs and returns an object containing battery information.
+ *
+ * @param {number} params1 - Byte representing the status of the battery.
+ * @param {number} params2 - Byte representing the battery's charge percentage.
+ * @return {Option<BatteryInfo>} An object containing the battery status and charge percentage.
+ * @throws {Error} If the status byte does not match any known battery status.
+ */
+export function handleBatteryMessage(params1: number, params2: number): Option<BatteryInfo> {
+	const statusByte = params1;
+	const percentageByte = params2;
 
 	let batteryStatus: BatteryStatus;
 
@@ -21,6 +21,6 @@ export function handleBatteryMessage(buffer: Uint8Array): Option<BatteryInfo> {
 
 	return {
 		status: batteryStatus,
-		percentage,
+		percentage: percentageByte,
 	};
 }

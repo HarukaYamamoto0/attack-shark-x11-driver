@@ -96,6 +96,7 @@ export enum ReportId {
 	DEVICE_VERSION = 0x0b,
 	READ_REPORT_ID = 0xa0,
 	WAKE_UP_MODE = 0x07,
+	PROFILE = 0x0c,
 }
 
 export enum PacketLength {
@@ -105,6 +106,7 @@ export enum PacketLength {
 	BUTTON_MAPPING = 0x3b,
 	MACRO = 0x28,
 	DEVICE_VERSION = 0x08,
+	PROFILE = 0x0a,
 }
 
 export enum PacketLengthRead {
@@ -165,7 +167,7 @@ export enum MessageTypes {
 	/** Alternate device connection / battery status event (0x41) */
 	BATTERY1 = 0x41,
 	/** Feature report execution status report (0x50) */
-	FEATURE_REPORT_STATUS = 0x50,
+	COMMAND_CONFIRMATION = 0x50,
 	/** Vibration mode changed notification (0x11) */
 	VIBRATION_MODE_NOTIFICATION = 0x11,
 	/** DPI cycle switch event (0x10) */
@@ -200,4 +202,49 @@ export interface BatteryInfo {
 	 * Battery level percentage (0 to 100).
 	 */
 	percentage: number;
+}
+
+/**
+ * Represents a command that is pending execution and awaiting a response.
+ *
+ * This interface defines the structure for tracking commands that have been
+ * issued but have not yet received confirmation. It includes the ID of the
+ * command, handlers to resolve or reject the command based on an outcome, and
+ * a timeout for command expiration.
+ *
+ * Properties:
+ * - `reportId`: A unique identifier associated with the pending command.
+ *   Used to track and match command confirmations.
+ * - `resolve`: A function that is invoked to confirm successful execution
+ *   of the pending command. Passes a `CommandConfirmation` object as an
+ *   argument to signal completion.
+ * - `reject`: A function that is invoked to handle an error or failure
+ *   related to the command execution. Accepts an `Error` object detailing
+ *   the issue.
+ * - `timeout`: A timer reference used to track the time allowed for the
+ *   pending command to receive confirmation. If the timeout is reached, the
+ *   command is considered to have failed.
+ */
+export interface PendingCommand {
+	reportId: number;
+	resolve: (status: CommandConfirmation) => void;
+	reject: (error: Error) => void;
+	timeout: NodeJS.Timeout;
+}
+
+/**
+ * An enumeration representing the result of a command execution.
+ *
+ * This enum is used to indicate whether a command was successfully
+ * executed or if it encountered a failure during its operation.
+ *
+ * Enum members:
+ * - `Success`: Denotes that the command executed successfully.
+ * - `Failure`: Denotes that the command execution failed.
+ *
+ * @see docs/messages/feature-report-status.md
+ */
+export enum CommandConfirmation {
+	Success = 0x00,
+	Failure = 0x01,
 }

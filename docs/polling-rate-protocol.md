@@ -19,14 +19,14 @@ The payload consists of a 9-byte buffer. The structure is identical for both **W
 
 ### Byte-by-Byte Analysis
 
-| Byte Index | Field        | Value (Hex) | Description                                             |
-|------------|--------------|-------------|---------------------------------------------------------|
-| 0          | Report ID    | `0x06`      | Must match the low byte of `wValue`                     |
-| 1          | Command      | `0x09`      | Internal command identifier                             |
-| 2          | Sub-command  | `0x01`      | Internal sub-command identifier                         |
-| 3          | Polling Rate | `0x01-0x08` | Encoded value for the frequency (see table below)       |
-| 4          | Checksum     | `0xXX`      | Complement of Byte 3 (`0xFF - Byte[3]`)                 |
-| 5-8        | Padding      | `0x00`      | Null padding bytes                                      |
+| Byte Index | Field        | Value (Hex) | Description                                       |
+|------------|--------------|-------------|---------------------------------------------------|
+| 0          | Report ID    | `0x06`      | Must match the low byte of `wValue`               |
+| 1          | Command      | `0x09`      | Internal command identifier                       |
+| 2          | Sub-command  | `0x01`      | Profile Id                                        |
+| 3          | Polling Rate | `0x01-0x08` | Encoded value for the frequency (see table below) |
+| 4          | Checksum     | `0xXX`      | Complement of Byte 3 (`0xFF - Byte[3]`)           |
+| 5-8        | Padding      | `0x00`      | Null padding bytes                                |
 
 ## Polling Rate Encoding
 

@@ -1,10 +1,12 @@
-export * from './core/AttackSharkX11.js';
-export * from './core/BaseProtocolBuilder.js';
-export * from './protocols/DpiBuilder.js';
+export * from './core/AttackSharkX11';
+export * from './core/BaseProtocolBuilder';
+export * from './protocols/DpiBuilder';
 export * from './protocols/ButtonMappingBuilder';
-export * from './protocols/PollingRateBuilder.js';
+export * from './protocols/PollingRateBuilder';
 export * from './protocols/LightingSettingsBuilder';
-export * from './types.js';
-export * from './utils/delay.js';
-export * from './logger/index.js';
-export * from './errors.js';
+export * from './types';
+export * from './utils/delay';
+export * from './logger/index';
+export * from './errors';
+
+export const VID = 0x1d57;

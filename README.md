@@ -37,8 +37,8 @@ regarding response times, release schedules, or development roadmaps.
 * ✅ **Polling Rate**: Support for 125 Hz to 1000 Hz.
 * ✅ **Cross-platform**: Primarily tested on Linux.
 * ✅ **Battery Status**: Real-time battery monitoring.
+* ✅ **Command Confirmation**: Confirm whether commands were received and accepted by the device.
 * [ ] **Reading Settings**: Read the current configuration from the mouse.
-* [ ] **Command Acknowledgment**: Confirm whether commands were received and accepted by the device.
 
 ## Package Limitations
 
@@ -54,26 +54,24 @@ HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/lates
 ## Quick Start
 
 ```typescript
-import { AttackSharkX11, ConnectionMode, delay, Rate } from './src';
+import { AttackSharkX11, CommandConfirmation, Rate } from './src';
 
-const driver = new AttackSharkX11({ delayMs: 250 });
+const driver = new AttackSharkX11();
 
 try {
 	await driver.open();
-	await delay(250);
 
-	await driver.setPollingRate(Rate.eSports);
-	await delay(250);
+	const commandConfirmation = await driver.setPollingRate(Rate.office);
+	if (commandConfirmation === CommandConfirmation.Success) console.log('Command confirmed.');
 
-	const polling_rate = await driver.getPollingRate();
-	console.log(`Polling rate: ${polling_rate}`);
+	const response = await driver.getPollingRate();
+	if (response) console.log('Current polling rate:', response);
 } catch (error) {
-	console.error('Error:', error instanceof Error ? error.message : error);
+	console.error('Error:', error);
 } finally {
 	await driver.close();
 	console.log('\nDriver closed.');
 }
-
 ```
 
 The `delayMs` option exists because the protocol currently lacks reliable command acknowledgment handling.
