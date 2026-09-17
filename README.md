@@ -74,11 +74,6 @@ try {
 }
 ```
 
-The `delayMs` option exists because the protocol currently lacks reliable command acknowledgment handling.
-
-Until response validation is implemented, a delay of approximately 250–300 ms between commands is recommended. Sending
-packets too quickly may cause commands to be ignored or leave the device in an inconsistent state.
-
 ## Linux Setup
 
 To access the device without root privileges on Linux, create an udev rule.
