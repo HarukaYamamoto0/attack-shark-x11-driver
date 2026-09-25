@@ -23,10 +23,10 @@ export interface MouseTransport {
 	/**
 	 * Sends a feature report to a connected device.
 	 *
-	 * @param {Buffer} data - The buffer containing the feature report to be sent.
+	 * @param {Uint8Array} data - The buffer containing the feature report to be sent.
 	 * @return {Promise<number>} A promise that resolves to the number of bytes written.
 	 */
-	sendFeatureReport(data: Buffer): Promise<number>;
+	sendFeatureReport(data: Uint8Array): Promise<number>;
 
 	/**
 	 * Retrieves a feature report from a connected device.
@@ -41,10 +41,10 @@ export interface MouseTransport {
 	 * Registers a listener function to handle incoming data.
 	 *
 	 * @param listener A callback function that is invoked whenever data is received. The function takes a single parameter:
-	 *        - `data` (Buffer): The data received as a Buffer object.
+	 *        - `data` (Uint8Array): The data received as a Uint8Array object.
 	 * @return void This method does not return a value.
 	 */
-	onData(listener: (data: Buffer) => void): void;
+	onData(listener: (data: Uint8Array) => void): void;
 
 	/**
 	 * Registers an error handler that will be invoked when an error occurs.

@@ -34,19 +34,21 @@ export class HidTransport implements MouseTransport {
 		this.events = undefined;
 	}
 
-	sendFeatureReport(data: Buffer): Promise<number> {
+	sendFeatureReport(data: Uint8Array): Promise<number> {
 		if (!this.command) throw new TransportError('Transport is not open');
 
-		return this.command.sendFeatureReport(data);
+		return this.command.sendFeatureReport(Buffer.from(data));
 	}
 
-	getFeatureReport(reportId: ReportId, reportLength: number): Promise<Uint8Array> {
+	async getFeatureReport(reportId: ReportId, reportLength: number): Promise<Uint8Array> {
 		if (!this.command) throw new TransportError('Transport is not open');
 
-		return this.command.getFeatureReport(reportId, reportLength);
+		const response = await this.command.getFeatureReport(reportId, reportLength);
+
+		return new Uint8Array(response);
 	}
 
-	onData(listener: (data: Buffer) => void): void {
+	onData(listener: (data: Uint8Array) => void): void {
 		if (!this.events) throw new TransportError('Transport is not open');
 
 		this.events.on('data', listener);
