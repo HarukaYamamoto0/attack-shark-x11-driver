@@ -6,7 +6,7 @@ const driver = new AttackSharkX11();
 try {
 	await driver.open();
 
-	const commandConfirmation = await driver.setPollingRate(Rate.office);
+	const commandConfirmation = await driver.setPollingRate(Rate.Office);
 	if (commandConfirmation === CommandConfirmation.Success) console.log('Command confirmed.');
 
 	const response = await driver.getPollingRate();

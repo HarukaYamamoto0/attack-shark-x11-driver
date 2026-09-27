@@ -1,10 +1,10 @@
-import { type Option, ReportPacketLength } from '../types';
+import { ReportReadLength } from '../types';
 import { ButtonMapping, ButtonMappingBuilder, SlotButton } from '../protocols/ButtonMappingBuilder';
 
-export function handleResponseButtonMapping(buffer: Uint8Array): Option<ButtonMappingBuilder> {
-	if (buffer.length !== ReportPacketLength.BUTTON_MAPPING)
+export function handleResponseButtonMapping(buffer: Uint8Array): ButtonMappingBuilder {
+	if (buffer.length !== ReportReadLength.BUTTON_MAPPING)
 		throw new Error(
-			`Invalid button mapping buffer size; expected ${ReportPacketLength.BUTTON_MAPPING} but received ${buffer.length}`,
+			`Invalid button mapping buffer size; expected ${ReportReadLength.BUTTON_MAPPING} but received ${buffer.length}`,
 		);
 
 	const view = new DataView(buffer.buffer);

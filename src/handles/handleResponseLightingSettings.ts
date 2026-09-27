@@ -9,12 +9,12 @@ import {
 	type RGB,
 	sleepTimeLut,
 } from '../protocols/LightingSettingsBuilder';
-import { type Option, ReportPacketLength } from '../types';
+import { ReportReadLength } from '../types';
 
-export function handleResponseLightingSettings(buffer: Uint8Array): Option<LightingSettingsBuilder> {
-	if (buffer.length !== 15)
+export function handleResponseLightingSettings(buffer: Uint8Array): LightingSettingsBuilder {
+	if (buffer.length !== ReportReadLength.LIGHTING_SETTINGS)
 		throw new Error(
-			`Invalid lighting settings buffer size; expected ${ReportPacketLength.LIGHTING_SETTINGS} but received ${buffer.length}`,
+			`Invalid lighting settings buffer size; expected ${ReportReadLength.LIGHTING_SETTINGS} but received ${buffer.length}`,
 		);
 
 	const view = new DataView(buffer.buffer);

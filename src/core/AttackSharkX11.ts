@@ -19,7 +19,6 @@ import {
 	type Logger,
 	MessageTypes,
 	MessageTypesLength,
-	type Option,
 	type PendingCommand,
 	ReportId,
 	ReportReadLength,
@@ -512,42 +511,38 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendCommand(ReportId.DPI, builder.build(this.connectionMode));
 	}
 
-	async getDpi(): Promise<Option<DpiBuilder>> {
+	async getDpi(): Promise<DpiBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI);
-		if (typeof response === 'number') return null;
 
 		return handleResponseDpi(response);
 	}
 
-	async getButtonMapping(): Promise<Option<ButtonMappingBuilder>> {
+	async getButtonMapping(): Promise<ButtonMappingBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, ReportReadLength.BUTTON_MAPPING);
-		if (typeof response === 'number') return null;
 
 		return handleResponseButtonMapping(response);
 	}
 
-	async getMacro(macroId: number): Promise<Option<MacroBuilder>> {
+	async getMacro(macroId: number): Promise<MacroBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.MACRO, ReportReadLength.MACRO, macroId);
-		if (typeof response === 'number') return null;
 
 		return handleMacroResponse(response);
 	}
 
-	async getPollingRate(): Promise<Option<Rate>> {
+	async getPollingRate(): Promise<Rate> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
+
 		const response = await this.getFeatureReport(ReportId.POLLING_RATE, ReportReadLength.POLLING_RATE);
-		if (typeof response === 'number') return null;
 
 		return handleResponsePollingRate(response);
 	}
 
-	async getLightingSettings(): Promise<Option<LightingSettingsBuilder>> {
+	async getLightingSettings(): Promise<LightingSettingsBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, ReportReadLength.LIGHTING_SETTINGS);
-		if (typeof response === 'number') return null;
 
 		return handleResponseLightingSettings(response);
 	}

@@ -1,98 +1,87 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import type { ConnectionMode } from '../types.js';
+import { type ConnectionMode, type ProfileId, ReportId, ReportPacketLength } from '../types.js';
 
 export enum Rate {
-	powerSaving = 125,
-	office = 250,
-	gaming = 500,
-	eSports = 1000,
+	PowerSaving = 125,
+	Office = 250,
+	Gaming = 500,
+	ESports = 1000,
 }
 
-export const hexToRate: Record<number, Rate> = {
-	0x08: Rate.powerSaving,
-	0x04: Rate.office,
-	0x02: Rate.gaming,
-	0x01: Rate.eSports,
+const rateToHex: Record<Rate, number> = {
+	[Rate.PowerSaving]: 0x08,
+	[Rate.Office]: 0x04,
+	[Rate.Gaming]: 0x02,
+	[Rate.ESports]: 0x01,
 };
 
 export interface PollingRateBuilderOptions {
+	profileId?: ProfileId;
 	rate?: Rate;
 }
 
 /**
- * Builder for configuring the update rate (Polling Rate).
+ * PollingRateBuilder is a utility class used for building and configuring a polling rate packet
+ * for communications in compliance with the BaseProtocolBuilder interface.
+ * It allows setting specific parameters such as profile ID and rate, and performs checksum calculations
+ * to ensure the integrity of the resulting communication packet.
+ *
+ * The class internally manages a buffer and provides tools to build the desired packet configuration.
+ *
+ * @implements {BaseProtocolBuilder}
  */
 export class PollingRateBuilder implements BaseProtocolBuilder {
-	public static readonly DEFAULT_OPTIONS: PollingRateBuilderOptions = {
-		rate: Rate.eSports,
-	};
-	readonly buffer: Buffer = Buffer.alloc(64);
+	private _buffer: Uint8Array = new Uint8Array(9).fill(0x00);
+	private _view: DataView = new DataView(this._buffer.buffer, this._buffer.byteOffset, this._buffer.byteLength);
 
-	constructor(options: PollingRateBuilderOptions = { rate: Rate.eSports }) {
-		this.buffer = Buffer.alloc(9);
-		this.buffer[0] = 0x06; // header
-		this.buffer[1] = 0x09; // header
-		this.buffer[2] = 0x01; // header
-		this.buffer[3] = 0x01; // polling rate
-		this.buffer[4] = 0xfe; // checksum
-		this.buffer[5] = 0x00; // padding
-		this.buffer[6] = 0x00; // padding
-		this.buffer[7] = 0x00; // padding
-		this.buffer[8] = 0x00; // padding
+	private _profileId: ProfileId = 0x01;
+	private _rate: Rate = Rate.ESports;
 
-		const config = { ...PollingRateBuilder.DEFAULT_OPTIONS, ...options };
+	constructor(options?: PollingRateBuilderOptions) {
+		// set headers
+		this._view.setInt8(0, ReportId.POLLING_RATE);
+		this._view.setInt8(1, ReportPacketLength.POLLING_RATE);
 
-		if (config.rate !== undefined) this.setRate(config.rate);
+		this.setProfileId(options?.profileId ? options.profileId : this._profileId);
+		this.setRate(options?.rate ? options.rate : this._rate);
 	}
 
-	/**
-	 * Creates an instance already configured for a specific rate
-	 * @deprecated
-	 */
-	static forRate(rate: Rate): PollingRateBuilder {
-		return new PollingRateBuilder().setRate(rate);
-	}
+	public setProfileId(id: ProfileId): this {
+		this._profileId = id;
 
-	calculateChecksum(): this {
-		this.buffer[4] = 0xff - (this.buffer[3] ?? 0x00);
+		this._view.setInt8(2, id);
+
 		return this;
 	}
 
-	/**
-	 * Sets the update rate (Polling Rate).
-	 * @param rate Rate option (125, 250, 500, or 1000 Hz).
-	 *
-	 * @example
-	 * ```typescript
-	 * builder.setRate(Rate.eSports); // 1000Hz
-	 * ```
-	 */
+	public getProfileId(): ProfileId {
+		return this._profileId;
+	}
+
+	calculateChecksum(): void {
+		const rate: Rate = this._view.getUint8(3);
+
+		this._view.setInt8(4, rate ^ 0xff);
+	}
+
 	setRate(rate: Rate): this {
-		const rateMap: Record<Rate, number> = {
-			[Rate.powerSaving]: 0x08,
-			[Rate.office]: 0x04,
-			[Rate.gaming]: 0x02,
-			[Rate.eSports]: 0x01,
-		};
+		this._rate = rate;
 
-		const value = rateMap[rate];
-		if (value !== undefined) {
-			this.buffer[3] = value;
-		} else {
-			throw new ParamsError('rate', `Unsupported Polling Rate: ${rate}`);
-		}
+		const rateHex = rateToHex[rate];
+		if (!rateHex) throw new ParamsError('rate', `Unsupported Polling Rate: ${rate}`);
+
+		this._view.setInt8(3, rateHex);
 
 		return this;
 	}
 
-	build(_mode: ConnectionMode): Buffer {
-		// In both connection modes, the buffer is the same.
+	build(_mode: ConnectionMode): Uint8Array {
 		this.calculateChecksum();
-		return this.buffer;
+		return this._buffer;
 	}
 
 	toHexString(): string {
-		return this.buffer.toString('hex');
+		return this._buffer.toHex();
 	}
 }

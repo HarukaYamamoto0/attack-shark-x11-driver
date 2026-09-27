@@ -160,6 +160,14 @@ export type None = null;
  */
 export type Result<T, E = Error> = T | E;
 
+/**
+ * Represents a unique identifier for a user profile.
+ *
+ * This type alias is used to differentiate profile ID numbers
+ * from other numeric values in the codebase. It is intended
+ * to provide semantic clarity when working with profile-related
+ * functionality.
+ */
 export type ProfileId = number;
 
 /**

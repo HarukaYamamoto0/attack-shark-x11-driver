@@ -1,5 +1,5 @@
 import { MacroBuilder } from '../protocols/MacroBuilder';
-import { ConnectionMode, type Option, ReportReadLength } from '../types';
+import { ConnectionMode, ReportReadLength } from '../types';
 import type { RGB } from '../protocols/LightingSettingsBuilder';
 import { decodeFixedUtf8 } from '../utils/decodeFixedUtf8';
 import { EXTENDED_BYTE_FLAG, type MacroActionMouseCode } from '../structures/MacroAction';
@@ -8,9 +8,7 @@ import { keyboardKeypadPage, type KeyboardUsage } from '../core/keyboard-keypad-
 import { ParamsError } from '../errors';
 import { hex } from '../logger/hex';
 
-export function handleMacroResponse(buffer: Uint8Array): Option<MacroBuilder> {
-	console.log('Raw: ' + buffer.toHex(), '\n\n');
-
+export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 	if (buffer.length !== ReportReadLength.MACRO)
 		throw new ParamsError(
 			`Invalid macro buffer size; expected ${ReportReadLength.MACRO} but received ${buffer.length}`,

@@ -2,7 +2,7 @@
 
 import type MacroAction from '../structures/MacroAction';
 import type { RGB } from './LightingSettingsBuilder';
-import { type ConnectionMode, ReportPacketLength, ReportId } from '../types';
+import { type ConnectionMode, ReportPacketLength, ReportId, type ProfileId } from '../types';
 import { encodeFixedUtf8 } from '../utils/encodeUtf8Fixed';
 import { decodeFixedUtf8 } from '../utils/decodeFixedUtf8';
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder';
@@ -47,7 +47,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 	private _actions: Uint8Array = new Uint8Array(100); // this is the maximum size reserved for actions
 	private _actionsOffset: number = 0;
 
-	private _id: number = 0x01;
+	private _id: ProfileId = 0x01;
 	private _type: MacroType = MacroType.FIXED_LOOP;
 	private _macroGunRGB: RGB = { r: 0x00, g: 0x00, b: 0x00 };
 	private _loopTimes: number = 1;
@@ -73,7 +73,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 		this._thirdPacketView.setUint8(2, this._id);
 		this._thirdPacketView.setUint8(3, MacroPages.Third);
 
-		this.setId(options?.id ?? this._id);
+		this.setProfileId(options?.id ?? this._id);
 		this.setType(options?.type ?? this._type);
 		this.setMacroGunRGB(options?.macroGunRGB ?? this._macroGunRGB);
 		this.setLoopTimes(options?.loopTimes ?? this._loopTimes);
@@ -82,7 +82,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 		if (options?.actions) this.setBulkActions(options.actions);
 	}
 
-	setId(id: number): this {
+	setProfileId(id: ProfileId): this {
 		if (id < 0x00 || id > 0xff)
 			throw new ParamsError(`Invalid macro id; expected 0x00 to 0xff, but received ${id}`);
 		this._id = id;
@@ -94,7 +94,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
-	getId(): number {
+	getProfileId(): ProfileId {
 		this._id = this._firstPacketView.getUint8(2);
 		return this._id;
 	}
