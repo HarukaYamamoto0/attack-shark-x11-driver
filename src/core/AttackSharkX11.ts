@@ -239,11 +239,6 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	// TODO: remove this redundant method
-	private checkIsOpen(): void {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-	}
-
 	private rejectPendingCommand(error: unknown): void {
 		const pending = this.pendingCommand;
 		if (!pending) return;
@@ -314,7 +309,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 *
 	 * @param {ReportId} reportId - The ID of the report for which read permission is being requested.
 	 * @param {ReportReadLength} packetLengthRead - The length of the report packet to read.
-	 * @param {number} [parameter] - An optional parameter to customize the request. Defaults to 0x01 if not provided.
+	 * @param {number} [parameter=0x01] - An optional parameter to customize the request. Defaults to 0x01 if not provided.
 	 * @return {Promise<void>} A promise that resolves when the read permission request is successfully processed or rejects with an error if the request fails.
 	 */
 	private async requestReadPermission(
@@ -322,40 +317,49 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		packetLengthRead: ReportReadLength,
 		parameter: number = 0x01,
 	): Promise<void> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
+		if (!this.transport) {
+			throw new DriverError('You have to open the device first');
+		}
+
+		const PERMISSION_COMMAND = 0xa0;
+		const RESPONSE_LENGTH = 8;
+		const PERMISSION_GRANTED_STATUS = 0x01;
+		const READ_PERMISSION_DELAY_MS = 250;
+		const LOG_TAG = 'AttackSharkX11-getFeatureReport';
 
 		try {
-			const buffer = new Uint8Array(8);
+			const requestBuffer = new Uint8Array([
+				PERMISSION_COMMAND,
+				reportId,
+				packetLengthRead,
+				0x00,
+				parameter,
+				0x00,
+				0x00,
+				0x00,
+			]);
 
-			buffer[0] = 0xa0;
-			buffer[1] = reportId;
-			buffer[2] = packetLengthRead;
-			buffer[3] = 0x00;
-			buffer[4] = parameter ? parameter : 0x01;
-			buffer[5] = 0x00;
-			buffer[6] = 0x00;
-			buffer[7] = 0x00;
+			this.logger?.debug(`sent permission request with buffer: ${requestBuffer.toHex()}`, LOG_TAG);
 
-			this.logger?.debug(
-				`sent permission request with buffer: ${buffer.toHex()}`,
-				'AttackSharkX11-getFeatureReport',
-			);
-			await this.sendFeatureReport(buffer);
-			await delay(250);
+			await this.sendFeatureReport(requestBuffer);
+			await delay(READ_PERMISSION_DELAY_MS);
 
-			const hasReadPermissionBuffer = await this.transport.getFeatureReport(0xa0, 8);
+			const responseBuffer = await this.transport.getFeatureReport(PERMISSION_COMMAND, RESPONSE_LENGTH);
 
-			if (hasReadPermissionBuffer[1] !== 0x01) {
+			if (responseBuffer[1] !== PERMISSION_GRANTED_STATUS) {
 				throw new DriverError(
 					`Something went wrong, and the firmware did not enable reading of reportId: ${hex(reportId)}`,
-					{ cause: hasReadPermissionBuffer },
+					{ cause: responseBuffer },
 				);
 			}
 
-			this.logger?.info(`permission granted by report id ${hex(reportId)}`, 'AttackSharkX11-getFeatureReport');
+			this.logger?.info(`permission granted by report id ${hex(reportId)}`, LOG_TAG);
 			this.hasReadPermission = true;
-		} catch (e) {
-			throw new DriverError(`failed to request read permission: ${e}`, { cause: e });
+		} catch (error) {
+			if (error instanceof DriverError) {
+				throw error;
+			}
+			throw new DriverError(`failed to request read permission: ${error}`, { cause: error });
 		}
 	}
 
@@ -419,7 +423,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @deprecated The driver now extends `EventEmitter`; use the `on` method to listen for events.
 	 */
 	onBatteryChange(listener: (status: BatteryStatus, percentage: number) => void): () => void {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 
 		this.on('batteryChange', listener);
 
@@ -429,7 +433,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	setPollingRate(rate: Rate | PollingRateBuilder, timeoutMs?: number): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setRate(rate);
 			return this.sendCommand(ReportId.POLLING_RATE, builder.build(this.connectionMode), timeoutMs);
@@ -462,7 +466,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		options: LightingSettingsBuilder | LightingSettingsBuilderOptions,
 		timeoutMs?: number,
 	): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = options instanceof LightingSettingsBuilder ? options : new LightingSettingsBuilder(options);
 			return this.sendCommand(ReportId.LIGHTING_SETTINGS, builder.build(this.connectionMode), timeoutMs);
@@ -472,7 +476,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async setMacro(options: MacroBuilder | MacroBuilderOptions): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = options instanceof MacroBuilder ? options : new MacroBuilder(options);
 			const buffers = builder.build(this.connectionMode);
@@ -488,28 +492,28 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	sendInternalStateResetReportBuilder(): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = new ChangeProfileBuilder();
 
 		return this.sendCommand(ReportId.PROFILE, builder.build(this.connectionMode));
 	}
 
 	resetPollingRate(): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = new PollingRateBuilder();
 
 		return this.sendCommand(ReportId.POLLING_RATE, builder.build(this.connectionMode));
 	}
 
 	setDpi(options: DpiBuilder | DpiBuilderOptions): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
 
 		return this.sendCommand(ReportId.DPI, builder.build(this.connectionMode));
 	}
 
 	async getDpi(): Promise<Option<DpiBuilder>> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI);
 		if (typeof response === 'number') return null;
 
@@ -517,7 +521,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getButtonMapping(): Promise<Option<ButtonMappingBuilder>> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, ReportReadLength.BUTTON_MAPPING);
 		if (typeof response === 'number') return null;
 
@@ -525,7 +529,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getMacro(macroId: number): Promise<Option<MacroBuilder>> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.MACRO, ReportReadLength.MACRO, macroId);
 		if (typeof response === 'number') return null;
 
@@ -533,7 +537,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getPollingRate(): Promise<Option<Rate>> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.POLLING_RATE, ReportReadLength.POLLING_RATE);
 		if (typeof response === 'number') return null;
 
@@ -541,7 +545,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	async getLightingSettings(): Promise<Option<LightingSettingsBuilder>> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, ReportReadLength.LIGHTING_SETTINGS);
 		if (typeof response === 'number') return null;
 
@@ -549,21 +553,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	resetDpi(): Promise<number | undefined> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = new DpiBuilder();
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
 	resetButtonMapping(): Promise<number | undefined> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = new ButtonMappingBuilder();
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
 	resetLightingSettings(): Promise<number | undefined> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = new LightingSettingsBuilder().setKeyResponse(8);
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
@@ -573,7 +577,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * Resets all device settings to factory defaults.
 	 */
 	async reset(): Promise<void> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		await this.sendInternalStateResetReportBuilder();
 		await this.resetDpi();
 		await this.resetLightingSettings();
