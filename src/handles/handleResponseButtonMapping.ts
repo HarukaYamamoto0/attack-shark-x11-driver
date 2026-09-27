@@ -2,8 +2,6 @@ import { type Option, PacketLength } from '../types';
 import { ButtonMapping, ButtonMappingBuilder, SlotButton } from '../protocols/ButtonMappingBuilder';
 
 export function handleResponseButtonMapping(buffer: Uint8Array): Option<ButtonMappingBuilder> {
-	console.log('Raw: ' + buffer.toHex());
-
 	if (buffer.length !== PacketLength.BUTTON_MAPPING)
 		throw new Error(
 			`Invalid button mapping buffer size; expected ${PacketLength.BUTTON_MAPPING} but received ${buffer.length}`,

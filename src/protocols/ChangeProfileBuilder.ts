@@ -43,11 +43,11 @@ export class ChangeProfileBuilder implements BaseProtocolBuilder {
 		return this.buffer;
 	}
 
-	toString(): string {
+	toHexString(): string {
 		return this.buffer.toString('hex');
 	}
 
 	compareWithHexString(value: string): boolean {
-		return this.toString() === value;
+		return this.toHexString() === value;
 	}
 }

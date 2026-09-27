@@ -12,7 +12,6 @@ import {
 import { type Option, PacketLength } from '../types';
 
 export function handleResponseLightingSettings(buffer: Uint8Array): Option<LightingSettingsBuilder> {
-	console.log('Raw: ' + buffer.toHex());
 	if (buffer.length !== 15)
 		throw new Error(
 			`Invalid lighting settings buffer size; expected ${PacketLength.LIGHTING_SETTINGS} but received ${buffer.length}`,

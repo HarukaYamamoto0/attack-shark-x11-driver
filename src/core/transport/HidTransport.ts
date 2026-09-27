@@ -1,6 +1,5 @@
 import type { ReportId } from '../../types';
-import * as HID from 'node-hid';
-import type { Device } from 'node-hid';
+import { type Device, HIDAsync } from 'node-hid';
 import { TransportError } from '../../index';
 import { findX11Devices, type MouseTransport, type TransportOptions } from './index';
 
@@ -9,8 +8,8 @@ import { findX11Devices, type MouseTransport, type TransportOptions } from './in
  * and this also allows testing the driver using custom mocks.
  */
 export class HidTransport implements MouseTransport {
-	private command?: HID.HIDAsync | undefined;
-	private events?: HID.HIDAsync | undefined;
+	private command?: HIDAsync | undefined;
+	private events?: HIDAsync | undefined;
 
 	constructor(private readonly options: TransportOptions) {}
 
@@ -20,10 +19,10 @@ export class HidTransport implements MouseTransport {
 		if (!device.command.path) throw new TransportError('the path to the command interface was not found');
 		if (!device.events.path) throw new TransportError('the path to the events interface was not found');
 
-		this.command = await HID.HIDAsync.open(device.command.path);
+		this.command = await HIDAsync.open(device.command.path);
 
 		this.events =
-			device.command.path === device.events.path ? this.command : await HID.HIDAsync.open(device.events.path);
+			device.command.path === device.events.path ? this.command : await HIDAsync.open(device.events.path);
 	}
 
 	async close(): Promise<void> {
@@ -51,7 +50,9 @@ export class HidTransport implements MouseTransport {
 	onData(listener: (data: Uint8Array) => void): void {
 		if (!this.events) throw new TransportError('Transport is not open');
 
-		this.events.on('data', listener);
+		this.events.on('data', (data: Buffer) => {
+			listener(Uint8Array.from(data));
+		});
 	}
 
 	onError(listener: (error: Error) => void): void {
@@ -62,9 +63,9 @@ export class HidTransport implements MouseTransport {
 	private async resolveDevice(): Promise<{ command: Device; events: Device }> {
 		const devices = await findX11Devices(this.options);
 
-		const command = devices.find((d) => d.interface === 2 && d.usagePage === 0x0b);
+		const command = devices.find((d) => d.interface === 0x02 && d.usagePage === 0x0b);
 
-		const events = devices.find((d) => d.interface === 2 && d.usagePage === 0x0a);
+		const events = devices.find((d) => d.interface === 0x02 && d.usagePage === 0x0a);
 
 		if (!command?.path) throw new TransportError('Command HID collection not found');
 		if (!events?.path) throw new TransportError('Event HID collection not found');

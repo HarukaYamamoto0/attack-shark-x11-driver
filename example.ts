@@ -1,4 +1,5 @@
-import { AttackSharkX11, CommandConfirmation, Rate } from './src';
+import { AttackSharkX11, Rate } from './src';
+import { CommandConfirmation } from './src/handles/messages/handleCommandConfirmation';
 
 const driver = new AttackSharkX11();
 

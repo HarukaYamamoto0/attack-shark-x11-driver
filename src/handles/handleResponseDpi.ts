@@ -4,7 +4,6 @@ import { convertBytesToDpi } from '../utils/dpi';
 import type { RGB } from '../protocols/LightingSettingsBuilder';
 
 export function handleResponseDpi(buffer: Uint8Array): Option<DpiBuilder> {
-	console.log('Raw: ' + buffer.toHex());
 	if (buffer.length !== 56)
 		throw new Error(`Invalid dpi buffer size; expected ${PacketLength.DPI} but received ${buffer.length}`);
 
@@ -182,10 +181,9 @@ export function handleResponseDpi(buffer: Uint8Array): Option<DpiBuilder> {
 		const xByte = dpiXSettings[i] ?? 0x00;
 		const yByte = dpiYSettings[i] ?? 0x00;
 		const isDoubleFlag = (dpiXDoubleFlag & (1 << i)) !== 0;
-		const isTripleFlag = (dpiYDoubleFlag & (1 << i)) !== 0; // Check for multiplier flags
+		const isTripleFlag = (dpiYDoubleFlag & (1 << i)) !== 0; // Check for multiple flags
 
 		const dpiValue = convertBytesToDpi(xByte, yByte, isDoubleFlag, isTripleFlag);
-		console.log(`Stage ${i + 1}: ${dpiValue}`);
 		response.setDpiValue((i + 1) as StageIndex, dpiValue);
 	}
 

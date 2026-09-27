@@ -254,11 +254,7 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 		return this.buffer;
 	}
 
-	toString(): string {
+	toHexString(): string {
 		return this.buffer.toString('hex');
-	}
-
-	compareWithHexString(value: string): boolean {
-		return this.toString() === value;
 	}
 }

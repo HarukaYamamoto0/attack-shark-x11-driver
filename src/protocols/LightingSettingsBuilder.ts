@@ -347,7 +347,7 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		else return this.buffer;
 	}
 
-	toString(): string {
+	toHexString(): string {
 		return this.buffer.toHex();
 	}
 

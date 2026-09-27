@@ -15,16 +15,14 @@ import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.j
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
 import {
 	BatteryStatus,
-	CommandConfirmation,
 	ConnectionMode,
 	type Logger,
 	MessageTypes,
 	MessageTypesLength,
 	type Option,
-	PacketLength,
 	type PendingCommand,
 	ReportId,
-	type Result,
+	ReportReadLength,
 } from '../types.js';
 import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
@@ -32,23 +30,19 @@ import { handleResponseLightingSettings } from '../handles/handleResponseLightin
 import { handleResponseDpi } from '../handles/handleResponseDpi';
 import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
 import { handleMacroResponse } from '../handles/hadleMacroResponse';
-import type { MacroBuilder } from '../protocols/MacroBuilder';
+import { MacroBuilder, type MacroBuilderOptions } from '../protocols/MacroBuilder';
 import { handleBatteryMessage } from '../handles/messages/handleBatteryMessage';
-import { handleCommandConfirmation } from '../handles/messages/handleCommandConfirmation';
+import { CommandConfirmation, handleCommandConfirmation } from '../handles/messages/handleCommandConfirmation';
 import { type MouseTransport } from './transport';
 import { VID } from '../index';
 import { HidTransport } from './transport/HidTransport';
 import { hex } from '../logger/hex';
 
-/**
- * Events emitted by the AttackSharkX11 class.
- */
+/** Events emitted by the AttackSharkX11 class */
 export interface AttackSharkX11Events {
 	/** Emitted when the battery level changes */
 	batteryChange: [status: BatteryStatus, percentage: number];
-	/**
-	 * Represents the confirmation details of a specific command execution.
-	 */
+	/** Represents the confirmation details of a specific command execution. */
 	commandConfirmation: [reportId: ReportId, success: boolean];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
@@ -59,27 +53,23 @@ export interface AttackSharkX11Events {
  * It facilitates device connection, monitors battery status, handles command confirmation, and manages data exchange.
  */
 export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
-	private transport?: MouseTransport | undefined;
+	private logger: Logger | null;
 	public productId: number | undefined;
-	// this is the primary device used for sending commands.
+	public transport?: MouseTransport | undefined;
+
 	private battery_status: BatteryStatus = BatteryStatus.CHARGING_IN_PROGRESS;
 	private battery_percentage: number = -1;
-	private logger: Logger | null;
-	/**
-	 * A boolean flag indicating whether a sending operation is currently in progress.
-	 * If true, it represents that the operation is active; otherwise, it is not.
-	 */
-	public isSending: boolean = false;
-	// the ID of the report associated with the last pending command
-	public lastPendingCommandReportId: ReportId | null = null;
-	// represents the result of the last pending command execution.
-	public lastPendingCommandResult: boolean | null = false;
+
 	// internal control of pending command reactive confirmation (ACK)
 	private pendingCommand: PendingCommand | null = null;
+	private hasReadPermission: boolean = false;
 
 	/**
-	 * @param options Configuration options for the driver
-	 * @param options.logger Optional custom logger
+	 * Initializes a new instance of the class.
+	 *
+	 * @param {Object} [options] - The configuration options for the constructor.
+	 * @param {Logger} [options.logger] - An optional logger instance for logging purposes.
+	 * @param {MouseTransport} [options.transport] - An optional transport instance for handling mouse interactions.
 	 */
 	constructor(options?: { logger?: Logger; transport?: MouseTransport }) {
 		super();
@@ -99,6 +89,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.productId !== undefined ? `0x${this.productId.toString(16)}` : 'undefined';
 	}
 
+	/**
+	 * Opens a connection to the device via the transport layer and initializes the necessary handlers.
+	 * If the transport is not already created, it initializes the transport with specific vendor and product IDs.
+	 * Sets up handlers to process incoming data and handle errors from the device.
+	 *
+	 * @return {Promise<void>} A promise that resolves when the connection is successfully opened or rejects with an error if the operation fails.
+	 */
 	async open(): Promise<void> {
 		try {
 			if (!this.transport)
@@ -177,20 +174,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 							if (this.pendingCommand.reportId !== response.reportId) {
 								this.pendingCommand.reject(
-									new TimeoutError(
+									new DriverError(
 										'It appears a command confirmation occurred, but the confirmation differs from what was expected, indicating that something is wrong',
 									),
 								);
 							}
 
 							this.pendingCommand.resolve(response.status);
-
-							if (response.status === CommandConfirmation.Failure) {
-								this.logger?.error(
-									'the command confirmation returned a failure code',
-									'AttackSharkX11-handleData',
-								);
-							}
+							clearTimeout(this.pendingCommand.timeout);
 							this.pendingCommand = null;
 						} catch (err) {
 							this.logger?.error(
@@ -211,7 +202,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				break;
 			}
 			default: {
-				// TODO: add handlers
+				// TODO: add more handlers
 			}
 		}
 	};
@@ -248,7 +239,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	checkIsOpen(): void {
+	// TODO: remove this redundant method
+	private checkIsOpen(): void {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 	}
 
@@ -267,14 +259,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		timeoutMs: number = 1000,
 		// TODO: retries: number = 0,
 	): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (this.transport === undefined) throw new DriverError('You have to open the device first');
 		if (this.pendingCommand) throw new CommandInProgressError({ cause: this.pendingCommand });
 
 		const promise = new Promise<CommandConfirmation>((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.pendingCommand = null;
 
-				reject(new TimeoutError(`timeout waiting for ACK of report 0x${reportId.toString(16)}`));
+				reject(new TimeoutError(`timeout waiting for ACK of report ${hex(reportId)}`));
 			}, timeoutMs);
 
 			this.pendingCommand = {
@@ -304,52 +296,103 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @throws {ControlTransferError} Thrown if the control transfer fails during the operation.
 	 */
 	async sendFeatureReport(buffer: Uint8Array): Promise<number> {
-		this.checkIsOpen();
 		if (this.transport === undefined) throw new DriverError('You have to open the device first');
 
 		try {
-			const response = await this.transport.sendFeatureReport(Buffer.from(buffer));
+			this.logger?.debug(`sending feature report: ${buffer.toHex()}`, 'AttackSharkX11-sendFeatureReport');
 
-			this.logger?.debug(`sending command with buffer: ${buffer.toHex()}`, 'AttackSharkX11-sendFeatureReport');
-
-			return response;
+			return await this.transport.sendFeatureReport(buffer);
 		} catch (err) {
-			console.log(err);
-			this.logger?.error(`failed: ${buffer.toHex()}`, 'AttackSharkX11-sendFeatureReport');
+			this.logger?.error(`failed to send feature report: ${buffer.toHex()}`, 'AttackSharkX11-sendFeatureReport');
 
 			throw new ControlTransferError('Control transfer failed', { cause: err });
 		}
 	}
 
 	/**
-	 * Reads a Feature Report of a given reportId and length from the HID device.
+	 * Requests read permission for the specified report ID.
 	 *
-	 * @param {ReportId} reportId - The report ID to be queried.
-	 * @param {PacketLength} report_length - The expected byte length of the report.
-	 * @return {Promise<Result<Uint8Array, number>>} A promise that resolves to the received Uint8Array or an error code.
-	 * @throws {DriverError} If the device is not opened or the report read request fails.
-	 * @throws {ControlTransferError} If the transfer fails.
+	 * @param {ReportId} reportId - The ID of the report for which read permission is being requested.
+	 * @param {ReportReadLength} packetLengthRead - The length of the report packet to read.
+	 * @param {number} [parameter] - An optional parameter to customize the request. Defaults to 0x01 if not provided.
+	 * @return {Promise<void>} A promise that resolves when the read permission request is successfully processed or rejects with an error if the request fails.
 	 */
-	async getFeatureReport(reportId: ReportId, report_length: PacketLength): Promise<Result<Uint8Array, number>> {
+	private async requestReadPermission(
+		reportId: ReportId,
+		packetLengthRead: ReportReadLength,
+		parameter: number = 0x01,
+	): Promise<void> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 
 		try {
-			await this.sendFeatureReport(Buffer.from([0xa0, reportId, report_length, 0x00, 0x01, 0x00, 0x00, 0x00]));
+			const buffer = new Uint8Array(8);
 
+			buffer[0] = 0xa0;
+			buffer[1] = reportId;
+			buffer[2] = packetLengthRead;
+			buffer[3] = 0x00;
+			buffer[4] = parameter ? parameter : 0x01;
+			buffer[5] = 0x00;
+			buffer[6] = 0x00;
+			buffer[7] = 0x00;
+
+			this.logger?.debug(
+				`sent permission request with buffer: ${buffer.toHex()}`,
+				'AttackSharkX11-getFeatureReport',
+			);
+			await this.sendFeatureReport(buffer);
 			await delay(250);
 
-			const checkStatus = await this.transport?.getFeatureReport(0xa0, 8); // status check
+			const hasReadPermissionBuffer = await this.transport.getFeatureReport(0xa0, 8);
 
-			if (checkStatus && checkStatus?.[1] !== 0x01) {
+			if (hasReadPermissionBuffer[1] !== 0x01) {
 				throw new DriverError(
-					`Something went wrong, and the firmware did not enable reading of reportId: ${reportId.toString(16).padStart(2, '0')}`,
+					`Something went wrong, and the firmware did not enable reading of reportId: ${hex(reportId)}`,
+					{ cause: hasReadPermissionBuffer },
 				);
 			}
 
-			const data: Uint8Array = await this.transport.getFeatureReport(reportId, report_length);
-			this.logger?.info(`received buffer: ${data.toHex()}`, 'AttackSharkX11-getFeatureReport');
-			if (data) return data;
-			else return -1;
+			this.logger?.info(`permission granted by report id ${hex(reportId)}`, 'AttackSharkX11-getFeatureReport');
+			this.hasReadPermission = true;
+		} catch (e) {
+			throw new DriverError(`failed to request read permission: ${e}`, { cause: e });
+		}
+	}
+
+	/**
+	 * Retrieves a feature report from the device based on the specified report ID and report length.
+	 *
+	 * @param {ReportId} reportId - The ID of the report to be retrieved.
+	 * @param {ReportReadLength} reportLengthRead - The length of the report to be read.
+	 * @param {number} [parameter=0x01] - An optional parameter that may adjust the behavior of the request.
+	 * @return {Promise<Uint8Array>} A promise that resolves to the feature report as a Uint8Array.
+	 * @throws {DriverError} If the device is not opened before calling this method.
+	 * @throws {ControlTransferError} If the control transfer operation for retrieving the feature report fails.
+	 */
+	async getFeatureReport(
+		reportId: ReportId,
+		reportLengthRead: ReportReadLength,
+		parameter: number = 0x01,
+	): Promise<Uint8Array> {
+		if (!this.transport) throw new DriverError('You have to open the device first');
+
+		try {
+			if (!this.hasReadPermission) await this.requestReadPermission(reportId, reportLengthRead, parameter);
+
+			this.logger?.info(
+				`retrieving data for report id: ${hex(reportId)}, parameter: ${hex(parameter)}`,
+				'AttackSharkX11-getFeatureReport',
+			);
+
+			const data: Uint8Array = await this.transport.getFeatureReport(reportId, reportLengthRead);
+
+			this.logger?.info(
+				`received buffer from report id ${hex(reportId)}: ${data.toHex()}`,
+				'AttackSharkX11-getFeatureReport',
+			);
+
+			this.hasReadPermission = false;
+			return data;
 		} catch (err) {
 			throw new ControlTransferError('Control transfer (sendFeatureReport) failed', { cause: err });
 		}
@@ -395,11 +438,18 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	setMapping(
+	/**
+	 *
+	 * @param config
+	 * @param timeoutMs
+	 *
+	 * @see ./docs/button-mapping.md
+	 */
+	setButtonMapping(
 		config: ButtonMappingBuilderOptions | ButtonMappingBuilder,
 		timeoutMs?: number,
 	): Promise<CommandConfirmation> {
-		this.checkIsOpen();
+		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = config instanceof ButtonMappingBuilder ? config : new ButtonMappingBuilder(config);
 			return this.sendCommand(ReportId.BUTTON_MAPPING, builder.build(this.connectionMode), timeoutMs);
@@ -418,6 +468,22 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			return this.sendCommand(ReportId.LIGHTING_SETTINGS, builder.build(this.connectionMode), timeoutMs);
 		} catch (err) {
 			throw new SendCommandError(`failed to set lighting settings`, { cause: err });
+		}
+	}
+
+	async setMacro(options: MacroBuilder | MacroBuilderOptions): Promise<CommandConfirmation> {
+		this.checkIsOpen();
+		try {
+			const builder = options instanceof MacroBuilder ? options : new MacroBuilder(options);
+			const buffers = builder.build(this.connectionMode);
+
+			await this.sendCommand(ReportId.MACRO, buffers[0]);
+			await this.sendCommand(ReportId.MACRO, buffers[1]);
+			await this.sendCommand(ReportId.MACRO, buffers[2]);
+
+			return CommandConfirmation.Success;
+		} catch (err) {
+			throw new SendCommandError(`failed to set macro`, { cause: err });
 		}
 	}
 
@@ -444,7 +510,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	async getDpi(): Promise<Option<DpiBuilder>> {
 		this.checkIsOpen();
-		const response = await this.getFeatureReport(ReportId.DPI, PacketLength.DPI);
+		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI);
 		if (typeof response === 'number') return null;
 
 		return handleResponseDpi(response);
@@ -452,15 +518,15 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	async getButtonMapping(): Promise<Option<ButtonMappingBuilder>> {
 		this.checkIsOpen();
-		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, PacketLength.BUTTON_MAPPING);
+		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, ReportReadLength.BUTTON_MAPPING);
 		if (typeof response === 'number') return null;
 
 		return handleResponseButtonMapping(response);
 	}
 
-	async getMacro(): Promise<Option<MacroBuilder>> {
+	async getMacro(macroId: number): Promise<Option<MacroBuilder>> {
 		this.checkIsOpen();
-		const response = await this.getFeatureReport(ReportId.MACRO, PacketLength.MACRO);
+		const response = await this.getFeatureReport(ReportId.MACRO, ReportReadLength.MACRO, macroId);
 		if (typeof response === 'number') return null;
 
 		return handleMacroResponse(response);
@@ -468,7 +534,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	async getPollingRate(): Promise<Option<Rate>> {
 		this.checkIsOpen();
-		const response = await this.getFeatureReport(ReportId.POLLING_RATE, PacketLength.POLLING_RATE);
+		const response = await this.getFeatureReport(ReportId.POLLING_RATE, ReportReadLength.POLLING_RATE);
 		if (typeof response === 'number') return null;
 
 		return handleResponsePollingRate(response);
@@ -476,7 +542,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	async getLightingSettings(): Promise<Option<LightingSettingsBuilder>> {
 		this.checkIsOpen();
-		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, PacketLength.LIGHTING_SETTINGS);
+		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, ReportReadLength.LIGHTING_SETTINGS);
 		if (typeof response === 'number') return null;
 
 		return handleResponseLightingSettings(response);
@@ -489,14 +555,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	resetMacro(): Promise<number | undefined> {
+	resetButtonMapping(): Promise<number | undefined> {
 		this.checkIsOpen();
 		const builder = new ButtonMappingBuilder();
 
 		return this.sendFeatureReport(builder.build(this.connectionMode));
 	}
 
-	resetUserPreferences(): Promise<number | undefined> {
+	resetLightingSettings(): Promise<number | undefined> {
 		this.checkIsOpen();
 		const builder = new LightingSettingsBuilder().setKeyResponse(8);
 
@@ -510,10 +576,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		this.checkIsOpen();
 		await this.sendInternalStateResetReportBuilder();
 		await this.resetDpi();
-		await this.resetUserPreferences();
+		await this.resetLightingSettings();
 		await this.resetPollingRate();
-		await this.resetMacro();
-		// await this.resetCustomMacro();
+		await this.resetButtonMapping();
 	}
 }
 

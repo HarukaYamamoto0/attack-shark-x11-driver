@@ -404,11 +404,11 @@ export class DpiBuilder implements BaseProtocolBuilder {
 		return mode === ConnectionMode.Wired ? this.buffer.subarray(0, 51) : this.buffer;
 	}
 
-	public toString(): string {
+	public toHexString(): string {
 		return this.buffer.toString('hex');
 	}
 
 	public compareWithHexString(value: string): boolean {
-		return this.toString() === value;
+		return this.toHexString() === value;
 	}
 }

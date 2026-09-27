@@ -1,3 +1,5 @@
+import type { CommandConfirmation } from './handles/messages/handleCommandConfirmation';
+
 /**
  * Connection modes supported by the driver.
  */
@@ -96,7 +98,8 @@ export enum ReportId {
 	DEVICE_VERSION = 0x0b,
 	READ_REPORT_ID = 0xa0,
 	WAKE_UP_MODE = 0x07,
-	PROFILE = 0x0c,
+	PROFILE = 0x0a,
+	PROFILE_SETTING = 0x0c,
 }
 
 export enum PacketLength {
@@ -104,18 +107,21 @@ export enum PacketLength {
 	POLLING_RATE = 0x09,
 	LIGHTING_SETTINGS = 0x0f,
 	BUTTON_MAPPING = 0x3b,
-	MACRO = 0x28,
+	MACRO = 0x40,
 	DEVICE_VERSION = 0x08,
-	PROFILE = 0x0a,
+	PROFILE = 0x80,
+	PROFILE_SETTING = 0x0a,
 }
 
-export enum PacketLengthRead {
+export enum ReportReadLength {
 	DPI = 0x38,
 	POLLING_RATE = 0x09,
 	LIGHTING_SETTINGS = 0x0f,
 	BUTTON_MAPPING = 0x3b,
 	MACRO = 0x83,
 	DEVICE_VERSION = 0x08,
+	PROFILE = 0x80,
+	PROFILE_SETTING = 0x0a,
 }
 
 /**
@@ -143,11 +149,11 @@ export type Option<T> = T | None;
 export type None = null;
 
 /**
- * Represents the result of an operation that can either be a successful outcome of type T
- * or an error of type E. By default, E is of type Error.
+ * Represents the result of an operation that can either be a successful outcome of type `T`
+ * or an error of type `E`. By default, `E` is of type `Error`.
  *
  * This type can be used to model functions or processes where the result might not always
- * be successful and an error may need to be handled.
+ * be successful, allowing callers to handle errors explicitly without throwing exceptions.
  *
  * @template T The type of the successful result.
  * @template E The type of the error result. Defaults to Error.
@@ -230,21 +236,4 @@ export interface PendingCommand {
 	resolve: (status: CommandConfirmation) => void;
 	reject: (error: Error) => void;
 	timeout: NodeJS.Timeout;
-}
-
-/**
- * An enumeration representing the result of a command execution.
- *
- * This enum is used to indicate whether a command was successfully
- * executed or if it encountered a failure during its operation.
- *
- * Enum members:
- * - `Success`: Denotes that the command executed successfully.
- * - `Failure`: Denotes that the command execution failed.
- *
- * @see docs/messages/feature-report-status.md
- */
-export enum CommandConfirmation {
-	Success = 0x00,
-	Failure = 0x01,
 }

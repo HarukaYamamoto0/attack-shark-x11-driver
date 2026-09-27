@@ -1,4 +1,21 @@
-import { CommandConfirmation, type Option, type ReportId } from '../../types.js';
+import { type Option, type ReportId } from '../../types.js';
+
+/**
+ * An enumeration representing the result of a command execution.
+ *
+ * This enum is used to indicate whether a command was successfully
+ * executed or if it encountered a failure during its operation.
+ *
+ * Enum members:
+ * - `Success`: Denotes that the command executed successfully.
+ * - `Failure`: Denotes that the command execution failed.
+ *
+ * @see https://github.com/HarukaYamamoto0/attack-shark-x11-driver/tree/main/docs/messages/feature-report-status.md
+ */
+export enum CommandConfirmation {
+	Success = 0x00,
+	Failure = 0x01,
+}
 
 /**
  * Processes command confirmation status data received from the device and returns an object containing confirmation info.

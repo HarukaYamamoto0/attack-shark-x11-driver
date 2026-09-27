@@ -1,4 +1,4 @@
-test.ts
+test*.ts
 
 /tmp
 /out-tsc

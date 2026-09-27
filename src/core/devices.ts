@@ -37,7 +37,7 @@ export enum DeviceId {
 	V3 = 0xea,
 	V2MC = 0x65,
 	V2Ultra = 0x62,
-	V2Ultra3955 = 0xcc,
+	AJAZZ_AJ159_APEX = 0xcc,
 	V2MAX = 0x9e,
 	V2 = 0xcb,
 	G64 = 0x61,

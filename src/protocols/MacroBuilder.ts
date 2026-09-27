@@ -1,253 +1,221 @@
+// noinspection JSUnusedGlobalSymbols
+
 import type MacroAction from '../structures/MacroAction';
 import type { RGB } from './LightingSettingsBuilder';
 import { type ConnectionMode, PacketLength, ReportId } from '../types';
 import { encodeFixedUtf8 } from '../utils/encodeUtf8Fixed';
 import { decodeFixedUtf8 } from '../utils/decodeFixedUtf8';
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder';
+import { ParamsError } from '../errors';
 
-interface Macro {
-	macroId: number;
-	macroType: MacroType;
+export interface MacroBuilderOptions {
+	id: number;
+	type: MacroType;
 	macroGunRGB: RGB;
-	loopTimes?: number;
-	macroName: string;
-	macroCodeNumber: number;
-	macroActions: MacroAction[];
+	loopTimes: number;
+	name?: string;
+	actions?: MacroAction[];
 }
 
-enum MacroPages {
-	First = 0,
-	Second = 1,
-	Third = 2,
+export enum MacroPages {
+	First = 0x00,
+	Second = 0x01,
+	Third = 0x02,
 }
 
-enum MacroType {
-	FIXED_LOOP = 0x00, // Uses loopTimes
-	UNTIL_KEY_PRESS = 0x01, // Runs until any key interrupts it
-	WHILE_PRESSED = 0x02, // Executes while the button remains pressed.
+export enum MacroType {
+	/** Uses loopTimes */
+	FIXED_LOOP = 0x00,
+
+	/** Runs until any key interrupts it */
+	UNTIL_KEY_PRESS = 0x01,
+
+	/** Executes while the button remains pressed */
+	WHILE_PRESSED = 0x02,
 }
 
 export class MacroBuilder implements BaseProtocolBuilder {
-	// private mainBuffer: Uint8Array = new Uint8Array(192);
-	// private mainView: DataView = new DataView(this.mainBuffer.buffer);
+	// not used
+	public buffer: Uint8Array = new Uint8Array(0);
 
-	private firstPacket: Uint8Array = new Uint8Array(64);
-	private firstPacketView: DataView = new DataView(this.firstPacket.buffer);
+	private _firstPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _firstPacketView: DataView = new DataView(this._firstPacket.buffer);
 
-	private secondPacket: Uint8Array = new Uint8Array(64);
-	private secondPacketView: DataView = new DataView(this.secondPacket.buffer);
+	private _secondPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _secondPacketView: DataView = new DataView(this._secondPacket.buffer);
 
-	private thirdPacket: Uint8Array = new Uint8Array(64);
-	private thirdPacketView: DataView = new DataView(this.thirdPacket.buffer);
+	private _thirdPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _thirdPacketView: DataView = new DataView(this._thirdPacket.buffer);
 
-	private actions: Uint8Array = new Uint8Array(92);
-	private actionsView: DataView = new DataView(this.actions.buffer);
+	private _actions: Uint8Array = new Uint8Array(100); // this is the maximum size reserved for actions
+	private _actionsOffset: number = 0;
 
-	public _macroId: number = 0x00;
-	public _macroType: MacroType = MacroType.FIXED_LOOP;
-	public _macroGunRGB: RGB = { r: 0x00, g: 0x00, b: 0x00 };
-	public _loopTimes: number = 0;
-	public _macroName: string = 'macro1';
-	private _macroCodeNumber: number = 0;
-	private _macroActions: MacroAction[] = [];
+	private _id: number = 0x01;
+	private _type: MacroType = MacroType.FIXED_LOOP;
+	private _macroGunRGB: RGB = { r: 0x00, g: 0x00, b: 0x00 };
+	private _loopTimes: number = 1;
+	private _name: string = 'macro1';
+	private _macroCount: number = 0;
 
-	constructor(options: Macro) {
-		this.firstPacket.fill(0x00);
-		this.secondPacket.fill(0x00);
-		this.thirdPacket.fill(0x00);
-
-		this.firstPacketView.setUint8(0, ReportId.MACRO);
-		this.firstPacketView.setUint8(1, PacketLength.MACRO);
-		this.firstPacketView.setUint8(2, options.macroId);
-		this.firstPacketView.setUint8(3, MacroPages.First);
-		this.firstPacketView.setUint8(4, options.macroType);
-		this.firstPacketView.setUint8(5, options.macroGunRGB.r);
-		this.firstPacketView.setUint8(6, options.macroGunRGB.g);
-		this.firstPacketView.setUint8(7, options.macroGunRGB.b);
-		this.firstPacketView.setUint8(8, options?.loopTimes ?? 0x00);
-
-		const macroNameBytes = encodeFixedUtf8(options.macroName, 20);
-
-		for (let offset = 9; offset <= 28; offset++) {
-			this.firstPacketView.setUint8(offset, macroNameBytes.bytes[offset] ?? 0x61); // letter a
-		}
-
-		this.firstPacketView.setUint8(29, options.macroActions.length);
+	constructor(options?: MacroBuilderOptions) {
+		// set headers
+		this._firstPacketView.setUint8(0, ReportId.MACRO);
+		this._firstPacketView.setUint8(1, PacketLength.MACRO);
+		this._firstPacketView.setUint8(2, this._id);
+		this._firstPacketView.setUint8(3, MacroPages.First);
 
 		// set headers
-		this.secondPacketView.setUint8(0, ReportId.MACRO);
-		this.secondPacketView.setUint8(1, PacketLength.MACRO);
-		this.secondPacketView.setUint8(2, options.macroId);
-		this.secondPacketView.setUint8(3, MacroPages.Second);
+		this._secondPacketView.setUint8(0, ReportId.MACRO);
+		this._secondPacketView.setUint8(1, PacketLength.MACRO);
+		this._secondPacketView.setUint8(2, this._id);
+		this._secondPacketView.setUint8(3, MacroPages.Second);
 
 		// set headers
-		this.thirdPacketView.setUint8(0, ReportId.MACRO);
-		this.thirdPacketView.setUint8(1, PacketLength.MACRO);
-		this.thirdPacketView.setUint8(2, options.macroId);
-		this.thirdPacketView.setUint8(3, MacroPages.Third);
+		this._thirdPacketView.setUint8(0, ReportId.MACRO);
+		this._thirdPacketView.setUint8(1, PacketLength.MACRO);
+		this._thirdPacketView.setUint8(2, this._id);
+		this._thirdPacketView.setUint8(3, MacroPages.Third);
+
+		this.setId(options?.id ?? this._id);
+		this.setType(options?.type ?? this._type);
+		this.setMacroGunRGB(options?.macroGunRGB ?? this._macroGunRGB);
+		this.setLoopTimes(options?.loopTimes ?? this._loopTimes);
+		this.setName(options?.name ?? this._name);
+
+		if (options?.actions) this.setBulkActions(options.actions);
 	}
 
 	setId(id: number): this {
-		if (id < 0x00 || id > 0xff) throw new Error(`Invalid macro id; expected 0x00 to 0xff, but received ${id}`);
-		this._macroId = id;
+		if (id < 0x00 || id > 0xff)
+			throw new ParamsError(`Invalid macro id; expected 0x00 to 0xff, but received ${id}`);
+		this._id = id;
 
-		this.firstPacketView.setUint8(2, id);
+		this._firstPacketView.setUint8(2, this._id);
+		this._secondPacketView.setUint8(2, this._id);
+		this._thirdPacketView.setUint8(2, this._id);
 
 		return this;
 	}
 
 	getId(): number {
-		const id = this.firstPacketView.getUint8(2);
-		this._macroId = id;
-		return id;
+		this._id = this._firstPacketView.getUint8(2);
+		return this._id;
 	}
 
 	setType(type: MacroType): this {
-		this._macroType = type;
-		this.firstPacketView.setUint8(4, type);
+		this._type = type;
+		this._firstPacketView.setUint8(4, type);
 		return this;
 	}
 
 	getType(): MacroType {
-		const type = this.firstPacketView.getUint8(4);
-		this._macroType = type;
-		return type;
+		this._type = this._firstPacketView.getUint8(4);
+		return this._type;
 	}
 
 	setMacroGunRGB(color: RGB): this {
 		this._macroGunRGB = color;
-		this.firstPacketView.setUint8(5, color.r);
-		this.firstPacketView.setUint8(6, color.g);
-		this.firstPacketView.setUint8(7, color.b);
+		this._firstPacketView.setUint8(5, color.r);
+		this._firstPacketView.setUint8(6, color.g);
+		this._firstPacketView.setUint8(7, color.b);
 		return this;
 	}
 
 	getMacroGunRGB(): RGB {
-		const r = this.firstPacketView.getUint8(5);
-		const g = this.firstPacketView.getUint8(6);
-		const b = this.firstPacketView.getUint8(7);
+		const r = this._firstPacketView.getUint8(5);
+		const g = this._firstPacketView.getUint8(6);
+		const b = this._firstPacketView.getUint8(7);
 
 		this._macroGunRGB = { r, g, b };
-		return { r, g, b };
+		return this._macroGunRGB;
 	}
 
-	setLoopTimes(amount: number): this {
-		this._loopTimes = amount;
-		this.firstPacketView.setUint8(8, amount);
+	setLoopTimes(repeatTimes: number): this {
+		this._loopTimes = repeatTimes;
+		this._firstPacketView.setUint8(8, repeatTimes);
 		return this;
 	}
 
 	getLoopTimes(): number {
-		const amount = this.firstPacketView.getUint8(8);
-		this._loopTimes = amount;
-		return amount;
+		this._loopTimes = this._firstPacketView.getUint8(8);
+		return this._loopTimes;
 	}
 
 	setName(name: string): this {
 		const macroNameBytes = encodeFixedUtf8(name, 20);
 
-		this._macroName = decodeFixedUtf8(macroNameBytes.bytes).value;
+		this._name = decodeFixedUtf8(macroNameBytes.bytes).value;
+		this._firstPacket.set(macroNameBytes.bytes, 9);
 
-		for (let offset = 9; offset <= 28; offset++) {
-			this.firstPacketView.setUint8(offset, macroNameBytes.bytes[offset] ?? 0x61); // letter a
-		}
 		return this;
 	}
 
 	getName(): string {
-		const macroNameBytes = new Uint8Array(20);
-		const view = new DataView(macroNameBytes.buffer);
+		this._name = decodeFixedUtf8(this._firstPacket.subarray(9, 28)).value;
 
-		for (let offset = 0; offset <= 19; offset++) {
-			view.setUint8(offset, this.firstPacketView.getUint8(offset + 10));
-		}
-
-		return decodeFixedUtf8(macroNameBytes).value;
-	}
-
-	updateActionCount(): this {
-		this._macroCodeNumber = this._macroActions.length;
-
-		this.firstPacketView.setUint8(29, this._macroCodeNumber);
-
-		return this;
+		return this._name;
 	}
 
 	getActionCount(): number {
-		const actionCount = this.firstPacketView.getUint8(29);
-		this._macroCodeNumber = actionCount;
-		return actionCount;
+		this._macroCount = this._firstPacketView.getUint8(29);
+		return this._macroCount;
 	}
 
-	setAction(action: MacroAction): this {
-		if (this._macroCodeNumber + (action.isExtended ? 2 : 1) > 46) {
-			throw new Error('Max actions reached; cannot add more actions to the macro.');
+	setBulkActions(actions: MacroAction[]): this {
+		for (const action of actions) {
+			this.setAction(action);
 		}
-
-		this._macroCodeNumber = this._macroCodeNumber + (action.isExtended ? 2 : 1);
-
-		this._macroActions.push(action);
-		this.actionsView.setUint8(this._macroCodeNumber, action.getAction());
 
 		return this;
 	}
 
-	// @ts-expect-error :) I don't really feel like correcting this, sorry.
+	setAction(action: MacroAction): this {
+		const actionToBuffer = action.toBuffer();
+
+		if (actionToBuffer.length + this._actionsOffset > this._actions.length) {
+			throw new ParamsError('action', 'Max actions reached; cannot add more actions to the macro.', {
+				cause: action,
+			});
+		}
+
+		this._actions.set(actionToBuffer, this._actionsOffset);
+		this._actionsOffset += actionToBuffer.length;
+
+		this._macroCount += action.isExtended ? 2 : 1;
+		this._firstPacketView.setUint8(29, this._macroCount);
+
+		return this;
+	}
+
+	private calculateChecksum(): number {
+		let checksum = 0x0000;
+
+		for (let i = 4; i < this._firstPacket.length; i++) {
+			checksum += this._firstPacketView.getUint8(i);
+		}
+
+		for (let i = 4; i < this._secondPacket.length; i++) {
+			checksum += this._secondPacketView.getUint8(i);
+		}
+
+		for (let i = 4; i < 9; i++) {
+			checksum += this._thirdPacketView.getUint8(i);
+		}
+
+		return checksum;
+	}
+
 	public build(_mode: ConnectionMode): [Uint8Array, Uint8Array, Uint8Array] {
-		// clear
-		this._macroCodeNumber = 0;
-		this.actions.fill(0x00);
+		this._firstPacket.set(this._actions.subarray(0, 34), 30);
+		this._secondPacket.set(this._actions.subarray(34, 94), 4);
+		this._thirdPacket.set(this._actions.subarray(94, 100), 4);
 
-		let offset = 0;
+		this._thirdPacketView.setInt16(10, this.calculateChecksum());
 
-		for (let index = 0; index < this._macroActions.length; index++) {
-			const action = this._macroActions[index];
+		return [this._firstPacket, this._secondPacket, this._thirdPacket];
+	}
 
-			// just to silence the linter
-			if (!action) {
-				this._macroCodeNumber = this._macroCodeNumber - 1;
-				continue;
-			}
-
-			const actionBuffer = action.toUint8Array();
-			const view = new DataView(actionBuffer.buffer);
-
-			this.actionsView.setUint8(offset, view.getUint8(0));
-			this.actionsView.setUint8(offset++, view.getUint8(1));
-
-			this._macroCodeNumber = this._macroCodeNumber + (action.isExtended ? 2 : 1);
-			offset += 2;
-
-			if (action.isExtended) {
-				this.actionsView.setUint8(offset++, view.getUint8(2));
-				this.actionsView.setUint8(offset++, view.getUint8(3));
-				offset += 2;
-			}
-		}
-
-		this.firstPacketView.setUint8(29, this._macroCodeNumber);
-
-		// 09400800000000000100000000000000000000000000000000000000002e01048104010481040104810401048104010481040104810401048104010481040104 = 34
-		// 09400801810401048104010481040104810401048104010481040104810401048104010481040104810401048104010481040104810401048104010481040000 = 58
-		// 090c08020000000000000c9500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 = 00
-		// There's still some space here... maybe I could add more actions, but I don't have time to run tests anymore...
-
-		this.firstPacket.set(this.actions.subarray(0, 34), 30);
-		this.secondPacket.set(this.actions.subarray(35, 58), 4);
-
-		let checksum = 0;
-
-		for (let i = 8; i < this.firstPacket.length; i++) {
-			checksum += this.firstPacketView.getUint8(i);
-		}
-
-		for (let i = 4; i < this.secondPacket.length; i++) {
-			checksum += this.secondPacketView.getUint8(i);
-		}
-
-		this.thirdPacketView.setUint8(10, (checksum & 0xff00) >> 8);
-		this.thirdPacketView.setUint8(11, checksum & 0xff);
-
-		return [this.firstPacket, this.secondPacket, this.thirdPacket];
+	toHexString(): [string, string, string] {
+		return [this._firstPacket.toHex(), this._secondPacket.toHex(), this._thirdPacket.toHex()];
 	}
 }

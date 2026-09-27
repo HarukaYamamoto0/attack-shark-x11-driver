@@ -192,3 +192,84 @@ function assertValidByte(value: number, parameterName: string): void {
 		throw new RangeError(`${parameterName} must be an integer between 0x00 and 0xFF; received ${value}.`);
 	}
 }
+
+export interface DecodeFixedUtf8Options {
+	/**
+	 * Byte used as padding in the fixed-length field.
+	 *
+	 * Trailing occurrences of this byte are removed before decoding.
+	 *
+	 * @default 0x00
+	 */
+	paddingByte?: number;
+
+	/**
+	 * When `true`, throws if the byte sequence contains invalid UTF-8.
+	 *
+	 * When `false`, invalid sequences are replaced with the Unicode
+	 * replacement character (`U+FFFD`).
+	 *
+	 * @default true
+	 */
+	fatal?: boolean;
+
+	/**
+	 * Unicode normalization applied after decoding.
+	 *
+	 * Set to `false` to preserve the decoded Unicode representation.
+	 *
+	 * @default false
+	 */
+	normalization?: UnicodeNormalizationForm | false;
+}
+
+/**
+ * Decodes UTF-8 text from a fixed-length byte buffer.
+ *
+ * Trailing padding bytes are removed before decoding.
+ *
+ * @param bytes - Fixed-length UTF-8 byte buffer.
+ * @param options - Decoding, padding, and normalization options.
+ *
+ * @returns The decoded string.
+ *
+ * @throws {RangeError}
+ * Thrown when `paddingByte` is not an integer between `0x00` and `0xFF`.
+ *
+ * @throws {TypeError}
+ * Thrown when `fatal` is enabled and the buffer contains invalid UTF-8.
+ *
+ * @example
+ * ```ts
+ * const encoded = encodeFixedUtf8("Macro 你好", 20);
+ * const decoded = decodeFixedUtf8(encoded.bytes);
+ *
+ * console.log(decoded); // "Macro 你好"
+ * ```
+ *
+ * @example
+ * ```ts
+ * const macroName = decodeFixedUtf8(
+ *     packet.subarray(macroNameOffset, macroNameOffset + 20),
+ * );
+ * ```
+ */
+export function decodeFixedUtf8(bytes: Uint8Array, options: DecodeFixedUtf8Options = {}): string {
+	const { paddingByte = 0x00, fatal = true, normalization = false } = options;
+
+	assertValidByte(paddingByte, 'paddingByte');
+
+	let end = bytes.length;
+
+	while (end > 0 && bytes[end - 1] === paddingByte) {
+		end--;
+	}
+
+	const decoder = new TextDecoder('utf-8', {
+		fatal,
+	});
+
+	const text = decoder.decode(bytes.subarray(0, end));
+
+	return !normalization ? text : text.normalize(normalization);
+}
