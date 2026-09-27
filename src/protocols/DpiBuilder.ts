@@ -1,6 +1,6 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { ConnectionMode, PacketLength, type ProfileId, ReportId } from '../types.js';
+import { ConnectionMode, ReportPacketLength, type ProfileId, ReportId } from '../types.js';
 import { convertDpiToBytes } from '../utils/dpi.js';
 import type { RGB } from './LightingSettingsBuilder';
 
@@ -63,12 +63,8 @@ export interface DpiBuilderOptions {
  * Builder for configuring DPI and other sensor parameters of the Attack Shark X11.
  */
 export class DpiBuilder implements BaseProtocolBuilder {
-	readonly buffer: Buffer = Buffer.alloc(PacketLength.DPI);
+	readonly buffer: Buffer = Buffer.alloc(ReportPacketLength.DPI);
 	private view: DataView = new DataView(this.buffer.buffer);
-	public readonly bmRequestType: number = 0x21;
-	public readonly bRequest: number = 0x09;
-	public readonly wValue: number = 0x0304;
-	public readonly wIndex: number = 2;
 
 	private profileId: ProfileId = dpiBuilderDefaultOptions.profileId;
 	private liftOffDistance: LiftOffDistance = dpiBuilderDefaultOptions.liftOffDistance;
@@ -83,7 +79,7 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	// noinspection FunctionTooLongJS
 	constructor(options?: DpiBuilderOptions) {
 		this.view.setInt8(0, ReportId.DPI); // Report ID
-		this.view.setInt8(1, PacketLength.DPI); // Length
+		this.view.setInt8(1, ReportPacketLength.DPI); // Length
 		this.view.setInt8(2, 0x01); // Profile ID
 
 		this.view.setInt8(3, 0x00); // LOD | Angle Snap
@@ -406,9 +402,5 @@ export class DpiBuilder implements BaseProtocolBuilder {
 
 	public toHexString(): string {
 		return this.buffer.toString('hex');
-	}
-
-	public compareWithHexString(value: string): boolean {
-		return this.toHexString() === value;
 	}
 }

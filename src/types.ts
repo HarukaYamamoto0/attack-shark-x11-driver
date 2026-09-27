@@ -102,7 +102,7 @@ export enum ReportId {
 	PROFILE_SETTING = 0x0c,
 }
 
-export enum PacketLength {
+export enum ReportPacketLength {
 	DPI = 0x38,
 	POLLING_RATE = 0x09,
 	LIGHTING_SETTINGS = 0x0f,

@@ -162,10 +162,6 @@ export const sleepTimeLut: SleepTime[] = [
 export class LightingSettingsBuilder implements BaseProtocolBuilder {
 	public buffer: Buffer = Buffer.alloc(15);
 	private view = new DataView(this.buffer.buffer);
-	public readonly bmRequestType: number = 0x21;
-	public readonly bRequest: number = 0x09;
-	public readonly wValue: number = 0x0305;
-	public readonly wIndex: number = 2;
 
 	public profileId = lightingSettingsDefaultOptions.profileId;
 	public ledSpeed = lightingSettingsDefaultOptions.ledSpeed;
@@ -349,9 +345,5 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 
 	toHexString(): string {
 		return this.buffer.toHex();
-	}
-
-	compareWithHexString(value: string): boolean {
-		return this.buffer.toHex() === value;
 	}
 }

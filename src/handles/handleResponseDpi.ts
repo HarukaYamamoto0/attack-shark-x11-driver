@@ -1,11 +1,11 @@
-import { type Option, PacketLength } from '../types';
+import { type Option, ReportPacketLength } from '../types';
 import { DpiBuilder, type LiftOffDistance, type StageIndex } from '../protocols/DpiBuilder';
 import { convertBytesToDpi } from '../utils/dpi';
 import type { RGB } from '../protocols/LightingSettingsBuilder';
 
 export function handleResponseDpi(buffer: Uint8Array): Option<DpiBuilder> {
 	if (buffer.length !== 56)
-		throw new Error(`Invalid dpi buffer size; expected ${PacketLength.DPI} but received ${buffer.length}`);
+		throw new Error(`Invalid dpi buffer size; expected ${ReportPacketLength.DPI} but received ${buffer.length}`);
 
 	const view = new DataView(buffer.buffer);
 	const checksumByte = view.getUint16(50);

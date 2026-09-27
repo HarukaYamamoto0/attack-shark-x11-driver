@@ -3,16 +3,7 @@ import { ConnectionMode } from '../types.js';
 
 // TODO: This protocol is still under development; its logic has not yet been fully documented.
 export class ChangeProfileBuilder implements BaseProtocolBuilder {
-	public static readonly BM_REQUEST_TYPE = 0x21;
-	public static readonly B_REQUEST = 0x09;
-	public static readonly W_VALUE = 0x030c;
-	public static readonly W_INDEX = 2;
-
 	readonly buffer: Buffer;
-	public readonly bmRequestType: number = ChangeProfileBuilder.BM_REQUEST_TYPE;
-	public readonly bRequest: number = ChangeProfileBuilder.B_REQUEST;
-	public readonly wValue: number = ChangeProfileBuilder.W_VALUE;
-	public readonly wIndex: number = ChangeProfileBuilder.W_INDEX;
 
 	constructor() {
 		this.buffer = Buffer.from([
@@ -45,9 +36,5 @@ export class ChangeProfileBuilder implements BaseProtocolBuilder {
 
 	toHexString(): string {
 		return this.buffer.toString('hex');
-	}
-
-	compareWithHexString(value: string): boolean {
-		return this.toHexString() === value;
 	}
 }

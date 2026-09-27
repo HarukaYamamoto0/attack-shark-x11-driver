@@ -1,6 +1,6 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { type ConnectionMode, PacketLength, type ProfileId } from '../types.js';
+import { type ConnectionMode, ReportPacketLength, type ProfileId } from '../types.js';
 import { FirmwareAction, keyboardKeypadPage, type KeyboardUsage, type Modifiers } from '../core/keyboard-keypad-page';
 
 export enum ButtonMapping {
@@ -130,17 +130,7 @@ export const buttonMappingBuilderDefaultOptions: ButtonMappingBuilderOptions = {
  * Allows mapping buttons to mouse clicks, keyboard keys, multimedia controls, etc.
  */
 export class ButtonMappingBuilder implements BaseProtocolBuilder {
-	public static readonly BM_REQUEST_TYPE = 0x21;
-	public static readonly B_REQUEST = 0x09;
-	public static readonly W_VALUE = 0x0308;
-	public static readonly W_INDEX = 2;
-
-	public readonly bmRequestType: number = ButtonMappingBuilder.BM_REQUEST_TYPE;
-	public readonly bRequest: number = ButtonMappingBuilder.B_REQUEST;
-	public readonly wValue: number = ButtonMappingBuilder.W_VALUE;
-	public readonly wIndex: number = ButtonMappingBuilder.W_INDEX;
-
-	public buffer = Buffer.alloc(PacketLength.BUTTON_MAPPING);
+	public buffer = Buffer.alloc(ReportPacketLength.BUTTON_MAPPING);
 	public view = new DataView(this.buffer.buffer);
 
 	private profileId: ProfileId = buttonMappingBuilderDefaultOptions.profileId;
@@ -221,8 +211,7 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 		return new SlotButton(firmwareActionByte, modifiersByte, tryGetUsageId);
 	}
 
-	// internal, no use!!
-	public setSlot(
+	private setSlot(
 		offset: number,
 		firmwareAction: FirmwareAction,
 		modifiers: Modifiers | number = 0x00,

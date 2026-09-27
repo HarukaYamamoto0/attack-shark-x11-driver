@@ -2,7 +2,7 @@
 
 import type MacroAction from '../structures/MacroAction';
 import type { RGB } from './LightingSettingsBuilder';
-import { type ConnectionMode, PacketLength, ReportId } from '../types';
+import { type ConnectionMode, ReportPacketLength, ReportId } from '../types';
 import { encodeFixedUtf8 } from '../utils/encodeUtf8Fixed';
 import { decodeFixedUtf8 } from '../utils/decodeFixedUtf8';
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder';
@@ -35,16 +35,13 @@ export enum MacroType {
 }
 
 export class MacroBuilder implements BaseProtocolBuilder {
-	// not used
-	public buffer: Uint8Array = new Uint8Array(0);
-
-	private _firstPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _firstPacket: Uint8Array = new Uint8Array(ReportPacketLength.MACRO);
 	private _firstPacketView: DataView = new DataView(this._firstPacket.buffer);
 
-	private _secondPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _secondPacket: Uint8Array = new Uint8Array(ReportPacketLength.MACRO);
 	private _secondPacketView: DataView = new DataView(this._secondPacket.buffer);
 
-	private _thirdPacket: Uint8Array = new Uint8Array(PacketLength.MACRO);
+	private _thirdPacket: Uint8Array = new Uint8Array(ReportPacketLength.MACRO);
 	private _thirdPacketView: DataView = new DataView(this._thirdPacket.buffer);
 
 	private _actions: Uint8Array = new Uint8Array(100); // this is the maximum size reserved for actions
@@ -60,19 +57,19 @@ export class MacroBuilder implements BaseProtocolBuilder {
 	constructor(options?: MacroBuilderOptions) {
 		// set headers
 		this._firstPacketView.setUint8(0, ReportId.MACRO);
-		this._firstPacketView.setUint8(1, PacketLength.MACRO);
+		this._firstPacketView.setUint8(1, ReportPacketLength.MACRO);
 		this._firstPacketView.setUint8(2, this._id);
 		this._firstPacketView.setUint8(3, MacroPages.First);
 
 		// set headers
 		this._secondPacketView.setUint8(0, ReportId.MACRO);
-		this._secondPacketView.setUint8(1, PacketLength.MACRO);
+		this._secondPacketView.setUint8(1, ReportPacketLength.MACRO);
 		this._secondPacketView.setUint8(2, this._id);
 		this._secondPacketView.setUint8(3, MacroPages.Second);
 
 		// set headers
 		this._thirdPacketView.setUint8(0, ReportId.MACRO);
-		this._thirdPacketView.setUint8(1, PacketLength.MACRO);
+		this._thirdPacketView.setUint8(1, ReportPacketLength.MACRO);
 		this._thirdPacketView.setUint8(2, this._id);
 		this._thirdPacketView.setUint8(3, MacroPages.Third);
 

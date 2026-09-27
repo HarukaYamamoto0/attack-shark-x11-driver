@@ -1,10 +1,10 @@
 import { hexToRate, type Rate } from '../protocols/PollingRateBuilder';
-import { PacketLength, type Option } from '../types';
+import { ReportPacketLength, type Option } from '../types';
 
 export function handleResponsePollingRate(buffer: Uint8Array): Option<Rate> {
 	if (buffer.length !== 9)
 		throw new Error(
-			`Invalid polling rate buffer size; expected ${PacketLength.POLLING_RATE} but received ${buffer.length}`,
+			`Invalid polling rate buffer size; expected ${ReportPacketLength.POLLING_RATE} but received ${buffer.length}`,
 		);
 
 	const dataView = new DataView(buffer.buffer);

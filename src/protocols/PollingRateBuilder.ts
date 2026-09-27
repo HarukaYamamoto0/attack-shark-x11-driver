@@ -28,10 +28,6 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 		rate: Rate.eSports,
 	};
 	readonly buffer: Buffer = Buffer.alloc(64);
-	public readonly bmRequestType: number = 0x21;
-	public readonly bRequest: number = 0x09;
-	public readonly wValue: number = 0x0306;
-	public readonly wIndex: number = 2;
 
 	constructor(options: PollingRateBuilderOptions = { rate: Rate.eSports }) {
 		this.buffer = Buffer.alloc(9);
@@ -98,9 +94,5 @@ export class PollingRateBuilder implements BaseProtocolBuilder {
 
 	toHexString(): string {
 		return this.buffer.toString('hex');
-	}
-
-	compareWithHexString(value: string): boolean {
-		return this.toHexString() === value;
 	}
 }
