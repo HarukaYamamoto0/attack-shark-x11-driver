@@ -128,5 +128,5 @@ subtraction:
 
 For a full list of **Firmware Action** and **Usage ID** values, refer to the source code:
 
-- `src/core/keyboard-keypad-page.ts` (Keyboard usages)
-- `src/protocols/ButtonMappingBuilder.ts` (Firmware actions)
+- `../../src/core/keyboard-keypad-page.ts` (Keyboard usages)
+- `../../src/protocols/ButtonMappingBuilder.ts` (Firmware actions)

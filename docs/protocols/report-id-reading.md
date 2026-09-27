@@ -26,7 +26,7 @@ buffer[7] = 0x00; // Unknown
 await driver.transport?.sendFeatureReport(buffer);
 ```
 
-Byte **2** specifies the length of the response you expect to receive. The length for each command is defined in the `ReportReadLength` enum in [types.ts](../src/types.ts). If you provide a value other than the expected length, the device rejects the request.
+Byte **2** specifies the length of the response you expect to receive. The length for each command is defined in the `ReportReadLength` enum in [types.ts](../../src/types.ts). If you provide a value other than the expected length, the device rejects the request.
 
 Byte **4** is a parameter. In most cases, it is the profile ID, which lets you request data for a specific profile. For a macro command, however, this parameter is the ID of the macro you want to read.
 
