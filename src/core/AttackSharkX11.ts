@@ -9,7 +9,7 @@ import {
 	TimeoutError,
 } from '../errors.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
-import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
+import { ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
 import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
 import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
@@ -36,6 +36,7 @@ import { type MouseTransport } from './transport';
 import { VID } from '../index';
 import { HidTransport } from './transport/HidTransport';
 import { hex } from '../logger/hex';
+import { handleProfileSettings } from '../handles/handleProfileSettings';
 
 /** Events emitted by the AttackSharkX11 class */
 export interface AttackSharkX11Events {
@@ -492,7 +493,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 
 	sendInternalStateResetReportBuilder(): Promise<CommandConfirmation> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new ChangeProfileBuilder();
+		const builder = new ProfileSettingsBuilder();
 
 		return this.sendCommand(ReportId.PROFILE, builder.build(this.connectionMode));
 	}
@@ -516,6 +517,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI);
 
 		return handleResponseDpi(response);
+	}
+
+	async getProfileSettings(): Promise<ProfileSettingsBuilder> {
+		if (!this.transport) throw new DriverError('You have to open the device first');
+		const response = await this.getFeatureReport(ReportId.PROFILE_SETTING, ReportReadLength.PROFILE_SETTING, 0x00);
+
+		return handleProfileSettings(response);
 	}
 
 	async getButtonMapping(): Promise<ButtonMappingBuilder> {

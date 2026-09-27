@@ -38,7 +38,8 @@ regarding response times, release schedules, or development roadmaps.
 * ✅ **Cross-platform**: Primarily tested on Linux.
 * ✅ **Battery Status**: Real-time battery monitoring.
 * ✅ **Command Confirmation**: Confirm whether commands were received and accepted by the device.
-* [ ] **Reading Settings**: Read the current configuration from the mouse.
+* ✅ **Reading Settings**: Read the current configuration from the mouse.
+* [ ] **Profile Settings**: Allows you to configure real profile settings.
 
 ## Package Limitations
 
