@@ -1,7 +1,9 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { type ConnectionMode, ReportPacketLength, type ProfileId } from '../types.js';
+import { type ConnectionMode, type ProfileId, ReportId, ReportPacketLength } from '../types.js';
 import { FirmwareAction, keyboardKeypadPage, type KeyboardUsage, type Modifiers } from '../core/keyboard-keypad-page';
+import { repeat } from '../utils/repeat';
+import { SlotButton } from '../structures/SlotButton';
 
 export enum ButtonMapping {
 	Slot1 = 1, // left
@@ -45,42 +47,49 @@ export const buttonMappingToOffset: Record<ButtonMapping, number> = {
 	[ButtonMapping.Slot18]: 54,
 };
 
-export class SlotButton {
-	constructor(
-		public firmwareAction: FirmwareAction,
-		public modifiers: Modifiers | number = 0x00,
-		public usageId: KeyboardUsage | number = 0x00,
-	) {}
+export const defaultSlots: [
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+	SlotButton,
+] = [
+	new SlotButton(FirmwareAction.LEFT_CLICK, 0x00, 0x00),
+	new SlotButton(FirmwareAction.RIGHT_CLICK, 0x00, 0x00),
+	new SlotButton(FirmwareAction.MIDDLE_CLICK, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.GLOBAL_DPI_CYCLE, 0x00, 0x00),
+	new SlotButton(FirmwareAction.FORWARD, 0x00, 0x00),
+	new SlotButton(FirmwareAction.BACKWARD, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
+	new SlotButton(FirmwareAction.SCROLL_UP, 0x00, 0x00),
+	new SlotButton(FirmwareAction.SCROLL_DOWN, 0x00, 0x00),
+];
 
-	getFirmwareAction(): FirmwareAction {
-		return this.firmwareAction as FirmwareAction;
-	}
-
-	getModifiers(): Modifiers | number {
-		if (typeof this.modifiers === 'number') return this.modifiers;
-		return this.modifiers as Modifiers;
-	}
-
-	getKeyboardUsage(): KeyboardUsage | number {
-		if (typeof this.usageId !== 'number' && 'keycode' in this.usageId) {
-			const usageId = keyboardKeypadPage[this.usageId.keyCode];
-
-			if (!usageId) {
-				if (keyboardKeypadPage[0]) return keyboardKeypadPage[0];
-				throw new Error(`Invalid key code: ${this.usageId}`);
-			}
-		}
-
-		return this.usageId as number;
-	}
-
-	toString(): string {
-		return `firmwareAction: ${this.firmwareAction.toString(16)}, modifiers: ${this.modifiers.toString(16)}, usageId: ${
-			typeof this.usageId === 'number' ? this.usageId.toString(16) : this.usageId.keyCode.toString(16)
-		}`;
-	}
-}
-
+/**
+ * @see ./docs/protocols/button-mapping.md
+ */
 export interface ButtonMappingBuilderOptions {
 	profileId: ProfileId;
 	slot1?: SlotButton;
@@ -103,88 +112,58 @@ export interface ButtonMappingBuilderOptions {
 	slot18?: SlotButton;
 }
 
-export const buttonMappingBuilderDefaultOptions: ButtonMappingBuilderOptions = {
-	profileId: 0x01,
-	slot1: new SlotButton(FirmwareAction.LEFT_CLICK, 0x00, 0x00),
-	slot2: new SlotButton(FirmwareAction.RIGHT_CLICK, 0x00, 0x00),
-	slot3: new SlotButton(FirmwareAction.MIDDLE_CLICK, 0x00, 0x00),
-	slot4: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot5: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot6: new SlotButton(FirmwareAction.GLOBAL_DPI_CYCLE, 0x00, 0x00),
-	slot7: new SlotButton(FirmwareAction.FORWARD, 0x00, 0x00),
-	slot8: new SlotButton(FirmwareAction.BACKWARD, 0x00, 0x00),
-	slot9: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot10: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot11: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot12: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot13: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot14: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot15: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot16: new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	slot17: new SlotButton(FirmwareAction.SCROLL_UP, 0x00, 0x00),
-	slot18: new SlotButton(FirmwareAction.SCROLL_DOWN, 0x00, 0x00),
-};
-
 /**
- * Builder for configuring macros and mouse button reassignments.
- * Allows mapping buttons to mouse clicks, keyboard keys, multimedia controls, etc.
+ * A class responsible for building button mapping configurations for devices. This builder constructs
+ * a byte buffer that contains configurations for various button slots, profile IDs, and other related
+ * data for device communication.
+ *
+ * Implements the `BaseProtocolBuilder` interface for building and generating device-compatible payloads.
  */
 export class ButtonMappingBuilder implements BaseProtocolBuilder {
-	public buffer = Buffer.alloc(ReportPacketLength.BUTTON_MAPPING);
-	public view = new DataView(this.buffer.buffer);
+	private _buffer = new Uint8Array(ReportPacketLength.BUTTON_MAPPING).fill(0x00);
+	private _view = new DataView(this._buffer.buffer, this._buffer.byteOffset, this._buffer.byteLength);
 
-	private profileId: ProfileId = buttonMappingBuilderDefaultOptions.profileId;
+	private _profileId: ProfileId = 0x01;
+	private _slots = defaultSlots;
 
 	constructor(options?: ButtonMappingBuilderOptions) {
-		this.buffer[0] = 0x08; // report ID
-		this.buffer[1] = 0x3b; // packet length
-		this.buffer[2] = 0x01; // profile ID
+		// set headers
+		this._view.setInt8(0, ReportId.BUTTON_MAPPING);
+		this._view.setInt8(1, ReportPacketLength.BUTTON_MAPPING);
+		this._view.setInt8(2, this._profileId);
 
-		// Initialize all 18 button slots (3 bytes each) with [0x01, 0x00, 0x00]
-		// This is the "Inactive" or "Disabled" default state for most slots.
-		for (let i = 3; i <= 54; i += 3) {
-			this.buffer[i] = 0x01;
-			this.buffer[i + 1] = 0x00;
-			this.buffer[i + 2] = 0x00;
-		}
-
-		// Default internal assignments
-		this.buffer[18] = 0x0d; // Slot 6 (DPI Cycle)
-		this.buffer[51] = 0x09; // Slot 17 (Scroll Up)
-		this.buffer[54] = 0x0a; // Slot 18 (Scroll Down)
-
-		const config = { ...buttonMappingBuilderDefaultOptions, ...options };
-
-		if (config.slot1 !== undefined) this.setButton(ButtonMapping.Slot1, config.slot1);
-		if (config.slot2 !== undefined) this.setButton(ButtonMapping.Slot2, config.slot2);
-		if (config.slot3 !== undefined) this.setButton(ButtonMapping.Slot3, config.slot3);
-		if (config.slot4 !== undefined) this.setButton(ButtonMapping.Slot4, config.slot4);
-		if (config.slot5 !== undefined) this.setButton(ButtonMapping.Slot5, config.slot5);
-		if (config.slot6 !== undefined) this.setButton(ButtonMapping.Slot6, config.slot6);
-		if (config.slot7 !== undefined) this.setButton(ButtonMapping.Slot7, config.slot7);
-		if (config.slot8 !== undefined) this.setButton(ButtonMapping.Slot8, config.slot8);
-		if (config.slot9 !== undefined) this.setButton(ButtonMapping.Slot9, config.slot9);
-		if (config.slot10 !== undefined) this.setButton(ButtonMapping.Slot10, config.slot10);
-		if (config.slot11 !== undefined) this.setButton(ButtonMapping.Slot11, config.slot11);
-		if (config.slot12 !== undefined) this.setButton(ButtonMapping.Slot12, config.slot12);
-		if (config.slot13 !== undefined) this.setButton(ButtonMapping.Slot13, config.slot13);
-		if (config.slot14 !== undefined) this.setButton(ButtonMapping.Slot14, config.slot14);
-		if (config.slot15 !== undefined) this.setButton(ButtonMapping.Slot15, config.slot15);
-		if (config.slot16 !== undefined) this.setButton(ButtonMapping.Slot16, config.slot16);
-		if (config.slot17 !== undefined) this.setButton(ButtonMapping.Slot17, config.slot17);
-		if (config.slot18 !== undefined) this.setButton(ButtonMapping.Slot18, config.slot18);
+		this.setProfileId(options?.profileId ?? this._profileId);
+		this.setButton(ButtonMapping.Slot1, options?.slot1 ?? this._slots[0]);
+		this.setButton(ButtonMapping.Slot2, options?.slot2 ?? this._slots[1]);
+		this.setButton(ButtonMapping.Slot3, options?.slot3 ?? this._slots[2]);
+		this.setButton(ButtonMapping.Slot4, options?.slot4 ?? this._slots[3]);
+		this.setButton(ButtonMapping.Slot5, options?.slot5 ?? this._slots[4]);
+		this.setButton(ButtonMapping.Slot6, options?.slot6 ?? this._slots[5]);
+		this.setButton(ButtonMapping.Slot7, options?.slot7 ?? this._slots[6]);
+		this.setButton(ButtonMapping.Slot8, options?.slot8 ?? this._slots[7]);
+		this.setButton(ButtonMapping.Slot9, options?.slot9 ?? this._slots[8]);
+		this.setButton(ButtonMapping.Slot10, options?.slot10 ?? this._slots[9]);
+		this.setButton(ButtonMapping.Slot11, options?.slot11 ?? this._slots[10]);
+		this.setButton(ButtonMapping.Slot12, options?.slot12 ?? this._slots[11]);
+		this.setButton(ButtonMapping.Slot13, options?.slot13 ?? this._slots[12]);
+		this.setButton(ButtonMapping.Slot14, options?.slot14 ?? this._slots[13]);
+		this.setButton(ButtonMapping.Slot15, options?.slot15 ?? this._slots[14]);
+		this.setButton(ButtonMapping.Slot16, options?.slot16 ?? this._slots[15]);
+		this.setButton(ButtonMapping.Slot17, options?.slot17 ?? this._slots[16]);
+		this.setButton(ButtonMapping.Slot18, options?.slot18 ?? this._slots[17]);
 	}
 
 	public setProfileId(id: ProfileId): this {
-		this.profileId = id;
-
-		this.view.setInt8(2, id);
+		this._profileId = id;
+		this._view.setInt8(2, id);
 
 		return this;
 	}
 
 	public getProfileId(): ProfileId {
-		return this.profileId;
+		this._profileId = this._view.getInt8(2);
+
+		return this._profileId;
 	}
 
 	setButton(button: ButtonMapping, slot: SlotButton): this {
@@ -202,9 +181,9 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 
 		if (!offset) throw new ParamsError('button', 'Invalid button');
 
-		const firmwareActionByte = this.view.getUint8(offset);
-		const modifiersByte = this.view.getUint8(offset + 1);
-		const usageIdByte = this.view.getUint8(offset + 2);
+		const firmwareActionByte = this._view.getUint8(offset);
+		const modifiersByte = this._view.getUint8(offset + 1);
+		const usageIdByte = this._view.getUint8(offset + 2);
 
 		const tryGetUsageId = keyboardKeypadPage[usageIdByte] ?? usageIdByte;
 
@@ -217,33 +196,34 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 		modifiers: Modifiers | number = 0x00,
 		usageId: KeyboardUsage | number = 0x00,
 	): void {
-		this.view.setInt8(offset, firmwareAction);
-		this.view.setInt8(offset + 1, modifiers);
+		this._view.setInt8(offset, firmwareAction);
+		this._view.setInt8(offset + 1, modifiers);
 
 		if (typeof usageId === 'number') {
-			this.view.setInt8(offset + 2, usageId);
+			this._view.setInt8(offset + 2, usageId);
 		} else {
-			this.view.setInt8(offset + 2, usageId.keyCode);
+			this._view.setInt8(offset + 2, usageId.keyCode);
 		}
 	}
 
-	calculateChecksum(): this {
-		let sum = 0;
+	updateChecksum(): this {
+		let checksum = 0x00;
 
-		for (let i = 2; i < this.buffer.length - 1; i++) {
-			sum = (sum + (this.buffer[i] ?? 0x00)) & 0xff;
-		}
+		repeat(56, (i) => {
+			checksum += this._view.getUint8(3 + i);
+		});
 
-		this.buffer[58] = (sum - 1) & 0xff;
+		this._view.setInt8(58, checksum & 0xff);
+
 		return this;
 	}
 
-	build(_mode: ConnectionMode): Buffer {
-		this.calculateChecksum();
-		return this.buffer;
+	build(_mode: ConnectionMode): Uint8Array {
+		this.updateChecksum();
+		return this._buffer;
 	}
 
 	toHexString(): string {
-		return this.buffer.toString('hex');
+		return this._buffer.toHex();
 	}
 }
