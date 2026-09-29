@@ -39,7 +39,8 @@ regarding response times, release schedules, or development roadmaps.
 * ✅ **Battery Status**: Real-time battery monitoring.
 * ✅ **Command Confirmation**: Confirm whether commands were received and accepted by the device.
 * ✅ **Reading Settings**: Read the current configuration from the mouse.
-* [ ] **Profile Settings**: Allows you to configure real profile settings.
+* ✅ **Profile Settings**: Allows you to configure real profile settings.
+* [ ] **WakeUp mode**: Configure wake-up mode.
 
 ## Package Limitations
 
@@ -55,14 +56,15 @@ HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/lates
 ## Quick Start
 
 ```typescript
-import { AttackSharkX11, CommandConfirmation, Rate } from './src';
+import { AttackSharkX11, Rate } from './src';
+import { CommandConfirmation } from './src/handles/messages/handleCommandConfirmation';
 
 const driver = new AttackSharkX11();
 
 try {
 	await driver.open();
 
-	const commandConfirmation = await driver.setPollingRate(Rate.office);
+	const commandConfirmation = await driver.setPollingRate({ rate: Rate.Office });
 	if (commandConfirmation === CommandConfirmation.Success) console.log('Command confirmed.');
 
 	const response = await driver.getPollingRate();
@@ -73,6 +75,7 @@ try {
 	await driver.close();
 	console.log('\nDriver closed.');
 }
+
 ```
 
 ## Linux Setup

@@ -1,14 +1,12 @@
-import { ConnectionMode, ReportReadLength } from '../types';
+import { ReportReadLength } from '../types';
 import { ParamsError } from '../errors';
 import { ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
 import { hex } from '../logger/hex';
 
 export function handleProfileSettings(buffer: Uint8Array): ProfileSettingsBuilder {
-	console.log('RAW: ', buffer.toHex());
-
 	if (buffer.length !== ReportReadLength.PROFILE_SETTING)
 		throw new ParamsError(
-			`Invalid polling rate buffer size; expected ${ReportReadLength.PROFILE_SETTING} but received ${buffer.length}`,
+			`Invalid profile settings buffer size; expected ${ReportReadLength.PROFILE_SETTING} but received ${buffer.length}`,
 		);
 
 	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
@@ -32,9 +30,8 @@ export function handleProfileSettings(buffer: Uint8Array): ProfileSettingsBuilde
 			`invalid max profile count checksum; expected ${hex(calculateMaxProfileCountChecksum)} but received ${hex(maxProfileCountChecksum)}`,
 		);
 
-	const response = new ProfileSettingsBuilder().setCurrentProfile(currentProfile).setMaxProfileCount(maxProfileCount);
-
-	response.build(ConnectionMode.Wireless); // force update fields
-
-	return response;
+	return new ProfileSettingsBuilder()
+		.setCurrentProfile(currentProfile)
+		.setMaxProfileCount(maxProfileCount)
+		.updateChecksum();
 }

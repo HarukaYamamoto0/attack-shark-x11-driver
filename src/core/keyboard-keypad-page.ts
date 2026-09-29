@@ -345,6 +345,10 @@ export enum FirmwareAction {
 	BROWSER_SEARCH = 0x26,
 	MODE_KEY = 0x3c,
 	POLLING_RATE_CYCLE = 0x40,
+
+	PROFILE_CYCLE = 0x34,
+	PROFILE_UP = 0x35,
+	PROFILE_DOWN = 0x36,
 }
 
 export type MacroTuple = readonly [FirmwareAction, Modifiers, KeyCode | number];
