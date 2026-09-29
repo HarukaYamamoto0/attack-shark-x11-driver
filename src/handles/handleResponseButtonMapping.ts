@@ -1,5 +1,6 @@
 import { ReportReadLength } from '../types';
-import { ButtonMapping, ButtonMappingBuilder, SlotButton } from '../protocols/ButtonMappingBuilder';
+import { ButtonMapping, ButtonMappingBuilder } from '../protocols/ButtonMappingBuilder';
+import { SlotButton } from '../structures/SlotButton';
 
 export function handleResponseButtonMapping(buffer: Uint8Array): ButtonMappingBuilder {
 	if (buffer.length !== ReportReadLength.BUTTON_MAPPING)
@@ -68,5 +69,5 @@ export function handleResponseButtonMapping(buffer: Uint8Array): ButtonMappingBu
 		.setButton(ButtonMapping.Slot16, slot16)
 		.setButton(ButtonMapping.Slot17, slot17)
 		.setButton(ButtonMapping.Slot18, slot18)
-		.calculateChecksum();
+		.updateChecksum();
 }

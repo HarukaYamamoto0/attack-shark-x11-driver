@@ -9,10 +9,11 @@ import {
 	TimeoutError,
 } from '../errors.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
-import { ChangeProfileBuilder } from '../protocols/ChangeProfileBuilder';
+import { type ChangeProfileBuilderOptions, ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
 import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
-import { PollingRateBuilder, type Rate } from '../protocols/PollingRateBuilder.js';
+import { PollingRateBuilder, type PollingRateBuilderOptions, type Rate } from '../protocols/PollingRateBuilder.js';
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
+import type { Profile } from '../types.js';
 import {
 	BatteryStatus,
 	ConnectionMode,
@@ -20,6 +21,7 @@ import {
 	MessageTypes,
 	MessageTypesLength,
 	type PendingCommand,
+	type ProfileId,
 	ReportId,
 	ReportReadLength,
 } from '../types.js';
@@ -36,6 +38,8 @@ import { type MouseTransport } from './transport';
 import { VID } from '../index';
 import { HidTransport } from './transport/HidTransport';
 import { hex } from '../logger/hex';
+import { handleProfileSettings } from '../handles/handleProfileSettings';
+import { handleProfileChanged } from '../handles/messages/handleProfileChanged';
 
 /** Events emitted by the AttackSharkX11 class */
 export interface AttackSharkX11Events {
@@ -43,6 +47,7 @@ export interface AttackSharkX11Events {
 	batteryChange: [status: BatteryStatus, percentage: number];
 	/** Represents the confirmation details of a specific command execution. */
 	commandConfirmation: [reportId: ReportId, success: boolean];
+	profileChanged: [response: Profile];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
@@ -187,6 +192,18 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 								`Error handling command confirmation: ${err}`,
 								'AttackSharkX11-handleData',
 							);
+						}
+						break;
+					}
+					case MessageTypes.PROFILE_CHANGED: {
+						const TAG = 'AttackSharkX11-handleData-messages';
+
+						try {
+							const response = handleProfileChanged(params1, params2);
+
+							this.emit('profileChanged', response);
+						} catch (err) {
+							this.logger?.error(`Error handling profile changed command: ${err}`, TAG);
 						}
 						break;
 					}
@@ -401,53 +418,19 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	/**
-	 * Registers a listener function to be called whenever the battery status or percentage changes.
-	 * The listener will receive real-time updates about the device's battery state.
-	 *
-	 * @param listener A callback function that receives the updated battery status and percentage.
-	 *   - `status`: The current battery status (e.g., charging, discharging, fully charged).
-	 *   - `percentage`: The current battery percentage level (0-100).
-	 * @return A function to remove the registered listener when it's no longer needed.
-	 *
-	 * @example
-	 * ```TypeScript
-	 * const unsubscribe = device.onBatteryChange((status, percentage) => {
-	 *   console.log(`Battery: ${percentage}%`, status);
-	 * });
-	 *
-	 * // Later, when you want to stop listening:
-	 * unsubscribe();
-	 * ```
-	 * @deprecated The driver now extends `EventEmitter`; use the `on` method to listen for events.
-	 */
-	onBatteryChange(listener: (status: BatteryStatus, percentage: number) => void): () => void {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-
-		this.on('batteryChange', listener);
-
-		return () => {
-			this.removeListener('batteryChange', listener);
-		};
-	}
-
-	setPollingRate(rate: Rate | PollingRateBuilder, timeoutMs?: number): Promise<CommandConfirmation> {
+	setPollingRate(
+		options: PollingRateBuilderOptions | PollingRateBuilder,
+		timeoutMs?: number,
+	): Promise<CommandConfirmation> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
-			const builder = rate instanceof PollingRateBuilder ? rate : new PollingRateBuilder().setRate(rate);
+			const builder = options instanceof PollingRateBuilder ? options : new PollingRateBuilder(options);
 			return this.sendCommand(ReportId.POLLING_RATE, builder.build(this.connectionMode), timeoutMs);
 		} catch (err) {
 			throw new SendCommandError(`failed to set polling rate`, { cause: err });
 		}
 	}
 
-	/**
-	 *
-	 * @param config
-	 * @param timeoutMs
-	 *
-	 * @see ./docs/button-mapping.md
-	 */
 	setButtonMapping(
 		config: ButtonMappingBuilderOptions | ButtonMappingBuilder,
 		timeoutMs?: number,
@@ -474,15 +457,15 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	async setMacro(options: MacroBuilder | MacroBuilderOptions): Promise<CommandConfirmation> {
+	async setMacro(options: MacroBuilder | MacroBuilderOptions, timeoutMs?: number): Promise<CommandConfirmation> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = options instanceof MacroBuilder ? options : new MacroBuilder(options);
 			const buffers = builder.build(this.connectionMode);
 
-			await this.sendCommand(ReportId.MACRO, buffers[0]);
-			await this.sendCommand(ReportId.MACRO, buffers[1]);
-			await this.sendCommand(ReportId.MACRO, buffers[2]);
+			await this.sendCommand(ReportId.MACRO, buffers[0], timeoutMs);
+			await this.sendCommand(ReportId.MACRO, buffers[1], timeoutMs);
+			await this.sendCommand(ReportId.MACRO, buffers[2], timeoutMs);
 
 			return CommandConfirmation.Success;
 		} catch (err) {
@@ -490,25 +473,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		}
 	}
 
-	sendInternalStateResetReportBuilder(): Promise<CommandConfirmation> {
+	setProfileSettings(
+		options: ChangeProfileBuilderOptions | ProfileSettingsBuilder,
+		timeoutMs?: number,
+	): Promise<CommandConfirmation> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new ChangeProfileBuilder();
+		const builder = options instanceof ProfileSettingsBuilder ? options : new ProfileSettingsBuilder(options);
 
-		return this.sendCommand(ReportId.PROFILE, builder.build(this.connectionMode));
+		return this.sendCommand(ReportId.PROFILE_SETTING, builder.build(this.connectionMode), timeoutMs);
 	}
 
-	resetPollingRate(): Promise<CommandConfirmation> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new PollingRateBuilder();
-
-		return this.sendCommand(ReportId.POLLING_RATE, builder.build(this.connectionMode));
-	}
-
-	setDpi(options: DpiBuilder | DpiBuilderOptions): Promise<CommandConfirmation> {
+	setDpi(options: DpiBuilder | DpiBuilderOptions, timeoutMs?: number): Promise<CommandConfirmation> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const builder = options instanceof DpiBuilder ? options : new DpiBuilder(options);
 
-		return this.sendCommand(ReportId.DPI, builder.build(this.connectionMode));
+		return this.sendCommand(ReportId.DPI, builder.build(this.connectionMode), timeoutMs);
 	}
 
 	async getDpi(): Promise<DpiBuilder> {
@@ -518,9 +497,20 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleResponseDpi(response);
 	}
 
-	async getButtonMapping(): Promise<ButtonMappingBuilder> {
+	async getProfileSettings(): Promise<ProfileSettingsBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
-		const response = await this.getFeatureReport(ReportId.BUTTON_MAPPING, ReportReadLength.BUTTON_MAPPING);
+		const response = await this.getFeatureReport(ReportId.PROFILE_SETTING, ReportReadLength.PROFILE_SETTING, 0x00);
+
+		return handleProfileSettings(response);
+	}
+
+	async getButtonMapping(profileId: ProfileId = 0x01): Promise<ButtonMappingBuilder> {
+		if (!this.transport) throw new DriverError('You have to open the device first');
+		const response = await this.getFeatureReport(
+			ReportId.BUTTON_MAPPING,
+			ReportReadLength.BUTTON_MAPPING,
+			profileId,
+		);
 
 		return handleResponseButtonMapping(response);
 	}
@@ -547,37 +537,33 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleResponseLightingSettings(response);
 	}
 
-	resetDpi(): Promise<number | undefined> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new DpiBuilder();
-
-		return this.sendFeatureReport(builder.build(this.connectionMode));
-	}
-
-	resetButtonMapping(): Promise<number | undefined> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new ButtonMappingBuilder();
-
-		return this.sendFeatureReport(builder.build(this.connectionMode));
-	}
-
-	resetLightingSettings(): Promise<number | undefined> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-		const builder = new LightingSettingsBuilder().setKeyResponse(8);
-
-		return this.sendFeatureReport(builder.build(this.connectionMode));
-	}
-
 	/**
-	 * Resets all device settings to factory defaults.
+	 * Initializes the user profile with specified configuration settings.
+	 *
+	 * @param {Object} config - Configuration settings for initializing the profile.
+	 * @param {ProfileId} config.profileId - Identifier of the profile to initialize.
+	 * @param {number} config.currentProfileId - Identifier of the currently active profile.
+	 * @param {number} config.maxProfileCount - Maximum number of profiles allowed.
+	 * @param {number} config.timeoutMs - Timeout duration in milliseconds for each configuration operation.
+	 * @return {Promise<void>} A promise that resolves when the profile initialization is complete.
 	 */
-	async reset(): Promise<void> {
-		if (!this.transport) throw new DriverError('You have to open the device first');
-		await this.sendInternalStateResetReportBuilder();
-		await this.resetDpi();
-		await this.resetLightingSettings();
-		await this.resetPollingRate();
-		await this.resetButtonMapping();
+	async initializeProfile(config: {
+		profileId: ProfileId;
+		currentProfileId: number;
+		maxProfileCount: number;
+		timeoutMs: number;
+	}): Promise<void> {
+		await this.setProfileSettings(
+			{
+				currentProfileId: config.currentProfileId,
+				maxProfileCount: config.maxProfileCount,
+			},
+			config.timeoutMs,
+		);
+		await this.setDpi({ profileId: config.profileId }, config.timeoutMs);
+		await this.setLightingSettings({ profileId: config.profileId }, config.timeoutMs);
+		await this.setPollingRate({ profileId: config.profileId }, config.timeoutMs);
+		await this.setButtonMapping({ profileId: config.profileId }, config.timeoutMs);
 	}
 }
 

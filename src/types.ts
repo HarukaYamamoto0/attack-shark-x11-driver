@@ -167,6 +167,8 @@ export type Result<T, E = Error> = T | E;
  * from other numeric values in the codebase. It is intended
  * to provide semantic clarity when working with profile-related
  * functionality.
+ *
+ * @deprecated use `Profile`
  */
 export type ProfileId = number;
 
@@ -186,6 +188,7 @@ export enum MessageTypes {
 	VIBRATION_MODE_NOTIFICATION = 0x11,
 	/** DPI cycle switch event (0x10) */
 	DPI_CYCLE = 0x10,
+	PROFILE_CHANGED = 0x80,
 }
 
 /**
@@ -244,4 +247,26 @@ export interface PendingCommand {
 	resolve: (status: CommandConfirmation) => void;
 	reject: (error: Error) => void;
 	timeout: NodeJS.Timeout;
+}
+
+export const MAX_PROFILES = 0x05;
+
+/**
+ * Enumeration representing various profiles with associated numeric values.
+ *
+ * This can be used to map or categorize entities based on specific profiles.
+ *
+ * Members:
+ * - Profile1: Represents the first profile with a value of 0x01.
+ * - Profile2: Represents the second profile with a value of 0x02.
+ * - Profile3: Represents the third profile with a value of 0x03.
+ * - Profile4: Represents the fourth profile with a value of 0x04.
+ * - Profile5: Represents the fifth profile with a value of 0x05.
+ */
+export enum Profile {
+	Profile1 = 0x01,
+	Profile2 = 0x02,
+	Profile3 = 0x03,
+	Profile4 = 0x04,
+	Profile5 = 0x05,
 }
