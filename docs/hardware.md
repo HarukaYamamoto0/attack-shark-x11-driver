@@ -2,6 +2,7 @@
 
 ### PCB
 - Board: NST280
+- M10-BK3633-Q40-A3311-A
 - Revision Date: 2025-02-26-V0.1
 
 ### Main SoC
