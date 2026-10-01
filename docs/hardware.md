@@ -6,7 +6,7 @@
 
 ### Main SoC
 - Manufacturer: Beken
-- Part Number: BK3633QN40E; possible [BK3633](https://www.bekencorp.com/en/goods/detail/cid/43.html)
+- Part Number: BK3633QN40E; possible [BK3633QN40](https://www.bekencorp.com/en/goods/detail/cid/43.html)
 - Marking: EU430PFQ
 - Pins: 10 pins per side
 
@@ -46,6 +46,7 @@
 
 ## Images
 <img width="3060" height="4080" alt="BK3633QN40E" src="https://github.com/user-attachments/assets/5752b0ca-c2aa-44e1-b64e-89e3882a1e3d" />
+<img width="3060" height="4080" alt="BK3633QN40" src="https://github.com/user-attachments/assets/a0aa23e0-79ee-4f62-8d1b-697468ac3d37" />
 <img width="3060" height="4080" alt="20260712_225701" src="https://github.com/user-attachments/assets/4780c18b-61b1-44de-8d35-685541cd2a9e" />
 <img width="3060" height="4080" alt="20260712_230243" src="https://github.com/user-attachments/assets/0cb11315-da1c-4d87-921b-e5949fb2cc7c" />
 <img width="3060" height="4080" alt="20260712_225604" src="https://github.com/user-attachments/assets/4ee31a30-5234-4651-a816-524743bd325e" />
