@@ -9,15 +9,15 @@ is not triggered.
 
 ## Structure
 
-| event code | params1 | params2      |
+| Event Code | Param 1 | Param 2      |
 |------------|---------|--------------|
 | 0x80       | 0x01    | 0x00 (fixed) |
 
-### event code
+### Event Code
 
 Fixed value `0x80`.
 
-### params1
+### Param 1
 
 Indicates the active profile.
 
@@ -32,7 +32,7 @@ Indicates the active profile.
 As mentioned in the other profile-related documents, the maximum known safe number of profiles is 5. Using profile
 values beyond this range may result in undefined or otherwise unpredictable device behavior.
 
-### params2
+### Param 2
 
 Fixed value `0x00`. No dump was found that could provide any meaningful interpretation of this value.
 

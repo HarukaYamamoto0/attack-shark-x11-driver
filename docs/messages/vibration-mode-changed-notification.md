@@ -12,7 +12,7 @@ event to notify the host of the newly selected mode.
 
 ## Structure
 
-| Event Code | Params1 | Params2        |
+| Event Code | Param 1 | Param 2        |
 |------------|---------|----------------|
 | `0x11`     | Unknown | Vibration Mode |
 
