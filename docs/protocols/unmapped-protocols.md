@@ -10,7 +10,7 @@
 |    `0x09` |    `63` |                  Macro |
 |    `0x0A` |     `7` |           Read Profile |
 |    `0x0B` |     `7` |     Get Version Number |
-|    `0x10` |     `7` | bootloader/recovery???️ |
+|    `0x10` |     `7` | Bootloader / recovery control |
 |    `0xA0` |     `7` |     Reading Report IDs |
 |    `0x22` |   `131` |                Unknown |
 |    `0x24` |     `7` |                Unknown |
@@ -32,3 +32,12 @@
 ```shell
 2c 64 01
 ```
+
+## Report Id `0x10` — Bootloader / recovery control
+
+Observed behavior:
+Using this report caused the firmware to store the bootloader persistence
+flag 0x1234 at flash address 0x7D000 and restart into the Beken USB
+bootloader (A745:0033).
+
+The normal application firmware remained intact.
