@@ -41,6 +41,23 @@ import { hex } from '../logger/hex';
 import { handleProfileSettings } from '../handles/handleProfileSettings';
 import { handleProfileChanged } from '../handles/messages/handleProfileChanged';
 
+/**
+ * The only reports the driver is allowed to write. Any write to report 0x10, whatever the payload, restarts the
+ * X11 into its bootloader and leaves it stuck there, so anything that isn't a known report is refused.
+ */
+const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
+	ReportId.DPI,
+	ReportId.LIGHTING_SETTINGS,
+	ReportId.POLLING_RATE,
+	ReportId.WAKE_UP_MODE,
+	ReportId.BUTTON_MAPPING,
+	ReportId.MACRO,
+	ReportId.PROFILE,
+	ReportId.DEVICE_VERSION,
+	ReportId.PROFILE_SETTING,
+	ReportId.READ_REPORT_ID,
+]);
+
 /** Events emitted by the AttackSharkX11 class */
 export interface AttackSharkX11Events {
 	/** Emitted when the battery level changes */
@@ -177,11 +194,13 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 							if (!response) return;
 
 							if (this.pendingCommand.reportId !== response.reportId) {
-								this.pendingCommand.reject(
-									new DriverError(
-										'It appears a command confirmation occurred, but the confirmation differs from what was expected, indicating that something is wrong',
-									),
+								// most likely a late confirmation for an earlier command that already timed out,
+								// so keep waiting for ours instead of failing a command that may be fine
+								this.logger?.debug(
+									`ignored a confirmation for report ${hex(response.reportId)} while waiting for ${hex(this.pendingCommand.reportId)}`,
+									'AttackSharkX11-handleData',
 								);
+								return;
 							}
 
 							this.pendingCommand.resolve(response.status);
@@ -245,7 +264,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async close(): Promise<void> {
 		if (!this.transport) return;
 
-		this.pendingCommand = null;
+		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
 		this.removeAllListeners();
 
 		try {
@@ -287,6 +306,11 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				timeout,
 			};
 		});
+		// The caller only gets this promise once the report is sent. If it's rejected before that (the send
+		// fails, the device is closed, the timeout fires first), nothing is listening yet and Node ends the
+		// process with an unhandled rejection. Marking it handled here doesn't hide anything: the caller
+		// still gets the rejection through the returned promise.
+		promise.catch(() => undefined);
 
 		try {
 			await this.sendFeatureReport(buffer);
@@ -308,6 +332,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	async sendFeatureReport(buffer: Uint8Array): Promise<number> {
 		if (this.transport === undefined) throw new DriverError('You have to open the device first');
+		if (!WRITABLE_REPORTS.has(buffer[0] ?? -1))
+			throw new DriverError(`refusing to write report ${hex(buffer[0] ?? 0)}, it isn't one this driver knows`);
 
 		try {
 			this.logger?.debug(`sending feature report: ${buffer.toHex()}`, 'AttackSharkX11-sendFeatureReport');
@@ -411,10 +437,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 				'AttackSharkX11-getFeatureReport',
 			);
 
-			this.hasReadPermission = false;
 			return data;
 		} catch (err) {
 			throw new ControlTransferError('Control transfer (sendFeatureReport) failed', { cause: err });
+		} finally {
+			// a permission is good for one read only, so don't carry it over to the next one, even if this read failed
+			this.hasReadPermission = false;
 		}
 	}
 
@@ -463,9 +491,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			const builder = options instanceof MacroBuilder ? options : new MacroBuilder(options);
 			const buffers = builder.build(this.connectionMode);
 
-			await this.sendCommand(ReportId.MACRO, buffers[0], timeoutMs);
-			await this.sendCommand(ReportId.MACRO, buffers[1], timeoutMs);
-			await this.sendCommand(ReportId.MACRO, buffers[2], timeoutMs);
+			for (const buffer of buffers) {
+				const confirmation = await this.sendCommand(ReportId.MACRO, buffer, timeoutMs);
+				if (confirmation !== CommandConfirmation.Success) return confirmation;
+			}
 
 			return CommandConfirmation.Success;
 		} catch (err) {
@@ -553,17 +582,27 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		maxProfileCount: number;
 		timeoutMs: number;
 	}): Promise<void> {
-		await this.setProfileSettings(
-			{
-				currentProfileId: config.currentProfileId,
-				maxProfileCount: config.maxProfileCount,
-			},
-			config.timeoutMs,
+		const check = (what: string, confirmation: CommandConfirmation): void => {
+			if (confirmation !== CommandConfirmation.Success)
+				throw new SendCommandError(
+					`the mouse rejected the ${what} while initializing profile ${config.profileId}`,
+				);
+		};
+
+		check(
+			'profile settings',
+			await this.setProfileSettings(
+				{
+					currentProfileId: config.currentProfileId,
+					maxProfileCount: config.maxProfileCount,
+				},
+				config.timeoutMs,
+			),
 		);
-		await this.setDpi({ profileId: config.profileId }, config.timeoutMs);
-		await this.setLightingSettings({ profileId: config.profileId }, config.timeoutMs);
-		await this.setPollingRate({ profileId: config.profileId }, config.timeoutMs);
-		await this.setButtonMapping({ profileId: config.profileId }, config.timeoutMs);
+		check('DPI settings', await this.setDpi({ profileId: config.profileId }, config.timeoutMs));
+		check('lighting settings', await this.setLightingSettings({ profileId: config.profileId }, config.timeoutMs));
+		check('polling rate', await this.setPollingRate({ profileId: config.profileId }, config.timeoutMs));
+		check('button mapping', await this.setButtonMapping({ profileId: config.profileId }, config.timeoutMs));
 	}
 }
 
