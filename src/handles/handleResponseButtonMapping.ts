@@ -8,7 +8,7 @@ export function handleResponseButtonMapping(buffer: Uint8Array): ButtonMappingBu
 			`Invalid button mapping buffer size; expected ${ReportReadLength.BUTTON_MAPPING} but received ${buffer.length}`,
 		);
 
-	const view = new DataView(buffer.buffer);
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 	const checksumByte = view.getUint16(57);
 
 	let checksum = 0x00;
