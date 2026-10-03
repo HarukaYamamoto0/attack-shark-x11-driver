@@ -69,6 +69,48 @@ Another thing I noticed is that, for example, if you are on profile `0x05` and t
 the `FirmwareAction.PROFILE_DOWN` macro, for some reason it isn't possible; you can only go down as far as profile
 `0x02`; that’s quite strange.
 
+That one is a firmware bug: the firmware keeps the profile 0-based and its "profile down" check stops at index 1
+(profile 2) instead of index 0. `previousProfile()` below goes down from the driver instead, so it does reach
+profile 1.
+
+## Using profiles from the driver
+
+```typescript
+import { AttackSharkX11, ButtonMapping, Profile, Rate } from 'attack-shark-x11-driver';
+
+const driver = new AttackSharkX11();
+await driver.open();
+
+// three profiles, the profile switch on slot 8 in all of them, profile 1 active afterwards
+await driver.setupProfiles({
+	switchButton: ButtonMapping.Slot8,
+	profiles: [
+		{ pollingRate: Rate.ESports },
+		{ lighting: { rgb: { r: 255, g: 0, b: 0 } } },
+		{ dpi: { dpiValues: [400, 800, 1600, 3200, 0, 0, 0, 0] } },
+	],
+});
+
+await driver.switchProfile(Profile.Profile2);
+await driver.nextProfile(); // 3
+await driver.previousProfile(); // 2, and from 1 it wraps to the last one
+
+const { current, count } = await driver.getProfileState();
+const third = await driver.readProfile(Profile.Profile3); // dpi, lighting, pollingRate and buttons of profile 3
+```
+
+- `setupProfiles()` writes every report of every profile in full and puts the switch button in each one before it
+  enables them. A profile that was never written loads the firmware's built-in defaults, which have no profile switch
+  button, so you'd be stuck on it.
+- 5 profiles is a hard limit in the firmware: it clamps the max profile to 5 and goes back to profile 1 if the
+  current one is past that.
+- `switchProfile()`, `nextProfile()` and `previousProfile()` switch through report `0x0C`, so the mouse doesn't send
+  its profile changed event for them.
+- `getDpi()`, `getLightingSettings()`, `getPollingRate()` and `getButtonMapping()` take a profile (the read
+  parameter, see [report-id-reading.md](report-id-reading.md)). Without one they read profile 1.
+- The button table read back from a profile may not be in the order it was written (see
+  [button-mapping.md](button-mapping.md)), so `setupProfiles()` never reads before it writes.
+
 ## Messages
 
 [See more in profile-changed.md](../messages/profile-changed.md)
