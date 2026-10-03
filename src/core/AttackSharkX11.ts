@@ -68,6 +68,9 @@ const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
 	ReportId.READ_REPORT_ID,
 ]);
 
+/** How long close() waits for a profile switch or a light flash that's already going to finish. */
+const CLOSE_WAIT_MS = 3000;
+
 /** What one profile gets in {@link AttackSharkX11.setupProfiles}. Anything left out uses the driver's defaults. */
 export interface ProfileSetup {
 	/** Options, or a DpiBuilder you got from a read (its profile id is set for you). */
@@ -150,6 +153,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	private pendingCommand: PendingCommand | null = null;
 	private hasReadPermission: boolean = false;
 	private readonly holdSwitches = new Set<HoldSwitch>();
+	private readQueue: Promise<unknown> = Promise.resolve();
 
 	/**
 	 * Initializes a new instance of the class.
@@ -340,8 +344,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async close(): Promise<void> {
 		if (!this.transport) return;
 
-		for (const holdSwitch of this.holdSwitches) holdSwitch.stop();
+		const holdSwitches = [...this.holdSwitches];
+		for (const holdSwitch of holdSwitches) holdSwitch.stop();
 		this.holdSwitches.clear();
+		// let a switch or a flash that's already going finish, so the light isn't left off half way
+		await Promise.race([Promise.all(holdSwitches.map((holdSwitch) => holdSwitch.idle())), delay(CLOSE_WAIT_MS)]);
+
 		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
 		this.removeAllListeners();
 
@@ -493,10 +501,23 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @throws {DriverError} If the device is not opened before calling this method.
 	 * @throws {ControlTransferError} If the control transfer operation for retrieving the feature report fails.
 	 */
-	async getFeatureReport(
+	getFeatureReport(
 		reportId: ReportId,
 		reportLengthRead: ReportReadLength,
 		parameter: number = 0x01,
+	): Promise<Uint8Array> {
+		// One read at a time: each read needs its own permission request right before it, so two reads that overlap
+		// use up each other's permission and one of them gets garbage.
+		const read = this.readQueue.then(() => this.readFeatureReport(reportId, reportLengthRead, parameter));
+		this.readQueue = read.catch(() => undefined);
+
+		return read;
+	}
+
+	private async readFeatureReport(
+		reportId: ReportId,
+		reportLengthRead: ReportReadLength,
+		parameter: number,
 	): Promise<Uint8Array> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 

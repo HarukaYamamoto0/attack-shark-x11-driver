@@ -1,10 +1,9 @@
-import { ParamsError, SendCommandError } from '../errors';
+import { DriverError, ParamsError, SendCommandError } from '../errors';
 import { CommandConfirmation } from '../handles/messages/handleCommandConfirmation';
 import { logger } from '../logger/index';
 import { LightMode } from '../protocols/LightingSettingsBuilder';
-import type { Profile } from '../types';
+import { type Profile, ReportId, ReportReadLength } from '../types';
 import { delay } from '../utils/delay';
-import type { StageIndex } from '../protocols/DpiBuilder';
 import type { AttackSharkX11, ProfileState } from './AttackSharkX11';
 
 /**
@@ -20,8 +19,8 @@ import type { AttackSharkX11, ProfileState } from './AttackSharkX11';
  * a second after the press, and the light flash starts a quarter of a second after the profile switch. The
  * current profile is read while you're still holding the button, so the switch itself is not delayed.
  *
- * The light flash and the DPI cycle are written to the mouse's own memory like any other setting (about 8 writes
- * for a switch with 3 flashes), so don't expect to do this tens of thousands of times.
+ * The light flash and the DPI cycle are written to the mouse's own memory like any other setting (7 writes for
+ * a switch with 3 flashes: the switch and 6 light changes), so don't expect to do this tens of thousands of times.
  */
 export interface HoldSwitchOptions {
 	/** How long the button has to be held, 500 ms by default. The switch happens when the time is up, no need to let go. */
@@ -92,6 +91,11 @@ export class HoldSwitch {
 		this.driver.on('buttonEvent', this.handleButton);
 
 		return () => this.stop();
+	}
+
+	/** Resolves once nothing is running or waiting any more. It never rejects. */
+	idle(): Promise<void> {
+		return this.tail;
 	}
 
 	stop(): void {
@@ -223,19 +227,34 @@ export class HoldSwitch {
 
 	/**
 	 * Flashes the light of the profile that's active now, by switching its light mode off and back (or, if the light
-	 * is off in that profile, on and back off). It always ends on the profile's own light mode.
+	 * is off in that profile, on and back off). It ends on exactly the bytes it read.
+	 *
+	 * It works on the report's bytes and only changes the light mode byte, instead of going through
+	 * LightingSettingsBuilder: a rebuilt report doesn't always come out the same (a light that was switched off with
+	 * the mouse's own light button would come back on, a sleep byte outside the table becomes 30 seconds, and a key
+	 * response the builder doesn't accept throws).
 	 *
 	 * The lighting is read after the switch on purpose: then it's the active profile's own, whatever the mouse does
 	 * with the profile in a read request.
 	 */
 	private async flash(profile: Profile): Promise<void> {
-		const lighting = await this.driver.getLightingSettings(profile);
-		lighting.setProfileId(profile); // write it back to the profile that's active now
+		const read = await this.driver.getFeatureReport(
+			ReportId.LIGHTING_SETTINGS,
+			ReportReadLength.LIGHTING_SETTINGS,
+			profile,
+		);
+		if (!sealed(read, 3, 10, 11))
+			throw new DriverError("the lighting the mouse sent back doesn't add up, not flashing with it");
 
-		const original = lighting.getLightMode();
-		const flashMode = original === LightMode.Off ? LightMode.Static : LightMode.Off;
-		const write = async (mode: LightMode): Promise<void> => {
-			const confirmation = await this.driver.setLightingSettings(lighting.setLightMode(mode));
+		const original = new Uint8Array(read);
+		original[2] = profile; // write it back to the profile that's active now
+		const lightIsOff = (original[3] ?? 0) >> 4 === LightMode.Off;
+		const flashed = new Uint8Array(original);
+		flashed[3] = (lightIsOff ? LightMode.Static : LightMode.Off) << 4;
+		seal(flashed, 3, 10, 11);
+
+		const write = async (report: Uint8Array): Promise<void> => {
+			const confirmation = await this.driver.sendCommand(ReportId.LIGHTING_SETTINGS, report);
 			if (confirmation !== CommandConfirmation.Success)
 				throw new SendCommandError('the mouse rejected a light change while flashing');
 		};
@@ -244,7 +263,7 @@ export class HoldSwitch {
 		try {
 			for (let i = 0; i < this.flashes; i++) {
 				restored = false;
-				await write(flashMode);
+				await write(flashed);
 				await delay(this.flashMs);
 
 				await write(original);
@@ -265,13 +284,19 @@ export class HoldSwitch {
 		await this.cycleDpiStage();
 	}
 
-	/** Moves the active profile to its next enabled DPI stage, from the last one back to the first. */
+	/**
+	 * Moves the active profile to its next enabled DPI stage, from the last one back to the first. Like the flash it
+	 * only changes the stage byte of the report it read (a rebuilt DPI report resets byte 49 and writes some DPIs
+	 * with other bytes than the mouse has).
+	 */
 	private async cycleDpiStage(): Promise<void> {
 		const { current } = await this.takeProfileState();
-		const dpi = await this.driver.getDpi(current);
+		const read = await this.driver.getFeatureReport(ReportId.DPI, ReportReadLength.DPI, current);
+		if (!sealed(read, 3, 49, 50))
+			throw new DriverError("the DPI settings the mouse sent back don't add up, not changing them");
 
-		const active = dpi.getActiveStages();
-		const stage = dpi.getCurrentStage();
+		const active = read[5] ?? 0;
+		const stage = read[24] ?? 0;
 		let next: number = stage;
 		for (let step = 1; step <= 8; step++) {
 			const candidate = ((stage - 1 + step) % 8) + 1;
@@ -282,10 +307,27 @@ export class HoldSwitch {
 		}
 		if (next === stage) return; // a single stage, nothing to cycle to
 
-		dpi.setProfileId(current); // write it back to the profile that's active now
-		dpi.setCurrentStage(next as StageIndex);
-		const confirmation = await this.driver.setDpi(dpi);
+		const report = new Uint8Array(read);
+		report[2] = current; // write it back to the profile that's active now
+		report[24] = next;
+		seal(report, 3, 49, 50);
+		const confirmation = await this.driver.sendCommand(ReportId.DPI, report);
 		if (confirmation !== CommandConfirmation.Success)
 			throw new SendCommandError('the mouse rejected the DPI stage change');
 	}
+}
+
+/** Writes the 16-bit big-endian sum of bytes `from`-`to` at `at`, the check the lighting and DPI reports carry. */
+function seal(report: Uint8Array, from: number, to: number, at: number): void {
+	let sum = 0;
+	for (let i = from; i <= to; i++) sum += report[i] ?? 0;
+	report[at] = (sum >> 8) & 0xff;
+	report[at + 1] = sum & 0xff;
+}
+
+/** Whether the report's check at `at` matches its bytes `from`-`to`, so it's a real report and not garbage. */
+function sealed(report: Uint8Array, from: number, to: number, at: number): boolean {
+	let sum = 0;
+	for (let i = from; i <= to; i++) sum += report[i] ?? 0;
+	return report.length > at + 1 && (((report[at] ?? 0) << 8) | (report[at + 1] ?? 0)) === sum;
 }

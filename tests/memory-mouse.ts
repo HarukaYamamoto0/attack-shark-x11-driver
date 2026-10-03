@@ -10,6 +10,9 @@ export class MemoryMouse implements MouseTransport {
 	writes: Uint8Array[] = [];
 	/** The status the mouse acknowledges a write with, 0x00 is success. */
 	statusFor: (report: Uint8Array) => number = () => 0x00;
+	/** Store writes under the active profile instead of the profile byte in the report, a mouse that ignores it. */
+	ignoresProfileByte = false;
+	closed = false;
 	private readParameter = 1;
 	/** A read only works right after a permission request (report 0xA0) and only once, like on the real mouse. */
 	private permitted = false;
@@ -20,10 +23,12 @@ export class MemoryMouse implements MouseTransport {
 	}
 
 	close(): Promise<void> {
+		this.closed = true;
 		return Promise.resolve();
 	}
 
 	sendFeatureReport(data: Uint8Array): Promise<number> {
+		if (this.closed) return Promise.reject(new Error('the device is closed'));
 		const copy = new Uint8Array(data);
 		this.writes.push(copy);
 		const id = copy[0] ?? 0;
@@ -35,13 +40,14 @@ export class MemoryMouse implements MouseTransport {
 		const status = this.statusFor(copy);
 		if (status === 0x00) {
 			if (id === ReportId.PROFILE_SETTING) this.state = { current: copy[2] ?? 0, max: copy[4] ?? 0 };
-			else this.stored.set(`${id}:${copy[2]}`, copy);
+			else this.stored.set(`${id}:${this.ignoresProfileByte ? this.state.current : copy[2]}`, copy);
 		}
 		setTimeout(() => this.listener?.(new Uint8Array([0x03, 0x55, 0x50, status, id])), 2);
 		return Promise.resolve(copy.length);
 	}
 
 	getFeatureReport(reportId: number, length: number): Promise<Uint8Array> {
+		if (this.closed) return Promise.reject(new Error('the device is closed'));
 		const response = new Uint8Array(length);
 		if (reportId === 0xa0) response.set([0xa0, 0x01]);
 		else if (!this.permitted)

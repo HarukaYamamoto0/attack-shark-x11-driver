@@ -143,11 +143,12 @@ What you should know before using it:
 - The mouse takes a moment to answer every read (the driver waits 250 ms), so the DPI cycle lands about half a second
   after the press and the flash starts about a quarter of a second after the switch. The current profile is read while
   the button is still down, so the switch itself happens as soon as the hold time (500 ms, `holdMs`) is up.
-- The flash switches the light mode off and back (or on and off, if that profile's light is off) and always ends on
-  the profile's own light mode. Every change is written to the mouse's memory, about 8 writes for a switch with 3
-  flashes. Use `flashes: 0` to switch without flashing.
-- Nothing here has been run on a real X11. The part to check first is whether the events arrive at all:
-  `scripts/hold-switch.ts` prints every button event.
+- The flash switches the light mode off and back (or on and off, if that profile's light is off), changing only that
+  byte, and puts back exactly the bytes it read. The DPI cycle also only changes the stage byte. Every change is written to the mouse's memory, 7 writes for a switch with 3 flashes
+  (the switch and 6 light changes). Use `flashes: 0` to switch without flashing.
+- Nothing here has been run on a real X11. `scripts/hold-switch.ts setup` goes to every profile afterwards and checks
+  the button really reports its presses there, and `run` prints every button event, so the first try shows whether
+  it works.
 
 ## Messages
 

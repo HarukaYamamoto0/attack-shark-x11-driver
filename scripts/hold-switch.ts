@@ -8,7 +8,17 @@
 // "setup" copies the DPI, lighting and polling rate of profile 1 into every profile and resets their buttons to the
 // default ones, with the DPI button reporting its presses. Use the 2.4G receiver: over the cable every other write
 // stalls. "run" has to stay running, the DPI button does nothing without it (use "undo" to get it back).
-import { AttackSharkX11, ButtonMapping, type DpiBuilder, type LightingSettingsBuilder, type Rate } from '../src';
+import {
+	AttackSharkX11,
+	ButtonMapping,
+	type DpiBuilder,
+	FirmwareAction,
+	type LightingSettingsBuilder,
+	type Profile,
+	type Rate,
+	ReportId,
+	ReportReadLength,
+} from '../src';
 
 const HOLD_BUTTON = ButtonMapping.Slot6; // the DPI button
 
@@ -36,6 +46,24 @@ export async function setup(driver: AttackSharkX11, count: number, reportsButton
 	});
 }
 
+/**
+ * Goes to each profile in turn and checks whether a button there reports its presses, then goes back to profile 1.
+ * The button table is read while that profile is the active one, so this works whatever the mouse does with the
+ * profile number in a read. Returns the profiles that aren't the way `reportsButton` says they should be.
+ */
+export async function check(driver: AttackSharkX11, count: number, reportsButton: boolean): Promise<number[]> {
+	const wrong: number[] = [];
+	for (let profile = 1; profile <= count; profile++) {
+		await driver.switchProfile(profile as Profile);
+		const table = await driver.getFeatureReport(ReportId.BUTTON_MAPPING, ReportReadLength.BUTTON_MAPPING, profile);
+		const actions = Array.from({ length: 18 }, (_, slot) => table[3 + slot * 3]);
+		if (actions.includes(FirmwareAction.REPORT_BUTTON) !== reportsButton) wrong.push(profile);
+	}
+	await driver.switchProfile(1 as Profile);
+
+	return wrong;
+}
+
 if (import.meta.main) {
 	const args = process.argv.slice(2);
 	const [command = 'help', ...rest] = args.filter((a) => !a.startsWith('--'));
@@ -61,11 +89,20 @@ if (import.meta.main) {
 				console.log('nothing was changed. run it again with --yes to do it.');
 			} else {
 				await setup(driver, count, command === 'setup');
-				console.log(
-					command === 'setup'
-						? 'done. now run: bun scripts/hold-switch.ts run'
-						: 'done. the DPI button cycles the DPI by itself again.',
-				);
+				const wrong = await check(driver, count, command === 'setup');
+				if (wrong.length > 0) {
+					console.log(
+						`written, but profile ${wrong.join(', ')} didn't come out right when I went there and read it back.
+` + `the mouse may be putting every write into the active profile. profile 1 is active again.`,
+					);
+					process.exitCode = 1;
+				} else {
+					console.log(
+						command === 'setup'
+							? `checked all ${count} profiles. now run: bun scripts/hold-switch.ts run`
+							: `checked all ${count} profiles, the DPI button cycles the DPI by itself again.`,
+					);
+				}
 			}
 		} else {
 			const state = await driver.getProfileState();

@@ -527,3 +527,115 @@ describe('scripts/hold-switch.ts', () => {
 		expect(mouse.writes.slice(before).filter((w) => w[0] !== 0xa0).length).toBe(0);
 	});
 });
+
+describe('only the byte that has to change is changed', () => {
+	const seal = (b: Uint8Array, from: number, to: number, at: number): void => {
+		const s = byteSum(b, from, to);
+		b[at] = s >> 8;
+		b[at + 1] = s & 0xff;
+	};
+
+	test('the flash puts back exactly what was there, even settings the builder would change or refuse', async () => {
+		const { mouse, driver, mark } = await ready();
+		const stored = mouse.storedReport(ReportId.LIGHTING_SETTINGS, 2);
+		stored[3] = 0x05; // switched off with the mouse's own light button, holding mode 5
+		stored[9] = 0x00; // a sleep byte outside the table
+		stored[10] = 0x01; // 2 ms key response, which LightingSettingsBuilder throws on
+		seal(stored, 3, 10, 11);
+		const before = [...stored];
+		const stop = driver.startHoldSwitch(quick);
+
+		mouse.press(DPI_BUTTON_ID);
+		await until(() => mouse.writesOf(ReportId.LIGHTING_SETTINGS, mark).length >= 6);
+
+		const writes = mouse.writesOf(ReportId.LIGHTING_SETTINGS, mark);
+		expect(writes.map((w) => w[3])).toEqual([0x10, 0x05, 0x10, 0x05, 0x10, 0x05]); // on, back to off-holding-5
+		for (const w of writes) expect([...w.subarray(4, 11)]).toEqual(before.slice(4, 11)); // nothing else moves
+		expect([...mouse.storedReport(ReportId.LIGHTING_SETTINGS, 2)]).toEqual(before);
+		stop();
+	});
+
+	test('the DPI cycle changes the stage and nothing else', async () => {
+		const { mouse, driver, mark } = await ready();
+		const stored = mouse.storedReport(ReportId.DPI, 1);
+		stored[49] = 0x07; // the byte nobody knows, a rebuilt report would make it 02
+		stored[8] = 0x76; // 10100 written the vendor's way (y 1, not doubled), a rebuilt report writes other bytes
+		stored[16] = 0x01;
+		stored[6] &= 0xfe;
+		stored[7] &= 0xfe;
+		seal(stored, 3, 49, 50);
+		const before = [...stored];
+		const stop = driver.startHoldSwitch(quick);
+
+		mouse.press(DPI_BUTTON_ID);
+		mouse.release(DPI_BUTTON_ID);
+		await until(() => mouse.writesOf(ReportId.DPI, mark).length >= 1);
+
+		const [write] = mouse.writesOf(ReportId.DPI, mark);
+		const changed = [...(write ?? [])].flatMap((b, i) => (b === before[i] ? [] : [i]));
+		expect(changed).toEqual([24, 51]); // the stage, and the low byte of the check
+		stop();
+	});
+
+	test('a read that does not add up is not written back', async () => {
+		const { mouse, driver, mark } = await ready();
+		mouse.storedReport(ReportId.LIGHTING_SETTINGS, 2)[11] ^= 0xff; // break the check
+		mouse.storedReport(ReportId.DPI, 1)[50] ^= 0xff;
+		const errors: Error[] = [];
+		const stop = driver.startHoldSwitch({ ...quick, onError: (e) => void errors.push(e) });
+
+		mouse.press(DPI_BUTTON_ID);
+		await until(() => errors.length === 1); // the flash refused, the switch itself is done
+		mouse.release(DPI_BUTTON_ID);
+		await driver.switchProfile(Profile.Profile1);
+		mouse.press(DPI_BUTTON_ID);
+		mouse.release(DPI_BUTTON_ID);
+		await until(() => errors.length === 2); // the DPI cycle refused
+
+		expect(mouse.writesOf(ReportId.LIGHTING_SETTINGS, mark).length).toBe(0);
+		expect(mouse.writesOf(ReportId.DPI, mark).length).toBe(0);
+		stop();
+	});
+});
+
+describe('real world', () => {
+	test('two reads at the same time both come back right', async () => {
+		const mouse = new MemoryMouse();
+		const driver = await openWith(mouse);
+		await driver.setupProfiles({ profiles: [{ pollingRate: 500 }, { pollingRate: 250 }] });
+
+		const [first, second] = await Promise.all([driver.getPollingRate(1), driver.getPollingRate(2)]);
+
+		expect([first, second]).toEqual([500, 250]);
+	});
+
+	test('closing in the middle of a flash lets it finish, so the light is not left off', async () => {
+		const { mouse, driver, mark } = await ready();
+		driver.startHoldSwitch({ ...quick, flashMs: 60 });
+
+		mouse.press(DPI_BUTTON_ID);
+		await until(() => mouse.writesOf(ReportId.LIGHTING_SETTINGS, mark).length === 1); // the light just went off
+		await driver.close();
+
+		expect(modeOf(mouse.storedReport(ReportId.LIGHTING_SETTINGS, 2))).toBe(LightMode.StaticDpi);
+		expect(mouse.closed).toBe(true);
+	});
+
+	test('the setup script goes to every profile to check it, and says when a profile did not take it', async () => {
+		const { setup, check } = await import('../scripts/hold-switch');
+		const good = new MemoryMouse();
+		const goodDriver = await openWith(good);
+		await goodDriver.setupProfiles({ profiles: [{}] });
+		await setup(goodDriver, 3, true);
+		expect(await check(goodDriver, 3, true)).toEqual([]);
+		expect(good.state.current).toBe(1);
+
+		const stubborn = new MemoryMouse();
+		stubborn.ignoresProfileByte = true; // every write lands in the active profile
+		const stubbornDriver = await openWith(stubborn);
+		await stubbornDriver.setupProfiles({ profiles: [{}] });
+		await setup(stubbornDriver, 3, true);
+		expect(await check(stubbornDriver, 3, true)).toEqual([2, 3]);
+		expect(stubborn.state.current).toBe(1);
+	}, 20000); // a quarter of a second per read, two mice with three profiles each
+});
