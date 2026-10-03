@@ -56,8 +56,7 @@ HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/lates
 ## Quick Start
 
 ```typescript
-import { AttackSharkX11, Rate } from './src';
-import { CommandConfirmation } from './src/handles/messages/handleCommandConfirmation';
+import { AttackSharkX11, CommandConfirmation, Rate } from 'attack-shark-x11-driver';
 
 const driver = new AttackSharkX11();
 
