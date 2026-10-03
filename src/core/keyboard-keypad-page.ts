@@ -344,7 +344,8 @@ export enum FirmwareAction {
 	BROWSER_HOME = 0x25,
 	BROWSER_SEARCH = 0x26,
 	MODE_KEY = 0x3c,
-	POLLING_RATE_CYCLE = 0x40,
+	// the vendor hub's FUN_PRATE is [40, 0, 0], decimal 40 = 0x28
+	POLLING_RATE_CYCLE = 0x28,
 
 	PROFILE_CYCLE = 0x34,
 	PROFILE_UP = 0x35,
