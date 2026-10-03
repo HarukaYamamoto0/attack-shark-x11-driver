@@ -1,77 +1,14 @@
 // Run with `bun test`. Profile helpers against a pretend mouse that keeps every profile's reports separately.
 import { describe, expect, test } from 'bun:test';
-import { AttackSharkX11 } from '../src/core/AttackSharkX11';
-import type { MouseTransport } from '../src/core/transport';
 import { ParamsError } from '../src/errors';
 import { ButtonMapping } from '../src/protocols/ButtonMappingBuilder';
 import { Rate } from '../src/protocols/PollingRateBuilder';
 import { FirmwareAction } from '../src/core/keyboard-keypad-page';
 import { Profile, ReportId } from '../src/types';
+import { MemoryMouse, openWith } from './memory-mouse';
 
 const byteSum = (b: Uint8Array, from: number, to: number): number => b.slice(from, to + 1).reduce((a, x) => a + x, 0);
 const word = (b: Uint8Array, at: number): number => ((b[at] ?? 0) << 8) | (b[at + 1] ?? 0);
-
-/** Stores each settings report under its profile byte, reads them back by the profile in the read request. */
-class MemoryMouse implements MouseTransport {
-	stored = new Map<string, Uint8Array>();
-	state = { current: 1, max: 1 };
-	writes: Uint8Array[] = [];
-	private readParameter = 1;
-	private listener: ((data: Uint8Array) => void) | null = null;
-
-	open(): Promise<void> {
-		return Promise.resolve();
-	}
-
-	close(): Promise<void> {
-		return Promise.resolve();
-	}
-
-	sendFeatureReport(data: Uint8Array): Promise<number> {
-		const copy = new Uint8Array(data);
-		this.writes.push(copy);
-		const id = copy[0] ?? 0;
-		if (id === 0xa0) {
-			this.readParameter = copy[4] ?? 0;
-			return Promise.resolve(copy.length);
-		}
-		if (id === ReportId.PROFILE_SETTING) this.state = { current: copy[2] ?? 0, max: copy[4] ?? 0 };
-		else this.stored.set(`${id}:${copy[2]}`, copy);
-		setTimeout(() => this.listener?.(new Uint8Array([0x03, 0x55, 0x50, 0x00, id])), 2);
-		return Promise.resolve(copy.length);
-	}
-
-	getFeatureReport(reportId: number, length: number): Promise<Uint8Array> {
-		const response = new Uint8Array(length);
-		if (reportId === 0xa0) response.set([0xa0, 0x01]);
-		else if (reportId === ReportId.PROFILE_SETTING) {
-			const { current, max } = this.state;
-			response.set([0x0c, 0x0a, current, ~current & 0xff, max, ~max & 0xff]);
-		} else
-			response.set(
-				(this.stored.get(`${reportId}:${this.readParameter}`) ?? new Uint8Array()).subarray(0, length),
-			);
-		return Promise.resolve(response);
-	}
-
-	onData(listener: (data: Uint8Array) => void): void {
-		this.listener = listener;
-	}
-
-	onError(): void {
-		// the pretend mouse never errors
-	}
-
-	storedReport(reportId: number, profile: number): Uint8Array {
-		return this.stored.get(`${reportId}:${profile}`) ?? new Uint8Array();
-	}
-}
-
-async function openWith(mouse: MemoryMouse): Promise<AttackSharkX11> {
-	const driver = new AttackSharkX11({ transport: mouse });
-	await driver.open();
-	return driver;
-}
 
 const threeProfiles = {
 	switchButton: ButtonMapping.Slot8,
