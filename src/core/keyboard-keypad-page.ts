@@ -323,6 +323,9 @@ export enum FirmwareAction {
 	// Keyboard
 	KEYBOARD = 0x11,
 	CUSTOM_MACRO = 0x12,
+	// Does nothing by itself: the mouse sends the PC a button event (0x30) when the button is pressed and when it's
+	// released. Found in the firmware's button action switch, see docs/messages/button-event.md
+	REPORT_BUTTON = 0x13,
 
 	// Multimedia
 	MEDIA_PLAYER = 0x15,

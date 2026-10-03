@@ -48,6 +48,8 @@ import { HidTransport } from './transport/HidTransport';
 import { hex } from '../logger/hex';
 import { handleProfileSettings } from '../handles/handleProfileSettings';
 import { handleProfileChanged } from '../handles/messages/handleProfileChanged';
+import { handleButtonEvent } from '../handles/messages/handleButtonEvent';
+import { HoldSwitch, type HoldSwitchOptions } from './HoldSwitch';
 
 /**
  * The only reports the driver is allowed to write. Any write to report 0x10, whatever the payload, restarts the
@@ -68,8 +70,10 @@ const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
 
 /** What one profile gets in {@link AttackSharkX11.setupProfiles}. Anything left out uses the driver's defaults. */
 export interface ProfileSetup {
-	dpi?: Omit<DpiBuilderOptions, 'profileId'>;
-	lighting?: Omit<LightingSettingsBuilderOptions, 'profileId'>;
+	/** Options, or a DpiBuilder you got from a read (its profile id is set for you). */
+	dpi?: Omit<DpiBuilderOptions, 'profileId'> | DpiBuilder;
+	/** Options, or a LightingSettingsBuilder you got from a read (its profile id is set for you). */
+	lighting?: Omit<LightingSettingsBuilderOptions, 'profileId'> | LightingSettingsBuilder;
 	pollingRate?: Rate;
 	buttons?: Omit<ButtonMappingBuilderOptions, 'profileId'>;
 }
@@ -79,10 +83,17 @@ export interface SetupProfilesOptions {
 	/** One entry per profile, 1 to 5 of them. Profile 1 is the first entry. */
 	profiles: ProfileSetup[];
 	/**
-	 * The button that switches profiles. It gets the same action in every profile, because a profile without it
-	 * is one you can't leave with the mouse alone. This overrides whatever `buttons` says for that slot.
+	 * The button that switches profiles on its own, with no driver running. It gets the same action in every
+	 * profile, because a profile without it is one you can only leave from the driver. This overrides whatever
+	 * `buttons` says for that slot.
 	 */
-	switchButton: ButtonMapping;
+	switchButton?: ButtonMapping;
+	/**
+	 * A button that reports its presses to the PC (FirmwareAction.REPORT_BUTTON) in every profile, which is what
+	 * {@link AttackSharkX11.startHoldSwitch} listens to. It loses its normal action, so with the DPI button the DPI
+	 * only cycles while the driver is running. Run setupProfiles again without it to undo that.
+	 */
+	holdButton?: ButtonMapping;
 	/**
 	 * What the switch button does, PROFILE_CYCLE by default. PROFILE_UP and PROFILE_DOWN don't wrap around, and
 	 * PROFILE_DOWN can't get from profile 2 to profile 1 (off by one in the firmware).
@@ -114,6 +125,11 @@ export interface AttackSharkX11Events {
 	/** Represents the confirmation details of a specific command execution. */
 	commandConfirmation: [reportId: ReportId, success: boolean];
 	profileChanged: [response: Profile];
+	/**
+	 * A button set to FirmwareAction.REPORT_BUTTON was pressed (`pressed` true) or released. `id` is the button as the
+	 * firmware numbers it, see docs/messages/button-event.md.
+	 */
+	buttonEvent: [id: number, pressed: boolean];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
@@ -133,6 +149,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	// internal control of pending command reactive confirmation (ACK)
 	private pendingCommand: PendingCommand | null = null;
 	private hasReadPermission: boolean = false;
+	private readonly holdSwitches = new Set<HoldSwitch>();
 
 	/**
 	 * Initializes a new instance of the class.
@@ -263,6 +280,16 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 						}
 						break;
 					}
+					case MessageTypes.BUTTON_EVENT: {
+						try {
+							const { id, pressed } = handleButtonEvent(params1, params2);
+
+							this.emit('buttonEvent', id, pressed);
+						} catch (err) {
+							this.logger?.error(`Error handling button event: ${err}`, 'AttackSharkX11-handleData');
+						}
+						break;
+					}
 					case MessageTypes.PROFILE_CHANGED: {
 						const TAG = 'AttackSharkX11-handleData-messages';
 
@@ -313,6 +340,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	async close(): Promise<void> {
 		if (!this.transport) return;
 
+		for (const holdSwitch of this.holdSwitches) holdSwitch.stop();
+		this.holdSwitches.clear();
 		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
 		this.removeAllListeners();
 
@@ -750,10 +779,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * firmware's built-in defaults, which have no profile switch button, so you'd be stuck on it.
 	 */
 	async setupProfiles(options: SetupProfilesOptions): Promise<void> {
-		const { profiles, switchButton, timeoutMs } = options;
+		const { profiles, switchButton, holdButton, timeoutMs } = options;
 		const switchAction = options.switchAction ?? FirmwareAction.PROFILE_CYCLE;
 		const activeProfile = options.activeProfile ?? Profile.Profile1;
 
+		if (switchButton !== undefined && switchButton === holdButton)
+			throw new ParamsError('holdButton', "switchButton and holdButton can't be the same button");
 		if (profiles.length < 1 || profiles.length > MAX_PROFILES)
 			throw new ParamsError('profiles', `expected 1 to ${MAX_PROFILES} profiles, got ${profiles.length}`);
 		if (!Number.isInteger(activeProfile) || activeProfile < 1 || activeProfile > profiles.length)
@@ -770,13 +801,19 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		for (const [index, setup] of profiles.entries()) {
 			const profileId = index + 1;
 			const rate = setup.pollingRate === undefined ? {} : { rate: setup.pollingRate };
-			const buttons = new ButtonMappingBuilder({ ...setup.buttons, profileId }).setButton(
-				switchButton,
-				new SlotButton(switchAction, 0x00, 0x00),
-			);
+			const dpi =
+				setup.dpi instanceof DpiBuilder ? setup.dpi.setProfileId(profileId) : { ...setup.dpi, profileId };
+			const lighting =
+				setup.lighting instanceof LightingSettingsBuilder
+					? setup.lighting.setProfileId(profileId)
+					: { ...setup.lighting, profileId };
+			const buttons = new ButtonMappingBuilder({ ...setup.buttons, profileId });
+			if (switchButton !== undefined) buttons.setButton(switchButton, new SlotButton(switchAction, 0x00, 0x00));
+			if (holdButton !== undefined)
+				buttons.setButton(holdButton, new SlotButton(FirmwareAction.REPORT_BUTTON, 0x00, 0x00));
 
-			check('DPI settings', profileId, await this.setDpi({ ...setup.dpi, profileId }, timeoutMs));
-			check('lighting', profileId, await this.setLightingSettings({ ...setup.lighting, profileId }, timeoutMs));
+			check('DPI settings', profileId, await this.setDpi(dpi, timeoutMs));
+			check('lighting', profileId, await this.setLightingSettings(lighting, timeoutMs));
 			check('polling rate', profileId, await this.setPollingRate({ ...rate, profileId }, timeoutMs));
 			check('button mapping', profileId, await this.setButtonMapping(buttons, timeoutMs));
 		}
@@ -787,6 +824,25 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		);
 		if (confirmation !== CommandConfirmation.Success)
 			throw new SendCommandError('the mouse rejected the profile count and active profile');
+	}
+
+	/**
+	 * Holding the button set up with `holdButton` in {@link AttackSharkX11.setupProfiles} switches to the next profile
+	 * and flashes the mouse's light, and a short press cycles the DPI (which that button can't do on its own any
+	 * more). Returns a function that stops it.
+	 *
+	 * This runs in the driver, so it only works while your program is running and the device is open. Details and
+	 * limits are in {@link HoldSwitchOptions}.
+	 */
+	startHoldSwitch(options?: HoldSwitchOptions): () => void {
+		const holdSwitch = new HoldSwitch(this, options);
+		this.holdSwitches.add(holdSwitch);
+		const stopListening = holdSwitch.start();
+
+		return () => {
+			stopListening();
+			this.holdSwitches.delete(holdSwitch);
+		};
 	}
 }
 
