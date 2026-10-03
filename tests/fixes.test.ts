@@ -19,6 +19,8 @@ import { handleResponseDpi } from '../src/handles/handleResponseDpi';
 import { convertBytesToDpi, convertDpiToBytes } from '../src/utils/dpi';
 import { DPI_3311 } from '../src/tables/dpi-map';
 import { handleResponsePollingRate } from '../src/handles/handleResponsePollingRate';
+import { ParamsError } from '../src/errors';
+import * as packageRoot from '../src';
 
 const WIRELESS = ConnectionMode.Wireless;
 const byteSum = (b: Uint8Array, from: number, to: number): number => b.slice(from, to + 1).reduce((a, x) => a + x, 0);
@@ -291,5 +293,41 @@ describe('messages and handlers', () => {
 		const big = new Uint8Array(32);
 		big.set([0x06, 0x09, 0x01, 0x02, 0xfd, 0, 0, 0, 0], 16);
 		expect(handleResponsePollingRate(big.subarray(16, 25))).toBe(500);
+	});
+});
+
+describe('package', () => {
+	test('error messages keep their text and name the parameter', () => {
+		let error: unknown;
+		try {
+			handleResponsePollingRate(new Uint8Array(3));
+		} catch (e) {
+			error = e;
+		}
+		expect(error).toBeInstanceOf(ParamsError);
+		expect((error as ParamsError).paramName).toBe('buffer');
+		expect((error as ParamsError).message).toStartWith('Invalid polling rate buffer size');
+	});
+
+	test('the package root exports what the README and the option types need', () => {
+		const needed = [
+			'CommandConfirmation', // README quick start
+			'SlotButton', // ButtonMappingBuilderOptions slots
+			'FirmwareAction',
+			'KeyCode',
+			'Modifiers',
+			'MacroBuilder', // setMacro()
+			'MacroAction',
+			'MacroType',
+			'ProfileSettingsBuilder', // setProfileSettings()
+			'HidTransport', // custom transports
+			'handleResponseDpi', // "generating, parsing, and manipulating protocol buffers" for Tauri
+			'handleResponseButtonMapping',
+			'handleResponseLightingSettings',
+			'handleResponsePollingRate',
+			'handleMacroResponse',
+			'handleProfileSettings',
+		];
+		expect(needed.filter((name) => !(name in packageRoot))).toEqual([]);
 	});
 });
