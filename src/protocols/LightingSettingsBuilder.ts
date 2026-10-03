@@ -339,6 +339,9 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 	}
 
 	build(mode: ConnectionMode): Buffer {
+		// the setters change bytes 3-10, so the sum has to be redone here or the mouse rejects the packet
+		this.calculateChecksum();
+
 		if (mode === ConnectionMode.Wired) return this.buffer.subarray(0, 13);
 		else return this.buffer;
 	}
