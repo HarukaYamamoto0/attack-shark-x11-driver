@@ -58,7 +58,9 @@ To write the button mapping, a 59-byte packet (Report ID `0x08`) is sent to the 
 
 The checksum is stored as a big-endian unsigned 16-bit integer (high byte at index 57, low byte at index 58) calculated
 as:
-`Checksum = (Sum of bytes from index 3 to 56) - 1`
+`Checksum = Sum of bytes from index 3 to 56`
+
+This is the same sum the read side uses. The default example above (`0x00, 0x3e`) is exactly the sum of its slot bytes.
 
 ## Read Operation
 
