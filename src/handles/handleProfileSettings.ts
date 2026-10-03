@@ -6,6 +6,7 @@ import { hex } from '../logger/hex';
 export function handleProfileSettings(buffer: Uint8Array): ProfileSettingsBuilder {
 	if (buffer.length !== ReportReadLength.PROFILE_SETTING)
 		throw new ParamsError(
+			'buffer',
 			`Invalid profile settings buffer size; expected ${ReportReadLength.PROFILE_SETTING} but received ${buffer.length}`,
 		);
 
@@ -23,10 +24,12 @@ export function handleProfileSettings(buffer: Uint8Array): ProfileSettingsBuilde
 
 	if (calculateCurrentProfileChecksum !== currentProfileChecksum)
 		throw new ParamsError(
+			'buffer',
 			`invalid current profile checksum; expected ${hex(calculateCurrentProfileChecksum)} but received ${hex(currentProfileChecksum)}`,
 		);
 	if (calculateMaxProfileCountChecksum !== maxProfileCountChecksum)
 		throw new ParamsError(
+			'buffer',
 			`invalid max profile count checksum; expected ${hex(calculateMaxProfileCountChecksum)} but received ${hex(maxProfileCountChecksum)}`,
 		);
 
