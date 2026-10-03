@@ -26,8 +26,7 @@ The payload consists of 13 bytes for Wired mode or 15 bytes for Wireless (Adapte
 | 8     | Blue          | RGB Blue component (0-255).                          |
 | 9     | Sleep Timer   | Sleep timer in half-minutes: `Minutes * 2`.          |
 | 10    | Debounce      | Encoded key response time: `((ms - 4) / 2) + 2`.     |
-| 11    | State Flag    | Dynamic flag based on colors and mode.               |
-| 12    | Checksum      | Sum of bytes from index 3 to 10 (modulo 256).        |
+| 11-12 | Checksum      | 16-bit big-endian sum of bytes 3 to 10.              |
 | 13-14 | Padding       | `0x00 0x00` (Wireless mode only).                    |
 
 ---
@@ -86,17 +85,12 @@ Normal sleep (standby) before deep sleep.
     - 8ms -> `4`
     - 50ms -> `25`
 
-### 7. State Flag (Index 11)
+### 7. Checksum (Index 11-12)
 
-This byte acts as a status indicator for the firmware.
+Bytes 11 and 12 are one 16-bit big-endian sum of bytes 3 to 10 (this is what `calculateChecksum()` writes and what
+the read handler checks).
 
-- **Threshold**: A color component is "active" if it is `>= 100` (`0x64`).
-- **Count**: Number of active components (0 to 3).
-- **Base Logic**:
-    - If Mode is `Breathing DPI` (`0x60`): `State = Count + 1`
-    - Otherwise: `State = Count`
+`Checksum = Byte[3] + Byte[4] + ... + Byte[10]`, high byte at index 11, low byte at index 12.
 
-### 8. Checksum (Index 12)
-
-Calculated as the sum of bytes from index 3 to 10.
-`Checksum = (Byte[3] + Byte[4] + ... + Byte[10]) & 0xFF`
+Byte 11 used to be described as a "state flag" (the number of color components `>= 100`). That's just what the high
+byte of the sum usually comes out as, for example the default packet sums to `0x01af`.
