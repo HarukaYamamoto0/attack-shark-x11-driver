@@ -148,7 +148,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 	}
 
 	getName(): string {
-		this._name = decodeFixedUtf8(this._firstPacket.subarray(9, 28)).value;
+		this._name = decodeFixedUtf8(this._firstPacket.subarray(9, 29)).value;
 
 		return this._name;
 	}
