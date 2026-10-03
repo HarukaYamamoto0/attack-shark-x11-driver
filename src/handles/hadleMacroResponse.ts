@@ -11,6 +11,7 @@ import { hex } from '../logger/hex';
 export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 	if (buffer.length !== ReportReadLength.MACRO)
 		throw new ParamsError(
+			'buffer',
 			`Invalid macro buffer size; expected ${ReportReadLength.MACRO} but received ${buffer.length}`,
 		);
 
@@ -24,6 +25,7 @@ export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 
 	if (checksum !== checksumByte)
 		throw new ParamsError(
+			'buffer',
 			`Invalid macro response checksum; expected: ${hex(checksumByte)}, ` + `but calculated: ${hex(checksum)}`,
 		);
 

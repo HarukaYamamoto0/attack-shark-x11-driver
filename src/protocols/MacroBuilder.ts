@@ -84,7 +84,7 @@ export class MacroBuilder implements BaseProtocolBuilder {
 
 	setProfileId(id: ProfileId): this {
 		if (id < 0x00 || id > 0xff)
-			throw new ParamsError(`Invalid macro id; expected 0x00 to 0xff, but received ${id}`);
+			throw new ParamsError('id', `Invalid macro id; expected 0x00 to 0xff, but received ${id}`);
 		this._id = id;
 
 		this._firstPacketView.setUint8(2, this._id);

@@ -18,6 +18,7 @@ const hexToRate: Record<number, Rate> = {
 export function handleResponsePollingRate(buffer: Uint8Array): Rate {
 	if (buffer.length !== ReportReadLength.POLLING_RATE)
 		throw new ParamsError(
+			'buffer',
 			`Invalid polling rate buffer size; expected ${ReportReadLength.POLLING_RATE} but received ${buffer.length}`,
 		);
 
