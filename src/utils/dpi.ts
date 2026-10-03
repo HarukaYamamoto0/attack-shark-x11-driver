@@ -21,12 +21,16 @@ export function convertDpiToBytes(dpi: number): DpiBytes {
 		return { xByte: 0xeb, yByte: 1, isDouble: true, isTriple: false };
 	}
 
+	// Above 20000 the halved value goes in steps of 100, so the real steps are 200 (20200, 20400, ...). The vendor
+	// software snaps anything in between to a neighbour, and so does this. Otherwise e.g. 20300 is written as 10300.
+	const snappedDpi = clampedDpi > 20000 ? Math.round(clampedDpi / 200) * 200 : clampedDpi;
+
 	let isDouble = false;
 	const isTriple = false; // X11 doesn't seem to use triple speed for its standard range
-	let targetDpi = clampedDpi;
+	let targetDpi = snappedDpi;
 
-	if (clampedDpi > 10000) {
-		targetDpi = Math.round(clampedDpi / 2);
+	if (snappedDpi > 10000) {
+		targetDpi = Math.round(snappedDpi / 2);
 		isDouble = true;
 	}
 
@@ -35,13 +39,9 @@ export function convertDpiToBytes(dpi: number): DpiBytes {
 	// eslint-disable-next-line no-useless-assignment
 	let yByte = 0;
 
-	if (targetDpi > 10000) {
-		// Native double byte mode (> 10,000 base DPI)
-		const extraIndex = Math.floor((targetDpi - 10100) / 100);
-		const combinedIndex = 199 + extraIndex;
-		xByte = combinedIndex & 0xff;
-		yByte = (combinedIndex >> 8) & 0xff;
-	} else if (targetDpi > 5000 && targetDpi % 100 === 0) {
+	// Halved values above 10000 (DPI above 20000) use the same step-100 table as below, with the doubled flag.
+	// That's how the vendor software writes them (22000 -> 0x81, y = 1, doubled), and what the mouse reads back.
+	if (targetDpi > 5000 && targetDpi % 100 === 0) {
 		const index = Math.floor(targetDpi / 100) - 1;
 		xByte = DPI_3311[index] ?? 0;
 		yByte = 1;
