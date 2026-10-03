@@ -104,12 +104,50 @@ const third = await driver.readProfile(Profile.Profile3); // dpi, lighting, poll
   button, so you'd be stuck on it.
 - 5 profiles is a hard limit in the firmware: it clamps the max profile to 5 and goes back to profile 1 if the
   current one is past that.
+- `holdButton` is for [hold to switch](#hold-a-button-to-switch-profile) below.
 - `switchProfile()`, `nextProfile()` and `previousProfile()` switch through report `0x0C`, so the mouse doesn't send
   its profile changed event for them.
 - `getDpi()`, `getLightingSettings()`, `getPollingRate()` and `getButtonMapping()` take a profile (the read
   parameter, see [report-id-reading.md](report-id-reading.md)). Without one they read profile 1.
 - The button table read back from a profile may not be in the order it was written (see
   [button-mapping.md](button-mapping.md)), so `setupProfiles()` never reads before it writes.
+
+## Hold a button to switch profile
+
+The firmware has no "hold this button" action: every button action is a single press. What it does have is
+`FirmwareAction.REPORT_BUTTON` (`0x13`), which makes the mouse send the PC an event when the button goes down and when
+it comes back up ([button-event.md](../messages/button-event.md)). `startHoldSwitch()` uses that to time the hold in the
+driver:
+
+```typescript
+import { AttackSharkX11, ButtonMapping } from 'attack-shark-x11-driver';
+
+const driver = new AttackSharkX11();
+await driver.open();
+
+// three profiles, the DPI button (slot 6) reports its presses in every one of them
+await driver.setupProfiles({ holdButton: ButtonMapping.Slot6, profiles: [{}, {}, {}] });
+
+// hold it for half a second: next profile, then the light flashes 3 times
+// short press: next DPI stage (the button can't do that on its own any more)
+const stop = driver.startHoldSwitch();
+```
+
+What you should know before using it:
+
+- It runs in the driver, so it only works while your program is running and the device is open. Without it the DPI
+  button does nothing. `setupProfiles()` again without `holdButton` gives the button its DPI cycle back.
+- `setupProfiles()` rewrites every report of the profiles, including the buttons, so anything you had set in those
+  profiles is replaced. Pass the DPI and lighting you read (`await driver.getDpi(1)`, `await driver.getLightingSettings(1)`)
+  to keep those.
+- The mouse takes a moment to answer every read (the driver waits 250 ms), so the DPI cycle lands about half a second
+  after the press and the flash starts about a quarter of a second after the switch. The current profile is read while
+  the button is still down, so the switch itself happens as soon as the hold time (500 ms, `holdMs`) is up.
+- The flash switches the light mode off and back (or on and off, if that profile's light is off) and always ends on
+  the profile's own light mode. Every change is written to the mouse's memory, about 8 writes for a switch with 3
+  flashes. Use `flashes: 0` to switch without flashing.
+- Nothing here has been run on a real X11. The part to check first is whether the events arrive at all:
+  `scripts/hold-switch.ts` prints every button event.
 
 ## Messages
 
