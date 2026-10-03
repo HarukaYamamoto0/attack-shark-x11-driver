@@ -2,12 +2,12 @@
 
 > To better understand this document, read the `README.md` located in the root of this directory first.
 
-This event tells the PC that a button was pressed or released. The mouse only sends it for a button whose action is
-`FirmwareAction.REPORT_BUTTON` (`0x13`): that action has no effect of its own, it exists to report the button.
+This event tells the PC that a button was pressed or released. The mouse only sends it for a button set to
+`FirmwareAction.REPORT_BUTTON` (`0x13`). That action does nothing else, it's only there to report the button.
 
-> **Not verified on a real mouse.** Everything here comes from reading the firmware's button action switch in a dump
-> of an X11 (the case for action `0x13`), nobody has seen one of these events come off an actual X11 yet. The driver
-> and `scripts/hold-switch.ts` print what arrives, so the first run on a real mouse settles it.
+> **Not checked on a real mouse yet.** This comes from reading the X11's firmware (the code for action `0x13`).
+> Nobody has seen this event come off a real X11, so the first run settles it: `scripts/hold-switch.ts run` prints
+> every event that arrives.
 
 ## Structure
 
@@ -21,9 +21,9 @@ Fixed value `0x30`.
 
 ### params1
 
-Which button, as the firmware numbers it: the button's position in the firmware's own button table, counted from 1.
-That table isn't in the order you write the slots in (see [button-mapping.md](../protocols/button-mapping.md)), so
-this number may not be the slot number. If only one button is set to `REPORT_BUTTON`, you don't need to know it.
+Which button, as the firmware numbers it: its position in the firmware's own button table, counted from 1. That
+table may not be in the order you write the slots in (see [button-mapping.md](../protocols/button-mapping.md)), so
+this may not match the slot number. With only one button set to `REPORT_BUTTON` you don't need to know it.
 
 ### params2
 
@@ -47,5 +47,5 @@ The driver's `handleData` doesn't look at byte 1, so the `00` doesn't matter to 
 ## Using it
 
 - `driver.on('buttonEvent', (id, pressed) => ...)` gets these.
-- `driver.startHoldSwitch()` times the hold from the press and the release, see
+- `driver.startHoldSwitch()` uses the press and the release to time a hold, see
   [profile-settings.md](../protocols/profile-settings.md#hold-a-button-to-switch-profile).

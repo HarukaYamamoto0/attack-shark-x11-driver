@@ -68,7 +68,7 @@ const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
 	ReportId.READ_REPORT_ID,
 ]);
 
-/** How long close() waits for a profile switch or a light flash that's already going to finish. */
+/** How long close() waits for a switch or a light flash in progress to finish. */
 const CLOSE_WAIT_MS = 3000;
 
 /** What one profile gets in {@link AttackSharkX11.setupProfiles}. Anything left out uses the driver's defaults. */
@@ -86,20 +86,19 @@ export interface SetupProfilesOptions {
 	/** One entry per profile, 1 to 5 of them. Profile 1 is the first entry. */
 	profiles: ProfileSetup[];
 	/**
-	 * The button that switches profiles on its own, with no driver running. It gets the same action in every
-	 * profile, because a profile without it is one you can only leave from the driver. This overrides whatever
-	 * `buttons` says for that slot.
+	 * A button that switches profiles by itself, no driver needed. It's put on the same button in every profile,
+	 * otherwise you could end up on a profile you can't leave with the mouse alone. Overrides `buttons` for that slot.
 	 */
 	switchButton?: ButtonMapping;
 	/**
-	 * A button that reports its presses to the PC (FirmwareAction.REPORT_BUTTON) in every profile, which is what
-	 * {@link AttackSharkX11.startHoldSwitch} listens to. It loses its normal action, so with the DPI button the DPI
-	 * only cycles while the driver is running. Run setupProfiles again without it to undo that.
+	 * A button that tells the PC when it's pressed and released (FirmwareAction.REPORT_BUTTON), in every profile.
+	 * {@link AttackSharkX11.startHoldSwitch} uses it. The button loses its normal job, so if it's the DPI button, the
+	 * DPI only changes while the driver runs. Call setupProfiles again without it to undo that.
 	 */
 	holdButton?: ButtonMapping;
 	/**
-	 * What the switch button does, PROFILE_CYCLE by default. PROFILE_UP and PROFILE_DOWN don't wrap around, and
-	 * PROFILE_DOWN can't get from profile 2 to profile 1 (off by one in the firmware).
+	 * What the switch button does, PROFILE_CYCLE by default. PROFILE_UP and PROFILE_DOWN stop at the ends, and
+	 * PROFILE_DOWN can't reach profile 1 (a firmware bug).
 	 */
 	switchAction?: FirmwareAction.PROFILE_CYCLE | FirmwareAction.PROFILE_UP | FirmwareAction.PROFILE_DOWN;
 	/** The profile that's active afterwards, profile 1 by default. */
@@ -129,8 +128,8 @@ export interface AttackSharkX11Events {
 	commandConfirmation: [reportId: ReportId, success: boolean];
 	profileChanged: [response: Profile];
 	/**
-	 * A button set to FirmwareAction.REPORT_BUTTON was pressed (`pressed` true) or released. `id` is the button as the
-	 * firmware numbers it, see docs/messages/button-event.md.
+	 * A button set to FirmwareAction.REPORT_BUTTON went down (`pressed` is true) or up. `id` is the firmware's number
+	 * for the button, see docs/messages/button-event.md.
 	 */
 	buttonEvent: [id: number, pressed: boolean];
 	/** Emitted when a data monitoring error occurs */
@@ -347,7 +346,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		const holdSwitches = [...this.holdSwitches];
 		for (const holdSwitch of holdSwitches) holdSwitch.stop();
 		this.holdSwitches.clear();
-		// let a switch or a flash that's already going finish, so the light isn't left off half way
+		// let a switch or flash in progress finish, so the light isn't left off
 		await Promise.race([Promise.all(holdSwitches.map((holdSwitch) => holdSwitch.idle())), delay(CLOSE_WAIT_MS)]);
 
 		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
@@ -506,8 +505,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		reportLengthRead: ReportReadLength,
 		parameter: number = 0x01,
 	): Promise<Uint8Array> {
-		// One read at a time: each read needs its own permission request right before it, so two reads that overlap
-		// use up each other's permission and one of them gets garbage.
+		// One read at a time. Each read needs a permission request right before it, so two overlapping reads use up
+		// each other's permission and one of them gets garbage.
 		const read = this.readQueue.then(() => this.readFeatureReport(reportId, reportLengthRead, parameter));
 		this.readQueue = read.catch(() => undefined);
 
@@ -719,10 +718,9 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Makes `profile` the active one and keeps the number of enabled profiles.
+	 * Makes `profile` the active one, keeping the number of enabled profiles.
 	 *
-	 * Switching this way doesn't make the mouse send its profile changed (0x80) event, that only comes when a
-	 * button switches profiles.
+	 * The mouse doesn't send its profile changed event (0x80) for this, only when a button switches.
 	 */
 	async switchProfile(profile: Profile, timeoutMs?: number): Promise<CommandConfirmation> {
 		const { count } = await this.getProfileState();
@@ -740,8 +738,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	/**
 	 * Switches to the previous enabled profile, from profile 1 to the last one. Returns the new profile.
 	 *
-	 * The driver does this itself because the firmware's PROFILE_DOWN button action can't get from profile 2 to
-	 * profile 1 (off by one in the firmware) and doesn't wrap.
+	 * The driver does this itself because the mouse's own PROFILE_DOWN can't get from profile 2 to profile 1 (a
+	 * firmware bug) and doesn't wrap around.
 	 */
 	previousProfile(timeoutMs?: number): Promise<Profile> {
 		return this.stepProfile(-1, timeoutMs);
@@ -778,10 +776,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Reads everything stored in one profile, whether it's the active one or not.
+	 * Reads everything stored in one profile, active or not.
 	 *
-	 * The button table comes back in the mouse's read order (see docs/protocols/button-mapping.md), so check that
-	 * before writing it back unchanged.
+	 * The button table may not come back in the order it was written (see docs/protocols/button-mapping.md), so don't
+	 * write it straight back.
 	 */
 	async readProfile(profile: Profile): Promise<ProfileContents> {
 		return {
@@ -793,11 +791,11 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Sets up the mouse's onboard profiles in one go: writes all the settings of every profile, puts the profile
-	 * switch on the same button in each of them, then enables that many profiles and picks the active one.
+	 * Sets up the mouse's profiles in one go: writes every setting of every profile, puts the profile switch on the
+	 * same button in each, then turns that many profiles on and picks the active one.
 	 *
-	 * Every profile is written in full and nothing is read first. A profile that was never written loads the
-	 * firmware's built-in defaults, which have no profile switch button, so you'd be stuck on it.
+	 * Nothing is read first and every profile is written in full. A profile that was never written uses the
+	 * firmware's defaults, which have no switch button, so you'd be stuck on it.
 	 */
 	async setupProfiles(options: SetupProfilesOptions): Promise<void> {
 		const { profiles, switchButton, holdButton, timeoutMs } = options;
@@ -848,12 +846,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Holding the button set up with `holdButton` in {@link AttackSharkX11.setupProfiles} switches to the next profile
-	 * and flashes the mouse's light, and a short press cycles the DPI (which that button can't do on its own any
-	 * more). Returns a function that stops it.
+	 * Hold the `holdButton` (from {@link AttackSharkX11.setupProfiles}) to go to the next profile, and the light flashes
+	 * to show it. A tap changes the DPI stage, since the button can't do that by itself any more. Returns a function
+	 * that stops it.
 	 *
-	 * This runs in the driver, so it only works while your program is running and the device is open. Details and
-	 * limits are in {@link HoldSwitchOptions}.
+	 * It runs in the driver, so it only works while your program runs and the device is open. More in
+	 * {@link HoldSwitchOptions}.
 	 */
 	startHoldSwitch(options?: HoldSwitchOptions): () => void {
 		const holdSwitch = new HoldSwitch(this, options);

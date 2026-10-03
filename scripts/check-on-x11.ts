@@ -150,7 +150,7 @@ if (import.meta.main) {
 		await check(driver, process.argv.includes('--write'), (line) => console.log(line));
 		console.log('---');
 	} catch (error) {
-		console.error('stopped:', error);
+		console.error(`stopped: ${error instanceof Error ? error.message : String(error)}`);
 		process.exitCode = 1;
 	} finally {
 		await driver.close();

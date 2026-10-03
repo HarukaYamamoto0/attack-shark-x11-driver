@@ -1,13 +1,13 @@
-// Hold the DPI button to switch profile. Run it from the repo folder with bun:
+// Hold the DPI button to switch profile. Run it from the repo folder:
 //
-//   bun scripts/hold-switch.ts setup [profiles]          shows what it will change (2 to 5 profiles, 2 by default)
-//   bun scripts/hold-switch.ts setup [profiles] --yes    sets up the profiles, the DPI button reports its presses
-//   bun scripts/hold-switch.ts run                       hold the button: next profile + 3 flashes, press: next DPI stage
-//   bun scripts/hold-switch.ts undo [profiles] --yes     the DPI button cycles the DPI by itself again
+//   bun scripts/hold-switch.ts setup 3          shows what it would change, changes nothing
+//   bun scripts/hold-switch.ts setup 3 --yes    sets up 3 profiles (2 to 5) and makes the DPI button report its presses
+//   bun scripts/hold-switch.ts run              hold the DPI button: next profile + 3 flashes. tap it: next DPI stage
+//   bun scripts/hold-switch.ts undo 3 --yes     the DPI button changes the DPI by itself again
 //
-// "setup" copies the DPI, lighting and polling rate of profile 1 into every profile and resets their buttons to the
-// default ones, with the DPI button reporting its presses. Use the 2.4G receiver: over the cable every other write
-// stalls. "run" has to stay running, the DPI button does nothing without it (use "undo" to get it back).
+// setup gives every profile the DPI, lighting and polling rate of profile 1, and the default buttons. Use the 2.4G
+// receiver, over the cable every other write stalls. "run" has to keep running: without it the DPI button does
+// nothing (that's what "undo" is for).
 import {
 	AttackSharkX11,
 	ButtonMapping,
@@ -36,7 +36,7 @@ async function readProfile1(driver: AttackSharkX11): Promise<Settings> {
 	};
 }
 
-/** Sets up `count` profiles, all with profile 1's DPI, lighting and polling rate. Reads everything before writing. */
+/** Sets up `count` profiles with profile 1's DPI, lighting and polling rate. Everything is read before anything is written. */
 export async function setup(driver: AttackSharkX11, count: number, reportsButton: boolean): Promise<void> {
 	const settings = await readProfile1(driver);
 
@@ -47,9 +47,9 @@ export async function setup(driver: AttackSharkX11, count: number, reportsButton
 }
 
 /**
- * Goes to each profile in turn and checks whether a button there reports its presses, then goes back to profile 1.
- * The button table is read while that profile is the active one, so this works whatever the mouse does with the
- * profile number in a read. Returns the profiles that aren't the way `reportsButton` says they should be.
+ * Switches to each profile in turn and checks whether a button there reports its presses, then goes back to
+ * profile 1. Reading while the profile is active means it works whatever the mouse does with the profile number in
+ * a read. Returns the profiles that don't match `reportsButton`.
  */
 export async function check(driver: AttackSharkX11, count: number, reportsButton: boolean): Promise<number[]> {
 	const wrong: number[] = [];
@@ -71,7 +71,7 @@ if (import.meta.main) {
 	const count = Number(rest[0] ?? 2);
 
 	if (!['setup', 'run', 'undo'].includes(command) || !Number.isInteger(count) || count < 2 || count > 5) {
-		console.log('usage: bun scripts/hold-switch.ts setup|undo [profiles 2-5] [--yes]   or   run');
+		console.log('Usage: bun scripts/hold-switch.ts setup|undo [2-5] [--yes]   or   bun scripts/hold-switch.ts run');
 		process.exit(command === 'help' ? 0 : 1);
 	}
 
@@ -80,34 +80,40 @@ if (import.meta.main) {
 		await driver.open();
 
 		if (command === 'setup' || command === 'undo') {
-			const action = command === 'setup' ? 'sets up' : 'resets';
+			const isSetup = command === 'setup';
 			console.log(
-				`${command} ${action} profiles 1 to ${count}: they get the DPI, lighting and polling rate of profile 1, and\n` +
-					`their buttons are set to the default ones${command === 'setup' ? ', with the DPI button reporting its presses' : ''}.`,
+				`This ${isSetup ? 'sets up' : 'resets'} profiles 1 to ${count}. Each one gets profile 1's DPI, lighting ` +
+					`and polling rate, and the default buttons` +
+					(isSetup
+						? ', with the DPI button reporting its presses.'
+						: ', so the DPI button works by itself again.'),
 			);
 			if (!confirmed) {
-				console.log('nothing was changed. run it again with --yes to do it.');
+				console.log('Nothing changed yet. Run it again with --yes to do it.');
 			} else {
-				await setup(driver, count, command === 'setup');
-				const wrong = await check(driver, count, command === 'setup');
+				await setup(driver, count, isSetup);
+				const wrong = await check(driver, count, isSetup);
 				if (wrong.length > 0) {
 					console.log(
-						`written, but profile ${wrong.join(', ')} didn't come out right when I went there and read it back.
-` + `the mouse may be putting every write into the active profile. profile 1 is active again.`,
+						`Written, but profile ${wrong.join(', ')} didn't look right when checked afterwards. ` +
+							'The mouse might be saving every write into the active profile. Profile 1 is active again.',
 					);
 					process.exitCode = 1;
 				} else {
 					console.log(
-						command === 'setup'
-							? `checked all ${count} profiles. now run: bun scripts/hold-switch.ts run`
-							: `checked all ${count} profiles, the DPI button cycles the DPI by itself again.`,
+						isSetup
+							? `All ${count} profiles checked. Now run: bun scripts/hold-switch.ts run`
+							: `All ${count} profiles checked. The DPI button changes the DPI by itself again.`,
 					);
 				}
 			}
 		} else {
 			const state = await driver.getProfileState();
-			console.log(`profile ${state.current} of ${state.count} is active. hold the DPI button, Ctrl+C to stop.`);
-			if (state.count < 2) console.log('only one profile is enabled, run "setup" first.');
+			console.log(
+				`Profile ${state.current} of ${state.count} is active. Hold the DPI button to switch, tap it to change ` +
+					'the DPI. Ctrl+C to stop.',
+			);
+			if (state.count < 2) console.log('Only one profile is on. Run setup first.');
 
 			let seen = false;
 			driver.on('buttonEvent', (id, pressed) => {
@@ -120,7 +126,9 @@ if (import.meta.main) {
 			});
 			const hint = setTimeout(() => {
 				if (!seen)
-					console.log('no button events yet. press the DPI button, and run "setup --yes" if you haven\'t.');
+					console.log(
+						'No button events yet. Press the DPI button, and run "setup 3 --yes" first if you haven\'t.',
+					);
 			}, 20000);
 
 			await new Promise<void>((resolve) => process.once('SIGINT', () => resolve()));
@@ -128,7 +136,7 @@ if (import.meta.main) {
 			stop();
 		}
 	} catch (error) {
-		console.error('stopped:', error);
+		console.error(`Stopped: ${error instanceof Error ? error.message : String(error)}`);
 		process.exitCode = 1;
 	} finally {
 		await driver.close();

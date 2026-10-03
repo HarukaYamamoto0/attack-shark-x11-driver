@@ -69,9 +69,8 @@ Another thing I noticed is that, for example, if you are on profile `0x05` and t
 the `FirmwareAction.PROFILE_DOWN` macro, for some reason it isn't possible; you can only go down as far as profile
 `0x02`; that’s quite strange.
 
-That one is a firmware bug: the firmware keeps the profile 0-based and its "profile down" check stops at index 1
-(profile 2) instead of index 0. `previousProfile()` below goes down from the driver instead, so it does reach
-profile 1.
+That's a firmware bug. The firmware counts profiles from 0, and its "profile down" check stops at 1 (profile 2)
+instead of 0 (profile 1). `previousProfile()` below switches from the driver instead, so it does get to profile 1.
 
 ## Using profiles from the driver
 
@@ -129,26 +128,26 @@ await driver.open();
 await driver.setupProfiles({ holdButton: ButtonMapping.Slot6, profiles: [{}, {}, {}] });
 
 // hold it for half a second: next profile, then the light flashes 3 times
-// short press: next DPI stage (the button can't do that on its own any more)
+// tap it: next DPI stage (the button can't do that by itself any more)
 const stop = driver.startHoldSwitch();
 ```
 
-What you should know before using it:
+Before you use it:
 
 - It runs in the driver, so it only works while your program is running and the device is open. Without it the DPI
   button does nothing. `setupProfiles()` again without `holdButton` gives the button its DPI cycle back.
 - `setupProfiles()` rewrites every report of the profiles, including the buttons, so anything you had set in those
   profiles is replaced. Pass the DPI and lighting you read (`await driver.getDpi(1)`, `await driver.getLightingSettings(1)`)
   to keep those.
-- The mouse takes a moment to answer every read (the driver waits 250 ms), so the DPI cycle lands about half a second
-  after the press and the flash starts about a quarter of a second after the switch. The current profile is read while
-  the button is still down, so the switch itself happens as soon as the hold time (500 ms, `holdMs`) is up.
-- The flash switches the light mode off and back (or on and off, if that profile's light is off), changing only that
-  byte, and puts back exactly the bytes it read. The DPI cycle also only changes the stage byte. Every change is written to the mouse's memory, 7 writes for a switch with 3 flashes
-  (the switch and 6 light changes). Use `flashes: 0` to switch without flashing.
-- Nothing here has been run on a real X11. `scripts/hold-switch.ts setup` goes to every profile afterwards and checks
-  the button really reports its presses there, and `run` prints every button event, so the first try shows whether
-  it works.
+- Every read from the mouse takes about 250 ms, so a tap changes the DPI about half a second later and the flash
+  starts about a quarter of a second after the switch. The profile is read while you're still holding, so the switch
+  itself happens right when the hold time (500 ms, `holdMs`) is up.
+- The flash turns the light off and back on (or on and back off, if that profile's light is off). It only touches the
+  light mode byte and puts back exactly what it read, and a tap only touches the DPI stage byte. Each change is saved
+  in the mouse's memory: a switch with 3 flashes is 7 writes. `flashes: 0` switches without flashing.
+- None of this has run on a real X11 yet. `scripts/hold-switch.ts setup` visits every profile afterwards to check the
+  button really reports its presses there, and `run` prints every button event, so the first try shows whether it
+  works.
 
 ## Messages
 
