@@ -289,29 +289,20 @@ export class DpiBuilder implements BaseProtocolBuilder {
 
 	public setDpiValue(stage: StageIndex, dpi: number): this {
 		this.dpiValues[stage - 1] = dpi;
-		const { xByte, yByte, isDouble, isTriple } = convertDpiToBytes(dpi);
+		// 0 is an empty stage: 00 00 and no flag, like the vendor software sends for unused stages
+		const { xByte, yByte, isDouble } =
+			dpi === 0 ? { xByte: 0x00, yByte: 0x00, isDouble: false } : convertDpiToBytes(dpi);
 		const stageIdx = stage - 1;
 
 		this.view.setUint8(8 + stageIdx, xByte);
 		this.view.setUint8(16 + stageIdx, yByte);
 
-		let doubleFlags = this.view.getUint8(6);
-		let tripleFlags = this.view.getUint8(7);
-
-		if (isDouble) {
-			doubleFlags |= 1 << stageIdx;
-		} else {
-			doubleFlags &= ~(1 << stageIdx);
+		// byte 7 (stage mask B) is a copy of byte 6 (stage mask A), see docs/protocols/dpi-protocol.md.
+		// The vendor software and the mouse itself always set both.
+		for (const offset of [6, 7]) {
+			const flags = this.view.getUint8(offset);
+			this.view.setUint8(offset, isDouble ? flags | (1 << stageIdx) : flags & ~(1 << stageIdx));
 		}
-
-		if (isTriple) {
-			tripleFlags |= 1 << stageIdx;
-		} else {
-			tripleFlags &= ~(1 << stageIdx);
-		}
-
-		this.view.setUint8(6, doubleFlags);
-		this.view.setUint8(7, tripleFlags);
 
 		return this;
 	}
