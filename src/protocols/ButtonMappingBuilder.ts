@@ -209,11 +209,12 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 	updateChecksum(): this {
 		let checksum = 0x00;
 
-		repeat(56, (i) => {
+		// a 16-bit big-endian sum of the 54 slot bytes (3-56), the same way the read side checks it
+		repeat(54, (i) => {
 			checksum += this._view.getUint8(3 + i);
 		});
 
-		this._view.setInt8(58, checksum & 0xff);
+		this._view.setUint16(57, checksum & 0xffff);
 
 		return this;
 	}
