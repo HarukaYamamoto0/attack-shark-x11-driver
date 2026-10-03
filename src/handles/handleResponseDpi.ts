@@ -7,7 +7,7 @@ export function handleResponseDpi(buffer: Uint8Array): DpiBuilder {
 	if (buffer.length !== ReportReadLength.DPI)
 		throw new Error(`Invalid dpi buffer size; expected ${ReportReadLength.DPI} but received ${buffer.length}`);
 
-	const view = new DataView(buffer.buffer);
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 	const checksumByte = view.getUint16(50);
 
 	let checksum = 0x00;

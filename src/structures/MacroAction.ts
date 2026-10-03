@@ -67,6 +67,8 @@ class MacroAction {
 
 	setButton(button: KeyboardUsage | MacroActionMouseCode): this {
 		this._button = button;
+		// the key byte is the same in both formats, so update it here too, not only in setDelay()
+		this._view.setUint8(1, this.buttonToUint8());
 		return this;
 	}
 

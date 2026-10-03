@@ -23,11 +23,11 @@ Indicates the active profile.
 
 | Value | Description |
 |-------|-------------|
-| 0x00  | Stage 1     |
-| 0x01  | Stage 2     |
-| 0x02  | Stage 3     |
-| 0x03  | Stage 4     |
-| 0x04  | Stage 5     |
+| 0x00  | Profile 1   |
+| 0x01  | Profile 2   |
+| 0x02  | Profile 3   |
+| 0x03  | Profile 4   |
+| 0x04  | Profile 5   |
 
 As mentioned in the other profile-related documents, the maximum known safe number of profiles is 5. Using profile
 values beyond this range may result in undefined or otherwise unpredictable device behavior.

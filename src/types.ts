@@ -188,6 +188,8 @@ export enum MessageTypes {
 	VIBRATION_MODE_NOTIFICATION = 0x11,
 	/** DPI cycle switch event (0x10) */
 	DPI_CYCLE = 0x10,
+	/** A button set to FirmwareAction.REPORT_BUTTON was pressed or released (0x30) */
+	BUTTON_EVENT = 0x30,
 	PROFILE_CHANGED = 0x80,
 }
 

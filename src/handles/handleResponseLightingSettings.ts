@@ -17,7 +17,7 @@ export function handleResponseLightingSettings(buffer: Uint8Array): LightingSett
 			`Invalid lighting settings buffer size; expected ${ReportReadLength.LIGHTING_SETTINGS} but received ${buffer.length}`,
 		);
 
-	const view = new DataView(buffer.buffer);
+	const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 	// const reportId = view.getUint8(0); // not used
 	// const packetLength = view.getUint8(1); // not used
 	const profileId = view.getUint8(2);
@@ -33,7 +33,8 @@ export function handleResponseLightingSettings(buffer: Uint8Array): LightingSett
 
 	const checksumByte = view.getUint16(11);
 
-	const lightMode = lightModeByte as LightMode;
+	// the mode is in the high nibble, and setLightMode() shifts it up again
+	const lightMode = (lightModeByte >> 4) as LightMode;
 
 	const iSleepH = (deepSleepHTimeAndLedSpeedByte & 0xf0) >> 4;
 	const ledSpeed = (deepSleepHTimeAndLedSpeedByte & 0x0f) as LedSpeed;
