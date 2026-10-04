@@ -311,20 +311,18 @@ export enum FirmwareAction {
 	MIDDLE_CLICK = 0x04,
 	BACKWARD = 0x05,
 	FORWARD = 0x06,
-	DOUBLE_CLICK = 0x07,
+	/** When held down, it continuously sends the Left Click event */
 	FIRE = 0x08,
+	DOUBLE_CLICK = 0x07,
 	SCROLL_UP = 0x09,
-	EASY_AIM = 0x10,
 	SCROLL_DOWN = 0x0a,
-	GLOBAL_DPI_CYCLE = 0x0d,
-	GLOBAL_DPI_PLUS = 0x0e,
-	GLOBAL_DPI_MINUS = 0x0f,
-
-	// Keyboard
+	// TILT_LEFT = 0x0b,
+	// TILT_RIGHT = 0x0c,
+	DPI_CYCLE = 0x0d,
+	DPI_PLUS = 0x0e,
+	DPI_MINUS = 0x0f,
 	KEYBOARD = 0x11,
 	CUSTOM_MACRO = 0x12,
-
-	// Multimedia
 	MEDIA_PLAYER = 0x15,
 	PREVIOUS_TRACK = 0x16,
 	NEXT_TRACK = 0x17,
@@ -333,7 +331,6 @@ export enum FirmwareAction {
 	MUTE = 0x1a,
 	VOL_PLUS = 0x1b,
 	VOL_MINUS = 0x1c,
-
 	CALCULATOR = 0x1d,
 	EMAIL = 0x1e,
 	BROWSER_FORWARD = 0x20,
@@ -343,12 +340,19 @@ export enum FirmwareAction {
 	BROWSER_REFRESH = 0x24,
 	BROWSER_HOME = 0x25,
 	BROWSER_SEARCH = 0x26,
-	MODE_KEY = 0x3c,
 	POLLING_RATE_CYCLE = 0x40,
-
 	PROFILE_CYCLE = 0x34,
 	PROFILE_UP = 0x35,
 	PROFILE_DOWN = 0x36,
+	// SHOW_POWER = 0x2b,
+
+	/** cycles through the available lighting effects */
+	LIGHTING_MODE_CYCLE = 0x29,
+	/**  When you hold down the button, it significantly lowers the DPI, providing greater precision in shooting games */
+	EASY_AIM = 0x10,
+	OPEN_START_MENU = 0x14,
+	/** allows you to change the device's connection mode (BT2, BT1, 2.4G) */
+	MODE_KEY = 0x3c,
 }
 
 export type MacroTuple = readonly [FirmwareAction, Modifiers, KeyCode | number];
@@ -579,9 +583,9 @@ export const macroTemplates: MacroTemplate = {
 	[MacroName.GLOBAL_SCROLL_UP]: [FirmwareAction.SCROLL_UP, Modifiers.None, KeyCode.None],
 	[MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.None, KeyCode.ONLY_USED_BY_EASY_AIM],
 	[MacroName.GLOBAL_SCROLL_DOWN]: [FirmwareAction.SCROLL_DOWN, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.GLOBAL_DPI_CYCLE, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.GLOBAL_DPI_PLUS, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_MINUS]: [FirmwareAction.GLOBAL_DPI_MINUS, Modifiers.None, KeyCode.None],
+	[MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.DPI_CYCLE, Modifiers.None, KeyCode.None],
+	[MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.DPI_PLUS, Modifiers.None, KeyCode.None],
+	[MacroName.GLOBAL_DPI_MINUS]: [FirmwareAction.DPI_MINUS, Modifiers.None, KeyCode.None],
 
 	// Multimedia
 	[MacroName.MULTIMEDIA_MEDIA_PLAYER]: [FirmwareAction.MEDIA_PLAYER, Modifiers.None, KeyCode.None],

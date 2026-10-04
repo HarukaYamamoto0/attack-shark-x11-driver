@@ -72,7 +72,7 @@ export const defaultSlots: [
 	new SlotButton(FirmwareAction.MIDDLE_CLICK, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	new SlotButton(FirmwareAction.GLOBAL_DPI_CYCLE, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DPI_CYCLE, 0x00, 0x00),
 	new SlotButton(FirmwareAction.FORWARD, 0x00, 0x00),
 	new SlotButton(FirmwareAction.BACKWARD, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
