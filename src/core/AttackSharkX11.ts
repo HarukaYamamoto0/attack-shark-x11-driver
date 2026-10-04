@@ -5,26 +5,34 @@ import {
 	CommandInProgressError,
 	ControlTransferError,
 	DriverError,
+	ParamsError,
 	SendCommandError,
 	TimeoutError,
 } from '../errors.js';
 import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
 import { type ChangeProfileBuilderOptions, ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
-import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
+import {
+	type ButtonMapping,
+	ButtonMappingBuilder,
+	type ButtonMappingBuilderOptions,
+} from '../protocols/ButtonMappingBuilder';
 import { PollingRateBuilder, type PollingRateBuilderOptions, type Rate } from '../protocols/PollingRateBuilder.js';
 import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
-import type { Profile } from '../types.js';
 import {
 	BatteryStatus,
 	ConnectionMode,
 	type Logger,
+	MAX_PROFILES,
 	MessageTypes,
 	MessageTypesLength,
 	type PendingCommand,
+	Profile,
 	type ProfileId,
 	ReportId,
 	ReportReadLength,
 } from '../types.js';
+import { FirmwareAction } from './keyboard-keypad-page';
+import { SlotButton } from '../structures/SlotButton';
 import { delay } from '../utils/delay.js';
 import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
 import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
@@ -40,6 +48,77 @@ import { HidTransport } from './transport/HidTransport';
 import { hex } from '../logger/hex';
 import { handleProfileSettings } from '../handles/handleProfileSettings';
 import { handleProfileChanged } from '../handles/messages/handleProfileChanged';
+import { handleButtonEvent } from '../handles/messages/handleButtonEvent';
+import { HoldSwitch, type HoldSwitchOptions } from './HoldSwitch';
+
+/**
+ * The only reports the driver is allowed to write. Any write to report 0x10, whatever the payload, restarts the
+ * X11 into its bootloader and leaves it stuck there, so anything that isn't a known report is refused.
+ */
+const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
+	ReportId.DPI,
+	ReportId.LIGHTING_SETTINGS,
+	ReportId.POLLING_RATE,
+	ReportId.WAKE_UP_MODE,
+	ReportId.BUTTON_MAPPING,
+	ReportId.MACRO,
+	ReportId.PROFILE,
+	ReportId.DEVICE_VERSION,
+	ReportId.PROFILE_SETTING,
+	ReportId.READ_REPORT_ID,
+]);
+
+/** How long close() waits for a switch or a light flash in progress to finish. */
+const CLOSE_WAIT_MS = 3000;
+
+/** What one profile gets in {@link AttackSharkX11.setupProfiles}. Anything left out uses the driver's defaults. */
+export interface ProfileSetup {
+	/** Options, or a DpiBuilder you got from a read (its profile id is set for you). */
+	dpi?: Omit<DpiBuilderOptions, 'profileId'> | DpiBuilder;
+	/** Options, or a LightingSettingsBuilder you got from a read (its profile id is set for you). */
+	lighting?: Omit<LightingSettingsBuilderOptions, 'profileId'> | LightingSettingsBuilder;
+	pollingRate?: Rate;
+	buttons?: Omit<ButtonMappingBuilderOptions, 'profileId'>;
+}
+
+/** Options for {@link AttackSharkX11.setupProfiles}. */
+export interface SetupProfilesOptions {
+	/** One entry per profile, 1 to 5 of them. Profile 1 is the first entry. */
+	profiles: ProfileSetup[];
+	/**
+	 * A button that switches profiles by itself, no driver needed. It's put on the same button in every profile,
+	 * otherwise you could end up on a profile you can't leave with the mouse alone. Overrides `buttons` for that slot.
+	 */
+	switchButton?: ButtonMapping;
+	/**
+	 * A button that tells the PC when it's pressed and released (FirmwareAction.REPORT_BUTTON), in every profile.
+	 * {@link AttackSharkX11.startHoldSwitch} uses it. The button loses its normal job, so if it's the DPI button, the
+	 * DPI only changes while the driver runs. Call setupProfiles again without it to undo that.
+	 */
+	holdButton?: ButtonMapping;
+	/**
+	 * What the switch button does, PROFILE_CYCLE by default. PROFILE_UP and PROFILE_DOWN stop at the ends, and
+	 * PROFILE_DOWN can't reach profile 1 (a firmware bug).
+	 */
+	switchAction?: FirmwareAction.PROFILE_CYCLE | FirmwareAction.PROFILE_UP | FirmwareAction.PROFILE_DOWN;
+	/** The profile that's active afterwards, profile 1 by default. */
+	activeProfile?: Profile;
+	timeoutMs?: number;
+}
+
+/** Which profile is active and how many are enabled, both counted from 1. */
+export interface ProfileState {
+	current: Profile;
+	count: number;
+}
+
+/** Everything stored in one profile, from {@link AttackSharkX11.readProfile}. */
+export interface ProfileContents {
+	dpi: DpiBuilder;
+	lighting: LightingSettingsBuilder;
+	pollingRate: Rate;
+	buttons: ButtonMappingBuilder;
+}
 
 /**
  * The only reports the driver is allowed to write. Any write to report 0x10, whatever the payload, restarts the
@@ -65,6 +144,11 @@ export interface AttackSharkX11Events {
 	/** Represents the confirmation details of a specific command execution. */
 	commandConfirmation: [reportId: ReportId, success: boolean];
 	profileChanged: [response: Profile];
+	/**
+	 * A button set to FirmwareAction.REPORT_BUTTON went down (`pressed` is true) or up. `id` is the firmware's number
+	 * for the button, see docs/messages/button-event.md.
+	 */
+	buttonEvent: [id: number, pressed: boolean];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
 }
@@ -84,6 +168,8 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	// internal control of pending command reactive confirmation (ACK)
 	private pendingCommand: PendingCommand | null = null;
 	private hasReadPermission: boolean = false;
+	private readonly holdSwitches = new Set<HoldSwitch>();
+	private readQueue: Promise<unknown> = Promise.resolve();
 
 	/**
 	 * Initializes a new instance of the class.
@@ -214,6 +300,16 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 						}
 						break;
 					}
+					case MessageTypes.BUTTON_EVENT: {
+						try {
+							const { id, pressed } = handleButtonEvent(params1, params2);
+
+							this.emit('buttonEvent', id, pressed);
+						} catch (err) {
+							this.logger?.error(`Error handling button event: ${err}`, 'AttackSharkX11-handleData');
+						}
+						break;
+					}
 					case MessageTypes.PROFILE_CHANGED: {
 						const TAG = 'AttackSharkX11-handleData-messages';
 
@@ -263,6 +359,12 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 */
 	async close(): Promise<void> {
 		if (!this.transport) return;
+
+		const holdSwitches = [...this.holdSwitches];
+		for (const holdSwitch of holdSwitches) holdSwitch.stop();
+		this.holdSwitches.clear();
+		// let a switch or flash in progress finish, so the light isn't left off
+		await Promise.race([Promise.all(holdSwitches.map((holdSwitch) => holdSwitch.idle())), delay(CLOSE_WAIT_MS)]);
 
 		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
 		this.removeAllListeners();
@@ -415,10 +517,23 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * @throws {DriverError} If the device is not opened before calling this method.
 	 * @throws {ControlTransferError} If the control transfer operation for retrieving the feature report fails.
 	 */
-	async getFeatureReport(
+	getFeatureReport(
 		reportId: ReportId,
 		reportLengthRead: ReportReadLength,
 		parameter: number = 0x01,
+	): Promise<Uint8Array> {
+		// One read at a time. Each read needs a permission request right before it, so two overlapping reads use up
+		// each other's permission and one of them gets garbage.
+		const read = this.readQueue.then(() => this.readFeatureReport(reportId, reportLengthRead, parameter));
+		this.readQueue = read.catch(() => undefined);
+
+		return read;
+	}
+
+	private async readFeatureReport(
+		reportId: ReportId,
+		reportLengthRead: ReportReadLength,
+		parameter: number,
 	): Promise<Uint8Array> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 
@@ -519,9 +634,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return this.sendCommand(ReportId.DPI, builder.build(this.connectionMode), timeoutMs);
 	}
 
-	async getDpi(): Promise<DpiBuilder> {
+	/** Reads the DPI settings of a profile (profile 1 unless you pass another one). */
+	async getDpi(profileId: ProfileId = 0x01): Promise<DpiBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
-		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI);
+		const response = await this.getFeatureReport(ReportId.DPI, ReportReadLength.DPI, profileId);
 
 		return handleResponseDpi(response);
 	}
@@ -551,17 +667,23 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleMacroResponse(response);
 	}
 
-	async getPollingRate(): Promise<Rate> {
+	/** Reads the polling rate of a profile (profile 1 unless you pass another one). */
+	async getPollingRate(profileId: ProfileId = 0x01): Promise<Rate> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 
-		const response = await this.getFeatureReport(ReportId.POLLING_RATE, ReportReadLength.POLLING_RATE);
+		const response = await this.getFeatureReport(ReportId.POLLING_RATE, ReportReadLength.POLLING_RATE, profileId);
 
 		return handleResponsePollingRate(response);
 	}
 
-	async getLightingSettings(): Promise<LightingSettingsBuilder> {
+	/** Reads the lighting settings of a profile (profile 1 unless you pass another one). */
+	async getLightingSettings(profileId: ProfileId = 0x01): Promise<LightingSettingsBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
-		const response = await this.getFeatureReport(ReportId.LIGHTING_SETTINGS, ReportReadLength.LIGHTING_SETTINGS);
+		const response = await this.getFeatureReport(
+			ReportId.LIGHTING_SETTINGS,
+			ReportReadLength.LIGHTING_SETTINGS,
+			profileId,
+		);
 
 		return handleResponseLightingSettings(response);
 	}
@@ -603,6 +725,160 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		check('lighting settings', await this.setLightingSettings({ profileId: config.profileId }, config.timeoutMs));
 		check('polling rate', await this.setPollingRate({ profileId: config.profileId }, config.timeoutMs));
 		check('button mapping', await this.setButtonMapping({ profileId: config.profileId }, config.timeoutMs));
+	}
+
+	/** Reads which profile is active and how many profiles are enabled. */
+	async getProfileState(): Promise<ProfileState> {
+		const settings = await this.getProfileSettings();
+
+		return { current: settings.getCurrentProfile(), count: settings.getMaxProfileCount() };
+	}
+
+	/**
+	 * Makes `profile` the active one, keeping the number of enabled profiles.
+	 *
+	 * The mouse doesn't send its profile changed event (0x80) for this, only when a button switches.
+	 */
+	async switchProfile(profile: Profile, timeoutMs?: number): Promise<CommandConfirmation> {
+		const { count } = await this.getProfileState();
+		if (!Number.isInteger(profile) || profile < 1 || profile > count)
+			throw new ParamsError('profile', `profile ${profile} isn't enabled, only 1 to ${count} are`);
+
+		return this.setProfileSettings({ currentProfileId: profile, maxProfileCount: count }, timeoutMs);
+	}
+
+	/** Switches to the next enabled profile, from the last one back to profile 1. Returns the new profile. */
+	nextProfile(timeoutMs?: number): Promise<Profile> {
+		return this.stepProfile(1, timeoutMs);
+	}
+
+	/**
+	 * Switches to the previous enabled profile, from profile 1 to the last one. Returns the new profile.
+	 *
+	 * The driver does this itself because the mouse's own PROFILE_DOWN can't get from profile 2 to profile 1 (a
+	 * firmware bug) and doesn't wrap around.
+	 */
+	previousProfile(timeoutMs?: number): Promise<Profile> {
+		return this.stepProfile(-1, timeoutMs);
+	}
+
+	private async stepProfile(step: 1 | -1, timeoutMs?: number): Promise<Profile> {
+		const { current, count } = await this.getProfileState();
+		const target = ((((current - 1 + step) % count) + count) % count) + 1;
+
+		const confirmation = await this.setProfileSettings(
+			{ currentProfileId: target, maxProfileCount: count },
+			timeoutMs,
+		);
+		if (confirmation !== CommandConfirmation.Success)
+			throw new SendCommandError(`the mouse rejected the switch to profile ${target}`);
+
+		return target as Profile;
+	}
+
+	/**
+	 * Sets how many profiles are enabled, 1 to 5 (5 is the firmware's limit). If the active profile is past the new
+	 * count, the last enabled profile becomes the active one.
+	 */
+	async setProfileCount(count: number, timeoutMs?: number): Promise<CommandConfirmation> {
+		if (!Number.isInteger(count) || count < 1 || count > MAX_PROFILES)
+			throw new ParamsError('count', `expected 1 to ${MAX_PROFILES} profiles, got ${count}`);
+
+		const { current } = await this.getProfileState();
+
+		return this.setProfileSettings(
+			{ currentProfileId: Math.min(current, count), maxProfileCount: count },
+			timeoutMs,
+		);
+	}
+
+	/**
+	 * Reads everything stored in one profile, active or not.
+	 *
+	 * The button table may not come back in the order it was written (see docs/protocols/button-mapping.md), so don't
+	 * write it straight back.
+	 */
+	async readProfile(profile: Profile): Promise<ProfileContents> {
+		return {
+			dpi: await this.getDpi(profile),
+			lighting: await this.getLightingSettings(profile),
+			pollingRate: await this.getPollingRate(profile),
+			buttons: await this.getButtonMapping(profile),
+		};
+	}
+
+	/**
+	 * Sets up the mouse's profiles in one go: writes every setting of every profile, puts the profile switch on the
+	 * same button in each, then turns that many profiles on and picks the active one.
+	 *
+	 * Nothing is read first and every profile is written in full. A profile that was never written uses the
+	 * firmware's defaults, which have no switch button, so you'd be stuck on it.
+	 */
+	async setupProfiles(options: SetupProfilesOptions): Promise<void> {
+		const { profiles, switchButton, holdButton, timeoutMs } = options;
+		const switchAction = options.switchAction ?? FirmwareAction.PROFILE_CYCLE;
+		const activeProfile = options.activeProfile ?? Profile.Profile1;
+
+		if (switchButton !== undefined && switchButton === holdButton)
+			throw new ParamsError('holdButton', "switchButton and holdButton can't be the same button");
+		if (profiles.length < 1 || profiles.length > MAX_PROFILES)
+			throw new ParamsError('profiles', `expected 1 to ${MAX_PROFILES} profiles, got ${profiles.length}`);
+		if (!Number.isInteger(activeProfile) || activeProfile < 1 || activeProfile > profiles.length)
+			throw new ParamsError(
+				'activeProfile',
+				`profile ${activeProfile} isn't one of the ${profiles.length} set up`,
+			);
+
+		const check = (what: string, profile: number, confirmation: CommandConfirmation): void => {
+			if (confirmation !== CommandConfirmation.Success)
+				throw new SendCommandError(`the mouse rejected the ${what} of profile ${profile}`);
+		};
+
+		for (const [index, setup] of profiles.entries()) {
+			const profileId = index + 1;
+			const rate = setup.pollingRate === undefined ? {} : { rate: setup.pollingRate };
+			const dpi =
+				setup.dpi instanceof DpiBuilder ? setup.dpi.setProfileId(profileId) : { ...setup.dpi, profileId };
+			const lighting =
+				setup.lighting instanceof LightingSettingsBuilder
+					? setup.lighting.setProfileId(profileId)
+					: { ...setup.lighting, profileId };
+			const buttons = new ButtonMappingBuilder({ ...setup.buttons, profileId });
+			if (switchButton !== undefined) buttons.setButton(switchButton, new SlotButton(switchAction, 0x00, 0x00));
+			if (holdButton !== undefined)
+				buttons.setButton(holdButton, new SlotButton(FirmwareAction.REPORT_BUTTON, 0x00, 0x00));
+
+			check('DPI settings', profileId, await this.setDpi(dpi, timeoutMs));
+			check('lighting', profileId, await this.setLightingSettings(lighting, timeoutMs));
+			check('polling rate', profileId, await this.setPollingRate({ ...rate, profileId }, timeoutMs));
+			check('button mapping', profileId, await this.setButtonMapping(buttons, timeoutMs));
+		}
+
+		const confirmation = await this.setProfileSettings(
+			{ currentProfileId: activeProfile, maxProfileCount: profiles.length },
+			timeoutMs,
+		);
+		if (confirmation !== CommandConfirmation.Success)
+			throw new SendCommandError('the mouse rejected the profile count and active profile');
+	}
+
+	/**
+	 * Hold the `holdButton` (from {@link AttackSharkX11.setupProfiles}) to go to the next profile, and the light flashes
+	 * to show it. A tap changes the DPI stage, since the button can't do that by itself any more. Returns a function
+	 * that stops it.
+	 *
+	 * It runs in the driver, so it only works while your program runs and the device is open. More in
+	 * {@link HoldSwitchOptions}.
+	 */
+	startHoldSwitch(options?: HoldSwitchOptions): () => void {
+		const holdSwitch = new HoldSwitch(this, options);
+		this.holdSwitches.add(holdSwitch);
+		const stopListening = holdSwitch.start();
+
+		return () => {
+			stopListening();
+			this.holdSwitches.delete(holdSwitch);
+		};
 	}
 }
 

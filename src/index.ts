@@ -1,5 +1,6 @@
 export * from './core/AttackSharkX11';
 export * from './core/BaseProtocolBuilder';
+export * from './core/HoldSwitch';
 export * from './protocols/DpiBuilder';
 export * from './protocols/ButtonMappingBuilder';
 export * from './protocols/PollingRateBuilder';
@@ -16,6 +17,7 @@ export * from './core/transport/HidTransport';
 export * from './handles/messages/handleCommandConfirmation';
 export * from './handles/messages/handleBatteryMessage';
 export * from './handles/messages/handleProfileChanged';
+export * from './handles/messages/handleButtonEvent';
 export * from './handles/handleResponseDpi';
 export * from './handles/handleResponseButtonMapping';
 export * from './handles/handleResponseLightingSettings';

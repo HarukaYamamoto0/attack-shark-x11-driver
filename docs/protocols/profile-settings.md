@@ -69,6 +69,86 @@ Another thing I noticed is that, for example, if you are on profile `0x05` and t
 the `FirmwareAction.PROFILE_DOWN` macro, for some reason it isn't possible; you can only go down as far as profile
 `0x02`; that’s quite strange.
 
+That's a firmware bug. The firmware counts profiles from 0, and its "profile down" check stops at 1 (profile 2)
+instead of 0 (profile 1). `previousProfile()` below switches from the driver instead, so it does get to profile 1.
+
+## Using profiles from the driver
+
+```typescript
+import { AttackSharkX11, ButtonMapping, Profile, Rate } from 'attack-shark-x11-driver';
+
+const driver = new AttackSharkX11();
+await driver.open();
+
+// three profiles, the profile switch on slot 8 in all of them, profile 1 active afterwards
+await driver.setupProfiles({
+	switchButton: ButtonMapping.Slot8,
+	profiles: [
+		{ pollingRate: Rate.ESports },
+		{ lighting: { rgb: { r: 255, g: 0, b: 0 } } },
+		{ dpi: { dpiValues: [400, 800, 1600, 3200, 0, 0, 0, 0] } },
+	],
+});
+
+await driver.switchProfile(Profile.Profile2);
+await driver.nextProfile(); // 3
+await driver.previousProfile(); // 2, and from 1 it wraps to the last one
+
+const { current, count } = await driver.getProfileState();
+const third = await driver.readProfile(Profile.Profile3); // dpi, lighting, pollingRate and buttons of profile 3
+```
+
+- `setupProfiles()` writes every report of every profile in full and puts the switch button in each one before it
+  enables them. A profile that was never written loads the firmware's built-in defaults, which have no profile switch
+  button, so you'd be stuck on it.
+- 5 profiles is a hard limit in the firmware: it clamps the max profile to 5 and goes back to profile 1 if the
+  current one is past that.
+- `holdButton` is for [hold to switch](#hold-a-button-to-switch-profile) below.
+- `switchProfile()`, `nextProfile()` and `previousProfile()` switch through report `0x0C`, so the mouse doesn't send
+  its profile changed event for them.
+- `getDpi()`, `getLightingSettings()`, `getPollingRate()` and `getButtonMapping()` take a profile (the read
+  parameter, see [report-id-reading.md](report-id-reading.md)). Without one they read profile 1.
+- The button table read back from a profile may not be in the order it was written (see
+  [button-mapping.md](button-mapping.md)), so `setupProfiles()` never reads before it writes.
+
+## Hold a button to switch profile
+
+The firmware has no "hold this button" action: every button action is a single press. What it does have is
+`FirmwareAction.REPORT_BUTTON` (`0x13`), which makes the mouse send the PC an event when the button goes down and when
+it comes back up ([button-event.md](../messages/button-event.md)). `startHoldSwitch()` uses that to time the hold in the
+driver:
+
+```typescript
+import { AttackSharkX11, ButtonMapping } from 'attack-shark-x11-driver';
+
+const driver = new AttackSharkX11();
+await driver.open();
+
+// three profiles, the DPI button (slot 6) reports its presses in every one of them
+await driver.setupProfiles({ holdButton: ButtonMapping.Slot6, profiles: [{}, {}, {}] });
+
+// hold it for half a second: next profile, then the light flashes 3 times
+// tap it: next DPI stage (the button can't do that by itself any more)
+const stop = driver.startHoldSwitch();
+```
+
+Before you use it:
+
+- It runs in the driver, so it only works while your program is running and the device is open. Without it the DPI
+  button does nothing. `setupProfiles()` again without `holdButton` gives the button its DPI cycle back.
+- `setupProfiles()` rewrites every report of the profiles, including the buttons, so anything you had set in those
+  profiles is replaced. Pass the DPI and lighting you read (`await driver.getDpi(1)`, `await driver.getLightingSettings(1)`)
+  to keep those.
+- Every read from the mouse takes about 250 ms, so a tap changes the DPI about half a second later and the flash
+  starts about a quarter of a second after the switch. The profile is read while you're still holding, so the switch
+  itself happens right when the hold time (500 ms, `holdMs`) is up.
+- The flash turns the light off and back on (or on and back off, if that profile's light is off). It only touches the
+  light mode byte and puts back exactly what it read, and a tap only touches the DPI stage byte. Each change is saved
+  in the mouse's memory: a switch with 3 flashes is 7 writes. `flashes: 0` switches without flashing.
+- None of this has run on a real X11 yet. `scripts/hold-switch.ts setup` visits every profile afterwards to check the
+  button really reports its presses there, and `run` prints every button event, so the first try shows whether it
+  works.
+
 ## Messages
 
 [See more in profile-changed.md](../messages/profile-changed.md)
