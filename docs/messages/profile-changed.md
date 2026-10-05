@@ -23,11 +23,11 @@ Indicates the active profile.
 
 | Value | Description |
 |-------|-------------|
-| 0x00  | Stage 1     |
-| 0x01  | Stage 2     |
-| 0x02  | Stage 3     |
-| 0x03  | Stage 4     |
-| 0x04  | Stage 5     |
+| 0x00  | Profile 1   |
+| 0x01  | Profile 2   |
+| 0x02  | Profile 3   |
+| 0x03  | Profile 4   |
+| 0x04  | Profile 5   |
 
 As mentioned in the other profile-related documents, the maximum known safe number of profiles is 5. Using profile
 values beyond this range may result in undefined or otherwise unpredictable device behavior.
@@ -40,10 +40,9 @@ Fixed value `0x00`. No dump was found that could provide any meaningful interpre
 
 ```text
 03 55 80 02 00
-
-03    Event Message opcode
-55    Device ID (Attack Shark X11)
-80    Profile Changed Message
-02    Profile = 3
-00    Fixed
+│  │  │  │  └── Fixed
+│  │  │  └───── Profile = 3
+│  │  └──────── Event Code: 0x80
+│  └─────────── Device ID
+└────────────── Report ID
 ```

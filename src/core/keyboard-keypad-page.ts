@@ -353,6 +353,8 @@ export enum FirmwareAction {
 	OPEN_START_MENU = 0x14,
 	/** allows you to change the device's connection mode (BT2, BT1, 2.4G) */
 	MODE_KEY = 0x3c,
+
+	// TODO: add listeners for some macros
 }
 
 export type MacroTuple = readonly [FirmwareAction, Modifiers, KeyCode | number];
