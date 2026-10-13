@@ -353,6 +353,7 @@ export enum FirmwareAction {
 	OPEN_START_MENU = 0x14,
 	/** allows you to change the device's connection mode (BT2, BT1, 2.4G) */
 	MODE_KEY = 0x3c,
+	LAUNCH_PROGRAM = 0x13,
 
 	// TODO: add listeners for some macros
 }

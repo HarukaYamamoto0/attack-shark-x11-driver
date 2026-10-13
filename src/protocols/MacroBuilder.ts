@@ -32,6 +32,9 @@ export enum MacroType {
 
 	/** Executes while the button remains pressed */
 	WHILE_PRESSED = 0x02,
+
+	// TODO: Seen only on the INPHIC IN9 Ultra; not tested
+	// STOP_ON_CURRENT_KEY = 0x03
 }
 
 export class MacroBuilder implements BaseProtocolBuilder {
