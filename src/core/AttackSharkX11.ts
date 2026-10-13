@@ -337,7 +337,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			throw new DriverError('You have to open the device first');
 		}
 
-		const PERMISSION_COMMAND = 0xa0;
+		const PERMISSION_COMMAND = ReportId.PERMISSION_COMMAND;
 		const RESPONSE_LENGTH = 8;
 		const PERMISSION_GRANTED_STATUS = 0x01;
 		const READ_PERMISSION_DELAY_MS = 250;
