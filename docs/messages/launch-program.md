@@ -2,14 +2,14 @@
 
 > To better understand this document, read the `README.md` located in the root of this directory first.
 
-Esse evento é enviado quando um botão que foi assinado com a o firmware action `0x13` (`LAUNCH_PROGRAM`) é pressionado
-ou liberado.
+This event is sent whenever a button assigned to the firmware action `0x13` (`LAUNCH_PROGRAM`) is pressed or released.
 
-A maior utilidade desse evento é para iniciar programas, porem o evento em si é bem limitado pois ele apenas indica qual
-botão foi pressionado, o jeito de implementar isso seria através de um mapeamento de botões para programas.
+The main purpose of this event is to launch programs. However, the event itself is quite limited, as it only indicates
+which button was pressed. One way to implement this functionality would be to maintain a mapping between buttons and
+programs.
 
-Assim no seu programa você fica ouvindo esse evento e quando ele for acionado voce verifica qual era o programa que o
-usuario tinha mapeado ai então voce abre o programa em questão.
+Your application would listen for this event, and whenever it is triggered, check which program the user has mapped to
+the corresponding button and then launch that program.
 
 ## Structure
 
@@ -23,28 +23,49 @@ Fixed value `0x30`.
 
 ### Param 1
 
-Qual o botão que está sendo pressionado.
+Indicates which button is being pressed. See the table below.
+
+| Slot    | Value     | Physical Button |
+|---------|-----------|-----------------|
+| Slot 1  | `0x01`    | Left            |
+| Slot 2  | `0x02`    | Right           |
+| Slot 3  | `0x03`    | Middle          |
+| Slot 4  | `unknown` |                 |
+| Slot 5  | `unknown` |                 |
+| Slot 6  | `0x08`    | DPI Cycle       |
+| Slot 7  | `0x05`    | Forward         |
+| Slot 8  | `0x06`    | Backward        |
+| Slot 9  | `unknown` |                 |
+| Slot 10 | `unknown` |                 |
+| Slot 11 | `unknown` |                 |
+| Slot 12 | `unknown` |                 |
+| Slot 13 | `unknown` |                 |
+| Slot 14 | `unknown` |                 |
+| Slot 15 | `unknown` |                 |
+| Slot 16 | `unknown` |                 |
+| Slot 17 | `0x12`    | Scroll Up       |
+| Slot 18 | `0x11`    | Scroll Down     |
 
 ### Param 2
 
-O estado do botão.
+Indicates the current state of the button.
 
 | Value  | Description |
 |--------|-------------|
 | `0x00` | Pressed     |
-| `0x01` | Release     |
+| `0x01` | Released    |
 
 ## Example
 
 ```text
 03 00 30 06 01
-│  │  │  │  └── Button State: Pressed
-│  │  │  └───── Button Index: Backward
-│  │  └──────── Event Code: 0x13
+│  │  │  │  └── Button State: Released
+│  │  │  └───── Button Index: DPI Cycle
+│  │  └──────── Event Code: 0x30
 │  └─────────── Fixed
 └────────────── Report ID
 ```
 
 ## Notes
 
-Ao contrario dos outros eventos, note que esse não indica qual é o Device ID.
+Unlike other events, this event does not include the Device ID.

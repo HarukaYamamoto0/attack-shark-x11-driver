@@ -1,5 +1,6 @@
 import type { FirmwareAction } from '../core/keyboard-keypad-page';
 import { keyboardKeypadPage, type KeyboardUsage, type Modifiers } from '../core/keyboard-keypad-page';
+import { hex } from '../logger/hex';
 
 export class SlotButton {
 	constructor(
@@ -31,8 +32,8 @@ export class SlotButton {
 	}
 
 	toString(): string {
-		return `firmwareAction: ${this.firmwareAction.toString(16)}, modifiers: ${this.modifiers.toString(16)}, usageId: ${
-			typeof this.usageId === 'number' ? this.usageId.toString(16) : this.usageId.keyCode.toString(16)
+		return `firmwareAction: ${hex(this.firmwareAction)}, modifiers: ${hex(this.modifiers)}, usageId: ${
+			typeof this.usageId === 'number' ? hex(this.usageId) : hex(this.usageId.keyCode)
 		}`;
 	}
 }
