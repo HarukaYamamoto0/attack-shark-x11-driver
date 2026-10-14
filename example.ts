@@ -1,19 +1,16 @@
-import { AttackSharkX11, Rate } from './src';
-import { CommandConfirmation } from './src/handles/messages/handleCommandConfirmation';
+import { AttackSharkX11, Rate, CommandConfirmation } from './src';
 
 const driver = new AttackSharkX11();
 
 try {
 	await driver.open();
 
-	const commandConfirmation = await driver.setPollingRate({ rate: Rate.Office });
-	if (commandConfirmation === CommandConfirmation.Success) console.log('Command confirmed.');
+	const status = await driver.setPollingRate({ rate: Rate.Office });
+	if (status !== CommandConfirmation.Success) throw new Error('The device rejected the command.');
 
-	const response = await driver.getPollingRate();
-	if (response) console.log('Current polling rate:', response);
+	console.log('Current polling rate:', await driver.getPollingRate());
 } catch (error) {
-	console.error('Error:', error);
+	console.error('Mouse communication failed:', error);
 } finally {
 	await driver.close();
-	console.log('\nDriver closed.');
 }

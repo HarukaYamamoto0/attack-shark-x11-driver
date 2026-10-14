@@ -8,5 +8,7 @@ export * from './types';
 export * from './utils/delay';
 export * from './logger/index';
 export * from './errors';
+export * from './handles';
+export * from './core/transport/';
 
 export const VID = 0x1d57;

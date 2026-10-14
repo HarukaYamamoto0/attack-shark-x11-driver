@@ -2,128 +2,99 @@
 
 [![npm version](https://img.shields.io/npm/v/attack-shark-x11-driver.svg)](https://www.npmjs.com/package/attack-shark-x11-driver)
 [![license](https://img.shields.io/npm/l/attack-shark-x11-driver.svg)](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/blob/main/LICENSE)
-[![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=flat\&logo=bun\&logoColor=white)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Bun-%23000000.svg?style=flat&logo=bun&logoColor=white)](https://bun.sh)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/HarukaYamamoto0/attack-shark-x11-driver)
 
-A TypeScript driver for the **Attack Shark X11 gaming mouse**, providing cross-platform support, primarily focused on
-Linux, for configuring DPI, button mappings, macros, lighting, and polling rates through USB HID.
+A TypeScript driver for the **Attack Shark X11** gaming mouse, providing access to its configuration over USB HID
+without relying on the official Windows-only software.
 
-The official software is Windows-only. This project provides a way to communicate with the device from any platform
-supported by Node.js, Bun, and the underlying HID implementation.
-
-## Project Status
-
-Reverse engineering is currently ongoing, albeit at a slower pace.
-
-Reverse engineering proprietary hardware and undocumented protocols requires a significant amount of time. Although I
-truly enjoy this work, it does not generate a direct financial return at the moment, and I need to balance my time
-between work, studies, and other responsibilities.
-
-Under different circumstances, I would gladly dedicate most of my time to reverse engineering. Unfortunately,
-maintaining that level of dedication is not sustainable right now.
-
-The existing implementation, documentation, data captures, and research will remain publicly available so that other
-developers can continue the work.
-
-Issues and pull requests are still welcome. I will review them whenever my time permits, but there is no guarantee
-regarding response times, release schedules, or development roadmaps.
+The project is primarily developed and tested on Linux, with Node.js and Bun support wherever the underlying HID
+implementation is compatible.
 
 ## Features
 
-* ✅ **DPI Configuration**: Configure DPI stages and select the active stage.
-* ✅ **Button Remapping**: Customize button behavior.
-* ✅ **Macros**: Create and configure macros.
-* ✅ **Lighting Control**: Configure lighting modes and animation speeds.
-* ✅ **Polling Rate**: Support for 125 Hz to 1000 Hz.
-* ✅ **Cross-platform**: Primarily tested on Linux.
-* ✅ **Battery Status**: Real-time battery monitoring.
-* ✅ **Command Confirmation**: Confirm whether commands were received and accepted by the device.
-* ✅ **Reading Settings**: Read the current configuration from the mouse.
-* ✅ **Profile Settings**: Allows you to configure real profile settings.
-* [ ] **WakeUp mode**: Configure wake-up mode.
+- **DPI and profiles:** Configure DPI stages, select the active stage, and manage device profiles.
+- **Buttons and macros:** Remap buttons and configure onboard macros.
+- **Lighting:** Configure lighting modes and animation speeds.
+- **Polling rate:** Select rates from 125 Hz to 1000 Hz.
+- **Device state:** Read settings and monitor battery status.
+- **Command confirmation:** Check whether the device acknowledged configuration commands.
 
-## Package Limitations
+**Not yet implemented:** Wake-up mode configuration.
 
-The package can be used directly in Node.js and Bun applications, but some environments such as Electron and Tauri may
-exhibit unexpected behavior depending on their HID implementation and process architecture.
+## Getting Started
 
-As discussed in issue [#9](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/issues/9), a lower-level
-implementation using Rust would likely provide better control and reliability.
+Install the package:
 
-For Tauri, use this package solely for generating, parsing, and manipulating protocol buffers, while sending the actual
-HID reports through a native crate such as [hidapi](https://docs.rs/hidapi/latest/hidapi/).
+```bash
+npm install attack-shark-x11-driver
+```
 
-## Quick Start
+Example: change the polling rate and read it back.
 
 ```typescript
-import { AttackSharkX11, Rate } from './src';
-import { CommandConfirmation } from './src/handles/messages/handleCommandConfirmation';
+import { AttackSharkX11, Rate, CommandConfirmation } from 'attack-shark-x11-driver';
 
 const driver = new AttackSharkX11();
 
 try {
 	await driver.open();
 
-	const commandConfirmation = await driver.setPollingRate({ rate: Rate.Office });
-	if (commandConfirmation === CommandConfirmation.Success) console.log('Command confirmed.');
+	const status = await driver.setPollingRate({ rate: Rate.Office });
+	if (status !== CommandConfirmation.Success) throw new Error('The device rejected the command.');
 
-	const response = await driver.getPollingRate();
-	if (response) console.log('Current polling rate:', response);
+	console.log('Current polling rate:', await driver.getPollingRate());
 } catch (error) {
-	console.error('Error:', error);
+	console.error('Mouse communication failed:', error);
 } finally {
 	await driver.close();
-	console.log('\nDriver closed.');
 }
-
 ```
 
-## Linux Setup
+### Linux permissions
 
-To access the device without root privileges on Linux, create an udev rule.
-
-### 1. Create the rule file
-
-```bash
-sudo nano /etc/udev/rules.d/99-attack-shark-x11.rules
-```
-
-### 2. Add the rules
+To access the mouse without running your application as root, create `/etc/udev/rules.d/99-attack-shark-x11.rules`
+containing:
 
 ```udev
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d57", ATTRS{idProduct}=="fa60", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1d57", ATTRS{idProduct}=="fa55", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 ```
 
-> Some distributions do not provide the `plugdev` group by default.
->
-> If the group does not exist, remove `GROUP="plugdev"` and rely on `TAG+="uaccess"`.
-
-### 3. Reload the rules
+Then reload the rules and reconnect the mouse:
 
 ```bash
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-### 4. Reconnect the device
+If your distribution does not have a `plugdev` group, remove `GROUP="plugdev"` and use `TAG+="uaccess"` with a
+compatible session manager. Some environments may require logging out and back in before permissions take effect.
 
-Disconnect and reconnect the mouse.
+## Compatibility
 
-Depending on the distribution and session manager, logging out and back in may also be required before the new
-permissions are applied.
-
-## Supported Hardware
-
-| Device           | Connection mode  | Status     |
+| Device           | Connection       | Status     |
 |------------------|------------------|------------|
 | Attack Shark X11 | Wired            | Supported  |
 | Attack Shark X11 | 2.4 GHz wireless | Supported  |
 | Attack Shark X11 | Bluetooth        | Not tested |
 
-The Attack Shark R1 may use a compatible protocol, but this has not been verified.
 
-### Supported Runtimes
+If you want to test with a different VID and PID, you can try passing a different transport when creating the main class:
+
+````typescript
+const driver = new AttackSharkX11({
+	transport: new HidTransport({
+		vendorId: 0x1d57,
+		productIds: {
+			wired: 0xfa55,
+			wireless: 0xfa60,
+		},
+	}),
+});
+````
+
+The Attack Shark R1 may use a related protocol, but compatibility has not been verified.
 
 | Runtime  | Status       |
 |----------|--------------|
@@ -132,82 +103,67 @@ The Attack Shark R1 may use a compatible protocol, but this has not been verifie
 | Electron | Experimental |
 | Tauri    | Experimental |
 
-## Important Warnings
+Electron and Tauri may require different HID handling depending on the process architecture and platform. In particular,
+Tauri applications should consider native HID communication through a Rust crate such as [
+`hidapi`](https://docs.rs/hidapi/latest/hidapi/), while reusing the protocol encoding and parsing logic where
+appropriate. See [issue #9](https://github.com/HarukaYamamoto0/attack-shark-x11-driver/issues/9).
 
-* **Device recovery:** If the mouse stops responding, switch it to Bluetooth mode for a few seconds and then switch it
-  back to wired or 2.4 GHz mode.
-* **Protocol safety:** Avoid sending unknown or malformed packets. Some configuration fields may be persisted directly
-  to the device.
-* **Command timing:** Sending multiple commands without sufficient delay may cause packets to be dropped.
-* **Platform support:** The project is designed to be cross-platform, but Linux has received the most testing.
-* **No firmware recovery:** This project does not currently provide firmware flashing or recovery capabilities.
+## Limitations and Safety
 
-## Protocol Documentation
+- **Unverified commands:** Avoid sending unknown or malformed packets. Some configuration changes may be stored
+  persistently on the device.
+- **Command timing:** Sending commands too quickly can result in dropped packets or timeouts.
+- **Temporary communication failures:** Switching briefly to Bluetooth mode and then back to wired or 2.4 GHz mode may
+  help restore normal operation. This is not a bootloader recovery procedure.
+- **Firmware recovery:** This library does not provide firmware flashing or bootloader recovery functionality.
+- **Platform coverage:** Linux receives the most testing; behavior on other platforms may differ.
 
-Protocol research and packet documentation are available in the [`docs/`](./docs) directory.
+## Protocol Research
 
-The reverse-engineering process involved tools and techniques such as:
+The [`docs/`](./docs) directory contains protocol notes, captured packet structures, and reverse-engineering findings.
+Research has involved USBPcap and Wireshark captures, HID feature report inspection, analysis of official desktop and
+web-based software, and firmware investigation.
 
-* Wireshark
-* USBPcap
-* HID feature report inspection
-* Static analysis of official software
-* Crawling web-based driver resources
-* Comparing configuration packets across different mouse models
-
-Some protocol fields remain undocumented or only partially understood.
+Some fields and device behaviors remain undocumented or only partially understood. Treat those findings as experimental
+rather than stable protocol guarantees.
 
 ## Contributing
 
-Contributions are welcome, particularly in areas where physical hardware access or additional protocol captures are
-required.
+Issues and pull requests are welcome, particularly for protocol analysis, unknown packet fields, testing on other mouse
+models, native HID implementations, and improvements to validation or documentation.
 
-Useful contributions include:
+For compatibility reports, include the mouse model, USB VID/PID, connection mode, official software version, relevant
+requests and responses, and whether the device returned to normal operation after testing.
 
-* Testing with other mouse models
-* USBPcap or Wireshark captures
-* Documentation of unknown packet fields
-* Protocol analysis
-* Bug fixes
-* Rust or native HID implementations
-* Firmware extraction and analysis
-* Hardware teardown documentation
-* Improvements to tests and packet validation
+Development and reverse-engineering work are currently limited by available time and funding. Existing research will
+remain public, but response times and future releases are not guaranteed.
 
-When reporting compatibility with another device, include as much information as possible:
+### Supporting the Project
 
-* Mouse model
-* USB VID and PID
-* Connection mode
-* Official driver version
-* Captured requests and responses
-* Whether the device recovered normally after testing
+Financial support can help make additional research and testing possible, but does not guarantee features or release
+dates. Contributions of captures, bug reports, documentation, and test results are equally useful.
 
-Pull requests and issues will be reviewed when time permits.
+- [GitHub Sponsors](https://github.com/sponsors/HarukaYamamoto0)
+- [Ko-fi](https://ko-fi.com/harukayamamoto0)
 
-## Supporting the Project
+## Acknowledgments
 
-This project exists because of many hours spent analyzing proprietary software, capturing USB HID traffic, documenting
-undocumented protocols, testing hardware behavior, and building an independent cross-platform implementation.
+Special thanks to [Zelozzzz](https://github.com/Zelozzzz) for the excellent work reverse-engineering the mouse firmware.
+Their investigation revealed several useful details about the device and helped me recover my own X11 after it became
+stuck in bootloader mode. That work made a real difference to this project's research.
 
-Active reverse-engineering work is paused because this level of research is challenging to sustain without financial
-support.
+If you're looking for a graphical mouse configuration tool, take a look at [
+**Dorsal**](https://github.com/Zelozzzz/dorsal), another project by Zelozzzz. It provides a Windows control application
+with configuration, diagnostics, and firmware-related features for supported gaming mice. Compatibility and firmware
+support vary by model. In particular, Dorsal lists the older X11 as wired-only and not yet tested on real hardware, so
+check its [device notes](https://github.com/Zelozzzz/dorsal/blob/main/docs/MICE.md) before using it.
 
-Financial contributions do not guarantee new features or releases, but they may make it possible for me to dedicate
-additional time to protocol research, documentation, testing, and broader device support in the future.
-
-### Sponsors
-
-* GitHub Sponsors: https://github.com/sponsors/HarukaYamamoto0
-* Ko-fi: https://ko-fi.com/harukayamamoto0
-
-Non-financial contributions are also valuable. Protocol captures, device testing, documentation, hardware information,
-issues, and pull requests can help keep the research useful to the community.
+Dorsal is an independent project and is not required to use this library.
 
 ## License
 
-MIT © [HarukaYamamoto0](https://github.com/HarukaYamamoto0)
+MIT © [HarukaYamamoto0](https://github.com/HarukaYamamoto0). See [LICENSE](./LICENSE).
 
 ---
 
-*Disclaimer: This project is not affiliated with or endorsed by Attack Shark. Use it at your own risk.*
+*This project is not affiliated with or endorsed by Attack Shark. Use it at your own risk.*

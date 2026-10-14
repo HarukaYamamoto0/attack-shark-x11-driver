@@ -2,6 +2,8 @@ import * as HID from 'node-hid';
 import type { Device } from 'node-hid';
 import type { ReportId } from '../../types';
 
+export * from './HidTransport';
+
 /**
  * Represents a transport mechanism for communicating with a mouse device.
  * Provides methods for managing the connection and sending/receiving data.
