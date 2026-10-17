@@ -1,3 +1,5 @@
+// noinspection JSUnusedGlobalSymbols
+
 enum UsageType {
 	LinearControl = 'LC',
 	OnOffControl = 'OOC',
@@ -318,47 +320,88 @@ export enum FirmwareAction {
 	SCROLL_DOWN = 0x0a,
 	// TILT_LEFT = 0x0b,
 	// TILT_RIGHT = 0x0c,
+
+	// DPI
 	DPI_CYCLE = 0x0d,
 	DPI_PLUS = 0x0e,
 	DPI_MINUS = 0x0f,
+
+	// Macros
 	KEYBOARD = 0x11,
 	CUSTOM_MACRO = 0x12,
-	MEDIA_PLAYER = 0x15,
-	PREVIOUS_TRACK = 0x16,
-	NEXT_TRACK = 0x17,
-	PLAY_PAUSE = 0x18,
-	STOP = 0x19,
-	MUTE = 0x1a,
-	VOL_PLUS = 0x1b,
-	VOL_MINUS = 0x1c,
-	CALCULATOR = 0x1d,
-	EMAIL = 0x1e,
-	BROWSER_FORWARD = 0x20,
-	BROWSER_BACKWARD = 0x21,
-	BROWSER_STOP = 0x22,
-	MY_COMPUTER = 0x23,
-	BROWSER_REFRESH = 0x24,
-	BROWSER_HOME = 0x25,
-	BROWSER_SEARCH = 0x26,
-	POLLING_RATE_CYCLE = 0x40,
+	LEFT_CLICK_MACRO = 0x32,
+	EXIT_LEFT_CLICK_MACRO = 0x33,
+
+	POLLING_RATE_CYCLE = 0x28,
 	PROFILE_CYCLE = 0x34,
 	PROFILE_UP = 0x35,
 	PROFILE_DOWN = 0x36,
 	// SHOW_POWER = 0x2b,
 
+	// Multimedia
+	MEDIA_PLAYER = 0x15,
+	PREVIOUS_TRACK = 0x16,
+	NEXT_TRACK = 0x17,
+	PLAY_PAUSE = 0x18,
+	STOP = 0x19,
+	MUTE_UNMUTE = 0x1a,
+	VOL_PLUS = 0x1b,
+	VOL_MINUS = 0x1c,
+
+	// Browser
+	BROWSER_HOME = 0x25,
+	BROWSER_REFRESH = 0x24,
+	BROWSER_SEARCH = 0x26,
+	BROWSER_FAVORITES = 0x1f,
+	BROWSER_FORWARD = 0x20,
+	BROWSER_BACKWARD = 0x21,
+	BROWSER_STOP = 0x22,
+	CALCULATOR = 0x1d,
+	EMAIL = 0x1e,
+	MY_COMPUTER = 0x23,
+
+	// Helpers
 	/** cycles through the available lighting effects */
 	LIGHTING_MODE_CYCLE = 0x29,
 	/**  When you hold down the button, it significantly lowers the DPI, providing greater precision in shooting games */
-	EASY_AIM = 0x10,
+	SNIPER_DPI = 0x10,
 	OPEN_START_MENU = 0x14,
 	/** allows you to change the device's connection mode (BT2, BT1, 2.4G) */
 	MODE_KEY = 0x3c,
 	LAUNCH_PROGRAM = 0x13,
+	LED_TOGGLE = 0x30,
+	// BURST_FIRE = 0x37, // no working
 
 	// TODO: add listeners for some macros
 }
 
-export type MacroTuple = readonly [FirmwareAction, Modifiers, KeyCode | number];
+export enum ConsumerUsage {
+	RELEASE_BUTTON = 0x0000,
+
+	// Multimedia
+	MEDIA_PLAYER = 0x0183,
+	PREVIOUS_TRACK = 0x00b6,
+	NEXT_TRACK = 0x00b5,
+	PLAY_PAUSE = 0x00cd,
+	STOP = 0x00b7,
+	MUTE_UNMUTE = 0x00e2,
+	VOL_PLUS = 0x00e9,
+	VOL_MINUS = 0x00ea,
+
+	// Application Launchers
+	EMAIL = 0x018a,
+	CALCULATOR = 0x0192,
+	MY_COMPUTER = 0x0194,
+
+	// Browser
+	BROWSER_HOME = 0x0223,
+	BROWSER_REFRESH = 0x0227,
+	BROWSER_FAVORITES = 0x022a,
+	BROWSER_BACKWARD = 0x0224,
+	BROWSER_FORWARD = 0x0225,
+	BROWSER_STOP = 0x0226,
+	BROWSER_SEARCH = 0x0221,
+}
 
 export enum Modifiers {
 	None = 0x0,
@@ -368,7 +411,6 @@ export enum Modifiers {
 	WIN = 0x8,
 }
 
-// noinspection JSUnusedGlobalSymbols
 export enum KeyCode {
 	None = 0x00,
 	ONLY_USED_BY_EASY_AIM = 0x03, // used by easy-aim
@@ -508,130 +550,3 @@ export enum KeyCode {
 	F23 = 0x72,
 	F24 = 0x73,
 }
-
-export enum MacroName {
-	// Global
-	GLOBAL_DISABLE_BUTTON = 'global-disable-button',
-	GLOBAL_LEFT_CLICK = 'global-left-click',
-	GLOBAL_RIGHT_CLICK = 'global-right-click',
-	GLOBAL_MIDDLE = 'global-middle',
-	GLOBAL_BACKWARD = 'global-backward',
-	GLOBAL_FORWARD = 'global-forward',
-	GLOBAL_DOUBLE_CLICK = 'global-double-click',
-	GLOBAL_FIRE_BUTTON = 'global-fire-button',
-	GLOBAL_SCROLL_UP = 'global-scroll-up',
-	GLOBAL_SCROLL_DOWN = 'global-scroll-down',
-	GLOBAL_EASY_AIM = 'global-easy-aim',
-	GLOBAL_DPI_CYCLE = 'global-dpi-cycle',
-	GLOBAL_DPI_PLUS = 'global-dpi-+',
-	GLOBAL_DPI_MINUS = 'global-dpi--',
-
-	// Multimedia
-	MULTIMEDIA_MEDIA_PLAYER = 'multimedia-media-player',
-	MULTIMEDIA_PLAY_PAUSE = 'multimedia-play-pause',
-	MULTIMEDIA_STOP_MUSIC = 'multimedia-stop-music',
-	MULTIMEDIA_PREVIOUS_TRACK = 'multimedia-previous-track',
-	MULTIMEDIA_NEXT_TRACK = 'multimedia-next-track',
-	MULTIMEDIA_VOLUME_PLUS = 'multimedia-volume-+',
-	MULTIMEDIA_VOLUME_MINUS = 'multimedia-volume--',
-	MULTIMEDIA_MUTE = 'multimedia-mute',
-
-	// Browser
-	BROWSER_HOME = 'browser-home',
-	BROWSER_FAVORITES = 'browser-favorites',
-	BROWSER_FORWARD = 'browser-forward',
-	BROWSER_BACKWARD = 'browser-backward',
-	BROWSER_STOP = 'browser-stop',
-	BROWSER_REFRESH = 'browser-refresh',
-	BROWSER_SEARCH = 'browser-search',
-	BROWSER_EMAIL = 'browser-email',
-	BROWSER_CALCULATOR = 'browser-calculator',
-	BROWSER_MY_COMPUTER = 'browser-my-computer',
-
-	// Shortcuts
-	SHORTCUT_CUT = 'shortcut-cut',
-	SHORTCUT_COPY = 'shortcut-copy',
-	SHORTCUT_PASTE = 'shortcut-paste',
-	SHORTCUT_OPEN = 'shortcut-open',
-	SHORTCUT_SAVE = 'shortcut-save',
-	SHORTCUT_FIND = 'shortcut-find',
-	SHORTCUT_REDO = 'shortcut-redo',
-	SHORTCUT_SELECT_ALL = 'shortcut-select-all',
-	SHORTCUT_PRINT = 'shortcut-print',
-	SHORTCUT_CLOSE_WINDOW = 'shortcut-close-window',
-	SHORTCUT_SWAP_WINDOW = 'shortcut-swap-window',
-	SHORTCUT_SHOW_DESKTOP = 'shortcut-show-desktop',
-	SHORTCUT_RUN_COMMAND = 'shortcut-run-command',
-	SHORTCUT_LOCK_PC = 'shortcut-lock-pc',
-	SHORTCUT_SCREEN_CAPTURE = 'shortcut-screen-capture',
-
-	CUSTOM_MACRO_LEFT_BUTTON = 'custom-macro-left-button',
-	CUSTOM_MACRO_RIGHT_BUTTON = 'custom-macro-right-button',
-	CUSTOM_MACRO_MIDDLE_BUTTON = 'custom-macro-middle-button',
-	CUSTOM_MACRO_EXTRA_BUTTON_4 = 'custom-macro-extra-button_4',
-	CUSTOM_MACRO_EXTRA_BUTTON_5 = 'custom-macro-extra-button_5',
-}
-
-export type MacroTemplate = Record<MacroName, MacroTuple>;
-
-export const macroTemplates: MacroTemplate = {
-	[MacroName.GLOBAL_DISABLE_BUTTON]: [FirmwareAction.DISABLE_BUTTON, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_LEFT_CLICK]: [FirmwareAction.LEFT_CLICK, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_RIGHT_CLICK]: [FirmwareAction.RIGHT_CLICK, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_MIDDLE]: [FirmwareAction.MIDDLE_CLICK, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_BACKWARD]: [FirmwareAction.BACKWARD, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_FORWARD]: [FirmwareAction.FORWARD, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DOUBLE_CLICK]: [FirmwareAction.DOUBLE_CLICK, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_FIRE_BUTTON]: [FirmwareAction.FIRE, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_SCROLL_UP]: [FirmwareAction.SCROLL_UP, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_EASY_AIM]: [FirmwareAction.EASY_AIM, Modifiers.None, KeyCode.ONLY_USED_BY_EASY_AIM],
-	[MacroName.GLOBAL_SCROLL_DOWN]: [FirmwareAction.SCROLL_DOWN, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_CYCLE]: [FirmwareAction.DPI_CYCLE, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_PLUS]: [FirmwareAction.DPI_PLUS, Modifiers.None, KeyCode.None],
-	[MacroName.GLOBAL_DPI_MINUS]: [FirmwareAction.DPI_MINUS, Modifiers.None, KeyCode.None],
-
-	// Multimedia
-	[MacroName.MULTIMEDIA_MEDIA_PLAYER]: [FirmwareAction.MEDIA_PLAYER, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_PLAY_PAUSE]: [FirmwareAction.PLAY_PAUSE, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_STOP_MUSIC]: [FirmwareAction.STOP, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_PREVIOUS_TRACK]: [FirmwareAction.PREVIOUS_TRACK, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_NEXT_TRACK]: [FirmwareAction.NEXT_TRACK, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_VOLUME_PLUS]: [FirmwareAction.VOL_PLUS, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_VOLUME_MINUS]: [FirmwareAction.VOL_MINUS, Modifiers.None, KeyCode.None],
-	[MacroName.MULTIMEDIA_MUTE]: [FirmwareAction.MUTE, Modifiers.None, KeyCode.None],
-
-	// Browser
-	[MacroName.BROWSER_HOME]: [FirmwareAction.BROWSER_HOME, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_FAVORITES]: [FirmwareAction.KEYBOARD, Modifiers.CTRL | Modifiers.SHIFT, KeyCode.O],
-	[MacroName.BROWSER_FORWARD]: [FirmwareAction.BROWSER_FORWARD, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_BACKWARD]: [FirmwareAction.BROWSER_BACKWARD, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_STOP]: [FirmwareAction.BROWSER_STOP, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_REFRESH]: [FirmwareAction.BROWSER_REFRESH, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_SEARCH]: [FirmwareAction.BROWSER_SEARCH, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_EMAIL]: [FirmwareAction.EMAIL, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_CALCULATOR]: [FirmwareAction.CALCULATOR, Modifiers.None, KeyCode.None],
-	[MacroName.BROWSER_MY_COMPUTER]: [FirmwareAction.MY_COMPUTER, Modifiers.None, KeyCode.None],
-
-	// Shortcuts
-	[MacroName.SHORTCUT_CUT]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.X],
-	[MacroName.SHORTCUT_COPY]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.C],
-	[MacroName.SHORTCUT_PASTE]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.V],
-	[MacroName.SHORTCUT_OPEN]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.O],
-	[MacroName.SHORTCUT_SAVE]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.S],
-	[MacroName.SHORTCUT_FIND]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.F],
-	[MacroName.SHORTCUT_REDO]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.Y],
-	[MacroName.SHORTCUT_SELECT_ALL]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.A],
-	[MacroName.SHORTCUT_PRINT]: [FirmwareAction.KEYBOARD, Modifiers.CTRL, KeyCode.P],
-	[MacroName.SHORTCUT_CLOSE_WINDOW]: [FirmwareAction.KEYBOARD, Modifiers.ALT, KeyCode.F4],
-	[MacroName.SHORTCUT_SWAP_WINDOW]: [FirmwareAction.KEYBOARD, Modifiers.ALT, KeyCode.TAB],
-	[MacroName.SHORTCUT_SHOW_DESKTOP]: [FirmwareAction.KEYBOARD, Modifiers.WIN, KeyCode.D],
-	[MacroName.SHORTCUT_RUN_COMMAND]: [FirmwareAction.KEYBOARD, Modifiers.WIN, KeyCode.R],
-	[MacroName.SHORTCUT_LOCK_PC]: [FirmwareAction.KEYBOARD, Modifiers.WIN, KeyCode.L],
-	[MacroName.SHORTCUT_SCREEN_CAPTURE]: [FirmwareAction.KEYBOARD, Modifiers.WIN | Modifiers.SHIFT, KeyCode.S],
-
-	[MacroName.CUSTOM_MACRO_LEFT_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.None, 0x01],
-	[MacroName.CUSTOM_MACRO_RIGHT_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.None, 0x02],
-	[MacroName.CUSTOM_MACRO_MIDDLE_BUTTON]: [FirmwareAction.CUSTOM_MACRO, Modifiers.None, 0x03],
-	[MacroName.CUSTOM_MACRO_EXTRA_BUTTON_4]: [FirmwareAction.CUSTOM_MACRO, Modifiers.None, 0x07],
-	[MacroName.CUSTOM_MACRO_EXTRA_BUTTON_5]: [FirmwareAction.CUSTOM_MACRO, Modifiers.None, 0x08],
-} satisfies Record<MacroName, MacroTuple>;

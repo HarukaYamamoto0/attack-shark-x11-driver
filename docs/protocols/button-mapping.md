@@ -126,7 +126,10 @@ subtraction:
   revert to its default value.
 - **Slot Mapping**: The physical button association is model-dependent.
 
-For a full list of **Firmware Action** and **Usage ID** values, refer to the source code:
+For a full list of **Firmware Action** and **Usage ID** values, refer to the related documentation and source code:
 
+- [Consumer Control (Usage Page 0x0C)](../interfaces/consumer-control.md) (Browser, multimedia, and application launch usages)
+- [Custom Macro Protocol](./custom-macro-protocol.md) (Custom macro configuration)
+- [Launch Program Notification](../messages/launch-program.md) (Program launcher event)
 - `../../src/core/keyboard-keypad-page.ts` (Keyboard usages)
 - `../../src/protocols/ButtonMappingBuilder.ts` (Firmware actions)
