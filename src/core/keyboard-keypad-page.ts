@@ -371,10 +371,11 @@ export enum FirmwareAction {
 	LAUNCH_PROGRAM = 0x13,
 	LED_TOGGLE = 0x30,
 	// BURST_FIRE = 0x37, // no working
-
-	// TODO: add listeners for some macros
 }
 
+/**
+ * @see https://usb.org/sites/default/files/hut1_7.pdf#page=126
+ */
 export enum ConsumerUsage {
 	RELEASE_BUTTON = 0x0000,
 

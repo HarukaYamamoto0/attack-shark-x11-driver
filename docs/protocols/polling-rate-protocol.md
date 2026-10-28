@@ -1,6 +1,8 @@
-# Polling Rate Protocol (Report 0x06)
+# Polling Rate (Report 0x06)
 
-This document describes the USB HID communication protocol used to configure the Polling Rate for the **Attack Shark X11** mouse. This setting controls how often the mouse reports its position to the computer.
+> To better understand this document, read the `README.md` located in the root of this directory first.
+
+No elaborate explanations here.
 
 ## Technical Specifications
 

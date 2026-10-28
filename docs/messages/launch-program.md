@@ -69,4 +69,3 @@ Indicates the current state of the button.
 ## Notes
 
 - Unlike other events, this event does not include the Device ID.
-- For standard application shortcuts (such as Email, Calculator, or Web Browser functions), the device also supports native [Consumer Control](../interfaces/consumer-control.md) usages (Usage Page `0x0C`), which do not require host-side event interception.
