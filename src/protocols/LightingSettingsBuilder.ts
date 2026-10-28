@@ -26,6 +26,13 @@ export enum LightMode {
 	ColorBreathing = 0x4,
 	StaticDpi = 0x5,
 	BreathingDpi = 0x6,
+
+	// These values have no effect on the Attack Shark X11
+	// RainbowWave = 0x7,
+	// Lightning = 0x8,
+	// StaticMixedColor = 0x9,
+	// Marquee = 0x10,
+	// Marquee2 = 0x11,
 }
 
 /**
@@ -225,6 +232,12 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return lightMode >> 4;
 	}
 
+	/**
+	 * Sets the brightness level for the device.
+	 *
+	 * @param {BrightnessLevel} brightnessLevel - The desired brightness level to be set.
+	 * @return {this} The current instance of the class for method chaining.
+	 */
 	setBrightnessLevel(brightnessLevel: BrightnessLevel): this {
 		this.brightnessLevel = brightnessLevel;
 
@@ -339,6 +352,7 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 	}
 
 	build(mode: ConnectionMode): Buffer {
+		this.calculateChecksum();
 		if (mode === ConnectionMode.Wired) return this.buffer.subarray(0, 13);
 		else return this.buffer;
 	}
