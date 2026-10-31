@@ -1,6 +1,7 @@
 # Profile Changed
 
-> To better understand this document, read the `README.md` located in the root of this directory first.
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
 
 This event is emitted whenever the active profile is changed.
 

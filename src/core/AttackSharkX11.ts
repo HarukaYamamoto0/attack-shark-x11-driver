@@ -466,6 +466,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = options instanceof LightingSettingsBuilder ? options : new LightingSettingsBuilder(options);
+			console.log(builder.build(this.connectionMode).toHex());
 			return this.sendCommand(ReportId.LIGHTING_SETTINGS, builder.build(this.connectionMode), timeoutMs);
 		} catch (err) {
 			throw new SendCommandError(`failed to set lighting settings`, { cause: err });

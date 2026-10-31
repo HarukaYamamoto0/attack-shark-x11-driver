@@ -4,8 +4,11 @@
       <w>INPHIC</w>
       <w>Zadig</w>
       <w>harukayamamoto</w>
+      <w>hidraw</w>
       <w>iface</w>
       <w>libratbag</w>
+      <w>plugdev</w>
+      <w>uaccess</w>
     </words>
   </dictionary>
 </component>

@@ -1,6 +1,7 @@
 # DPI Cycle
 
-> To better understand this document, read the `README.md` located in the root of this directory first.
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
 
 This event is emitted when certain mouse button macros related to DPI control are triggered. Known macros capable of
 emitting this event include:

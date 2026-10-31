@@ -1,5 +1,6 @@
 # Command Acknowledgment
 
+> [!TIP]
 > To better understand this document, read the `README.md` located in the root of this directory first.
 
 This event is an acknowledgment sent by the firmware after a command has been processed.

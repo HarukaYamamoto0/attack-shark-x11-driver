@@ -1,5 +1,8 @@
 # Profile Settings
 
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
+
 This document explains how to read and write the device's profile configuration.
 
 ## Overview
@@ -47,8 +50,8 @@ Note that the profile ID is returned. However, this seems somewhat redundant. I 
 literally stored in profiles, so global settings, such as those related to this protocol, are simply stored in profile
 `0x01`. This is why profile `0x01` is always returned.
 
-Even if you pass a parameter to `getFeatureReport`[^1], the returned profile ID may match the one you selected, but the
-remaining bytes are identical. In other words, simply ignore this byte.
+Even if you pass a parameter to `getFeatureReport`, the returned profile ID may match the one you selected, but the
+remaining bytes are identical. In other words, ignore this byte.
 
 ## Macros
 
@@ -82,7 +85,3 @@ the `FirmwareAction.PROFILE_DOWN` macro, for some reason it isn't possible; you 
 ## Messages
 
 [See more in profile-changed.md](../messages/profile-changed.md)
-
-## Footnotes
-
-[^1]: [report-id-reading.md](./report-id-reading.md)

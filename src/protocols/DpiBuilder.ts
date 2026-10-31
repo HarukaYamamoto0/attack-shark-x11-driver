@@ -1,11 +1,21 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { ConnectionMode, ReportPacketLength, type ProfileId, ReportId } from '../types.js';
-import { convertDpiToBytes } from '../utils/dpi.js';
+import type { Profile } from '../types.js';
+import { ConnectionMode, ReportPacketLength, ReportId } from '../types.js';
 import type { RGB } from './LightingSettingsBuilder';
+import { DPI_3311 } from '../tables/dpi-map';
+
+export enum DPIChangeIndication {
+	// The LED blinks three times using the color associated with the newly selected DPI stage
+	Blinking = 0x01,
+	// The LED stays on for about 2–3 seconds, displaying the color associated with the newly selected DPI level
+	Static = 0x02,
+	// The LED remains off
+	Disabled = 0x03,
+}
 
 export interface DpiBuilderDefaultOptions {
-	profileId: ProfileId;
+	profileId: Profile;
 	liftOffDistance: LiftOffDistance;
 	motionSync: boolean;
 	angleSnap: boolean;
@@ -14,6 +24,7 @@ export interface DpiBuilderDefaultOptions {
 	currentStage: StageIndex;
 	dpiValues: [number, number, number, number, number, number, number, number];
 	dpiColors: [RGB, RGB, RGB, RGB, RGB, RGB, RGB, RGB];
+	dpiIndicatorMode: DPIChangeIndication;
 }
 
 export const dpiBuilderDefaultOptions: DpiBuilderDefaultOptions = {
@@ -35,6 +46,7 @@ export const dpiBuilderDefaultOptions: DpiBuilderDefaultOptions = {
 		{ r: 0xff, g: 0x40, b: 0x00 },
 		{ r: 0xff, g: 0xff, b: 0xff },
 	],
+	dpiIndicatorMode: DPIChangeIndication.Static,
 };
 
 /**
@@ -45,10 +57,10 @@ export const dpiBuilderDefaultOptions: DpiBuilderDefaultOptions = {
  */
 export type StageIndex = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-export type LiftOffDistance = 0x0 | 0x01 | 0x2;
+export type LiftOffDistance = 0x00 | 0x01 | 0x2;
 
 export interface DpiBuilderOptions {
-	profileId?: ProfileId;
+	profileId?: Profile;
 	liftOffDistance?: LiftOffDistance;
 	motionSync?: boolean;
 	angleSnap?: boolean;
@@ -57,6 +69,7 @@ export interface DpiBuilderOptions {
 	currentStage?: StageIndex;
 	dpiValues?: [number, number, number, number, number, number, number, number];
 	dpiColors?: [RGB, RGB, RGB, RGB, RGB, RGB, RGB, RGB];
+	dpiIndicatorMode?: DPIChangeIndication;
 }
 
 /**
@@ -66,7 +79,7 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	readonly buffer: Buffer = Buffer.alloc(ReportPacketLength.DPI);
 	private view: DataView = new DataView(this.buffer.buffer);
 
-	private profileId: ProfileId = dpiBuilderDefaultOptions.profileId;
+	private profileId: Profile = dpiBuilderDefaultOptions.profileId;
 	private liftOffDistance: LiftOffDistance = dpiBuilderDefaultOptions.liftOffDistance;
 	private motionSync: boolean = dpiBuilderDefaultOptions.motionSync;
 	private angleSnap: boolean = dpiBuilderDefaultOptions.angleSnap;
@@ -75,6 +88,7 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	private activeStages: number = dpiBuilderDefaultOptions.bitmaskActiveStages;
 	private dpiValues: number[] = [...dpiBuilderDefaultOptions.dpiValues];
 	private dpiColors: RGB[] = [...dpiBuilderDefaultOptions.dpiColors];
+	private dpiIndicatorMode: DPIChangeIndication = dpiBuilderDefaultOptions.dpiIndicatorMode;
 
 	// noinspection FunctionTooLongJS
 	constructor(options?: DpiBuilderOptions) {
@@ -144,7 +158,7 @@ export class DpiBuilder implements BaseProtocolBuilder {
 
 		// Even though the name explains the function of this byte,
 		// it is still unclear what values can be passed to it and how that affects the mouse.
-		this.view.setInt8(49, 0x02); // DPI Active Indicator
+		this.view.setInt8(49, DPIChangeIndication.Disabled); // DPI Active Indicator
 
 		this.view.setInt8(50, 0x0f); // Checksum High Byte
 		this.view.setInt8(51, 0x68); // Checksum Low Byte
@@ -175,13 +189,14 @@ export class DpiBuilder implements BaseProtocolBuilder {
 				this.setRGB((i + 1) as StageIndex, options.dpiColors[i] ?? { r: 0, g: 0, b: 0 });
 			}
 		}
+		if (options.dpiIndicatorMode !== undefined) this.setDPIChangeIndication(options.dpiIndicatorMode);
 	}
 
-	public getProfileId(): ProfileId {
+	public getProfileId(): Profile {
 		return this.profileId;
 	}
 
-	public setProfileId(id: ProfileId): this {
+	public setProfileId(id: Profile): this {
 		this.profileId = id;
 
 		this.view.setInt8(2, id);
@@ -289,24 +304,32 @@ export class DpiBuilder implements BaseProtocolBuilder {
 
 	public setDpiValue(stage: StageIndex, dpi: number): this {
 		this.dpiValues[stage - 1] = dpi;
-		const { xByte, yByte, isDouble, isTriple } = convertDpiToBytes(dpi);
+		const [lowByte, highByte] = convertDpiToBytes(dpi);
 		const stageIdx = stage - 1;
 
-		this.view.setUint8(8 + stageIdx, xByte);
-		this.view.setUint8(16 + stageIdx, yByte);
+		this.view.setUint8(8 + stageIdx, lowByte);
+		this.view.setUint8(16 + stageIdx, highByte);
 
 		let doubleFlags = this.view.getUint8(6);
 		let tripleFlags = this.view.getUint8(7);
 
-		if (isDouble) {
+		// Double the range of 12000-24000 by setting doubleFlags.
+		if (dpi > 12_000 && dpi < 24_000) {
 			doubleFlags |= 1 << stageIdx;
 		} else {
 			doubleFlags &= ~(1 << stageIdx);
 		}
 
-		if (isTriple) {
+		// Triple the range of 24100-25000, set tripleFlags.
+		if (dpi >= 24_100 && dpi <= 25_000) {
 			tripleFlags |= 1 << stageIdx;
 		} else {
+			tripleFlags &= ~(1 << stageIdx);
+		}
+
+		// No flag is set for values less than 12,000.
+		if (dpi < 12_000) {
+			doubleFlags &= ~(1 << stageIdx);
 			tripleFlags &= ~(1 << stageIdx);
 		}
 
@@ -383,6 +406,38 @@ export class DpiBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
+	/**
+	 * Sets the DPI change indication mode for the current object.
+	 *
+	 * @param {DPIChangeIndication} indication - The indication mode to be set for DPI changes.
+	 * @return {this} The current instance for chaining.
+	 */
+	setDPIChangeIndication(indication: DPIChangeIndication): this {
+		this.dpiIndicatorMode = indication;
+
+		this.view.setInt8(49, this.dpiIndicatorMode);
+
+		return this;
+	}
+
+	/**
+	 * Retrieves the DPI change indication mode from the current view and validates its range.
+	 * Throws an error if the mode is outside the valid range.
+	 *
+	 * @return {DPIChangeIndication} The validated DPI change indication mode.
+	 * @throws {ParamsError} If the DPI indicator mode is not within the valid range (0x01 to 0x03).
+	 */
+	getDPIChangeIndication(): DPIChangeIndication {
+		const dpiIndicatorMode = this.view.getUint8(49);
+
+		if (dpiIndicatorMode < 0x01 || dpiIndicatorMode > 0x03)
+			throw new ParamsError('dpiIndicatorMode', `Invalid DPI indicator mode: ${dpiIndicatorMode}`);
+
+		this.dpiIndicatorMode = dpiIndicatorMode;
+
+		return this.dpiIndicatorMode;
+	}
+
 	calculateChecksum(): this {
 		let sum = 0;
 
@@ -403,4 +458,41 @@ export class DpiBuilder implements BaseProtocolBuilder {
 	public toHexString(): string {
 		return this.buffer.toString('hex');
 	}
+}
+
+export function convertDpiToBytes(value: number): [lowByte: number, highByte: number] {
+	if (!Number.isFinite(value) || value < 0) {
+		throw new RangeError(`Invalid DPI value: ${value}`);
+	}
+
+	const valueClamped = value < 50 ? 50 : value; // clamp
+
+	let dpi = valueClamped;
+
+	if (valueClamped >= 24_100 && valueClamped <= 25_000) {
+		dpi = Math.max(8_000, Math.min(8_500, Math.round(valueClamped / 3)));
+	} else if (valueClamped > 24_000) {
+		dpi = 8_500;
+	} else if (valueClamped > 12_000) {
+		dpi = Math.round(valueClamped / 2);
+	}
+
+	// Round to the supported DPI increments.
+	if (dpi <= 10_000) {
+		dpi = Math.min(10_000, Math.max(50, Math.round(dpi / 50) * 50));
+	} else {
+		dpi = Math.max(10_100, Math.round(dpi / 100) * 100);
+	}
+
+	const highByte = dpi <= 10_000 ? 0 : 1;
+
+	const index = dpi <= 10_000 ? (dpi - 50) / 50 : 200 + (dpi - 10_100) / 100;
+
+	const lowByte = DPI_3311[index];
+
+	if (!Number.isInteger(index) || lowByte === undefined) {
+		throw new RangeError(`Unsupported DPI: ${dpi}`);
+	}
+
+	return [lowByte, highByte];
 }

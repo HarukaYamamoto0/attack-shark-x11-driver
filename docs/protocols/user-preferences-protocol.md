@@ -1,102 +1,275 @@
-# User Preferences Protocol (Report 0x0305)
+# User Preferences Protocol
 
-This document details the configuration protocol for user preferences on the Attack Shark X11, specifically focusing on the `0x0305` report.
+> [!TIP]
+> To better understand this document, read the `README.md` located in the root of this directory first.
 
-## HID Report Parameters
+> [!NOTE]
+> During reverse engineering, the original name of this protocol was identified as **Lighting Settings**. However, since
+the protocol controls several settings unrelated to lighting, **User Preferences** was chosen as a more accurate and
+descriptive name.
 
-- **Request Type**: `0x21` (Set Report)
-- **Request ID**: `0x09`
-- **Value**: `0x0305`
-- **Index**: `0x0002`
+<!-- TODO: Rename LightingSettingsBuilder class to UserPreferencesBuilder -->
 
-## Payload Layout
+The **User Preferences Protocol** allows software to configure various device settings, including lighting effects, RGB
+colors, LED brightness, sleep timers, key response time, and other user preferences.
 
-The payload consists of 13 bytes for Wired mode or 15 bytes for Wireless (Adapter) mode.
+Some compatible mouse models do not support every feature exposed by this protocol. For example, the Attack Shark R1
+does not have an LED, while the Attack Shark X11 does not support configurable Lift-Off Distance (LOD).
 
-| Index | Name          | Description                                          |
-|:------|:--------------|:-----------------------------------------------------|
-| 0     | Header 1      | `0x05`                                               |
-| 1     | Header 2      | `0x0F`                                               |
-| 2     | Header 3      | `0x01`                                               |
-| 3     | Light Mode    | Selects the LED animation mode.                      |
-| 4     | Configuration | Combined byte: `(Deep Sleep Bucket << 4)             | (LED Speed & 0x0F)` |
-| 5     | Deep Sleep    | Encoded deep sleep timer: `0x08 + (Minutes * 0x10)`. |
-| 6     | Red           | RGB Red component (0-255).                           |
-| 7     | Green         | RGB Green component (0-255).                         |
-| 8     | Blue          | RGB Blue component (0-255).                          |
-| 9     | Sleep Timer   | Sleep timer in half-minutes: `Minutes * 2`.          |
-| 10    | Debounce      | Encoded key response time: `((ms - 4) / 2) + 2`.     |
-| 11    | State Flag    | Dynamic flag based on colors and mode.               |
-| 12    | Checksum      | Sum of bytes from index 3 to 10 (modulo 256).        |
-| 13-14 | Padding       | `0x00 0x00` (Wireless mode only).                    |
+The protocol remains applicable to these devices. Unsupported settings can generally be left unchanged or assigned valid
+default values, provided the resulting payload remains compatible with the device.
 
----
+## Structure
 
-## Field Details
+The report consists of **13 bytes in Wired mode** or **15 bytes in Wireless (Adapter) mode**, including the Report ID.
 
-### 1. Light Modes (Index 3)
+Both variants share the same configuration fields. The wireless variant includes two additional padding bytes.
 
-| Mode            | Hex Value | Description                               |
-|:----------------|:----------|:------------------------------------------|
-| Off             | `0x00`    | LEDs disabled.                            |
-| Static          | `0x10`    | Fixed color.                              |
-| Breathing       | `0x20`    | Pulse animation with single color.        |
-| Neon            | `0x30`    | Cycling rainbow effect.                   |
-| Color Breathing | `0x40`    | Pulse animation cycling through colors.   |
-| Static DPI      | `0x50`    | Color based on current DPI stage (Fixed). |
-| Breathing DPI   | `0x60`    | Pulsing color based on current DPI stage. |
+| Offset | Example | Description                 |
+|--------|---------|-----------------------------|
+| 0      | `0x05`  | Report ID                   |
+| 1      | `0x0F`  | Report Length               |
+| 2      | `0x01`  | Profile ID                  |
+| 3      | `0x00`  | Lighting Mode               |
+| 4      | `0x03`  | Deep Sleep High / LED Speed |
+| 5      | `0xA8`  | Deep Sleep Low / Brightness |
+| 6      | `0x00`  | Red                         |
+| 7      | `0xFF`  | Green                       |
+| 8      | `0x00`  | Blue                        |
+| 9      | `0x01`  | Sleep Timer                 |
+| 10     | `0x04`  | Key Response Time           |
+| 11     | `0x01`  | Checksum High               |
+| 12     | `0xAF`  | Checksum Low                |
+| 13     | `0x00`  | Padding (Wireless)          |
+| 14     | `0x00`  | Padding (Wireless)          |
 
-### 2. Deep Sleep Configuration (Index 4 & 5)
+> [!NOTE]
+> The example uses `0x0F` as the Report Length field. Whether this value must change to `0x0D` for the 13-byte wired
+variant has not yet been verified.
 
-The mouse enters a deep power-saving mode after a period of inactivity.
+## Offset 3 – Lighting Mode
 
-- **Minutes Range**: 1 to 60.
-- **Index 5 Formula**: `0x08 + (Minutes * 0x10)`
-- **Bucket (Index 4 High Nibble)**:
-    - `0`: 1–16 minutes
-    - `1`: 17–32 minutes
-    - `2`: 33–48 minutes
-    - `3`: 49–60 minutes
-    - Formula: `floor((minutes - 1) / 16)`
+This byte uses **bit packing**, with the lighting mode stored in the upper nibble (bits `7–4`). The lower nibble
+(bits `3–0`) is currently unused.
 
-### 3. LED Speed (Index 4 Low Nibble)
+To encode a lighting mode, shift its value left by four bits:
 
-- **Range**: 1 (Slowest) to 5 (Fastest).
-- **Hardware Encoding**: The value sent to the device is inverted: `6 - UserSpeed`.
-    - Speed 1 (Slowest) -> `5`
-    - Speed 5 (Fastest) -> `1`
-- **Default**: 3.
+```text
+Encoded Value = (Lighting Mode & 0x0F) << 4
+```
 
-### 4. RGB Colors (Index 6, 7, 8)
+| Value  | Mode               | Effect                                                 |
+|--------|--------------------|--------------------------------------------------------|
+| `0x00` | Off                | Disables LED lighting.                                 |
+| `0x01` | Static             | Displays a fixed color.                                |
+| `0x02` | Breathing          | Pulses a single color.                                 |
+| `0x03` | Neon               | Cycles through rainbow colors.                         |
+| `0x04` | Color Breathing    | Pulses while cycling through different colors.         |
+| `0x05` | Static DPI         | Displays a fixed color based on the active DPI stage.  |
+| `0x06` | Breathing DPI      | Pulses the color associated with the active DPI stage. |
+| `0x07` | Rainbow Wave       | Effect not yet determined.                             |
+| `0x08` | Lightning          | Effect not yet determined.                             |
+| `0x09` | Static Mixed Color | Effect not yet determined.                             |
+| `0x0A` | Marquee            | Effect not yet determined.                             |
+| `0x0B` | Marquee 2          | Effect not yet determined.                             |
 
-Used for Static and Breathing modes.
-Note: For modes like Neon or Color Breathing, these values might be ignored by the device but are usually sent as default or last used color.
+For example, selecting **Static** (`0x01`) produces the encoded value `0x10`.
 
-### 5. Sleep Timer (Index 9)
+## Offsets 4–5 – Deep Sleep, LED Speed, and Brightness
 
-Normal sleep (standby) before deep sleep.
-- **Minutes Range**: 0.5 to 30.0.
-- **Value**: `Minutes * 2` (e.g., 2 mins = `4`, 0.5 mins = `1`).
+These two bytes contain three independent settings using nibble packing.
 
-### 6. Debounce / Key Response (Index 10)
+```text
+Offset 4                       Offset 5
+┌────────────┬───────────┐    ┌────────────┬────────────┐
+│ Bits 7–4   │ Bits 3–0  │    │ Bits 7–4   │ Bits 3–0   │
+├────────────┼───────────┤    ├────────────┼────────────┤
+│ Deep Sleep │ LED Speed │    │ Deep Sleep │ Brightness │
+│ High       │           │    │ Low        │            │
+└────────────┴───────────┘    └────────────┴────────────┘
+```
 
-- **Range**: 4 ms to 50 ms (Must be an even number).
-- **Formula**: `((ms - 4) / 2) + 2`
-    - 4ms -> `2`
-    - 8ms -> `4`
-    - 50ms -> `25`
+### Deep Sleep Timer
 
-### 7. State Flag (Index 11)
+The Deep Sleep Timer determines how many minutes of inactivity must pass before the mouse enters Deep Sleep mode.
 
-This byte acts as a status indicator for the firmware.
+The supported range is **1 to 60 minutes**.
 
-- **Threshold**: A color component is "active" if it is `>= 100` (`0x64`).
-- **Count**: Number of active components (0 to 3).
-- **Base Logic**:
-    - If Mode is `Breathing DPI` (`0x60`): `State = Count + 1`
-    - Otherwise: `State = Count`
+The timer is encoded as an 8-bit value distributed across the upper nibbles of offsets `4` and `5`:
 
-### 8. Checksum (Index 12)
+- **Offset 4, high nibble:** Bits `7–4` of the timer.
+- **Offset 5, high nibble:** Bits `3–0` of the timer.
 
-Calculated as the sum of bytes from index 3 to 10.
-`Checksum = (Byte[3] + Byte[4] + ... + Byte[10]) & 0xFF`
+To reconstruct the timer:
+
+```text
+Deep Sleep = (Byte[4] & 0xF0) | ((Byte[5] >> 4) & 0x0F)
+```
+
+To encode a new timer value while preserving the LED Speed and Brightness settings:
+
+```text
+Byte[4] = (Deep Sleep & 0xF0) | (Byte[4] & 0x0F)
+Byte[5] = ((Deep Sleep & 0x0F) << 4) | (Byte[5] & 0x0F)
+```
+
+For example, a Deep Sleep Timer of 30 minutes (`0x1E`), with LED Speed set to Normal (`0x03`) and Brightness set to Very
+Bright (`0x08`), produces:
+
+```text
+Offset 4: 0x13
+Offset 5: 0xE8
+```
+
+**Important:** The lower nibbles must be preserved when updating the Deep Sleep Timer. Otherwise, the LED Speed and
+Brightness settings will be overwritten.
+
+### LED Speed
+
+The lower nibble of offset `4` controls the speed of supported lighting effects.
+
+| Value  | Speed     |
+|--------|-----------|
+| `0x01` | Very Slow |
+| `0x02` | Slow      |
+| `0x03` | Normal    |
+| `0x04` | Fast      |
+| `0x05` | Very Fast |
+
+Valid values range from `1` to `5`.
+
+### Brightness Level
+
+The lower nibble of offset `5` controls the intensity of the LED lighting.
+
+| Value  | Brightness  |
+|--------|-------------|
+| `0x01` | Very Dim    |
+| `0x02` | Dim         |
+| `0x03` | Low         |
+| `0x04` | Medium-Low  |
+| `0x05` | Medium      |
+| `0x06` | Medium-High |
+| `0x07` | Bright      |
+| `0x08` | Very Bright |
+
+Valid values range from `1` to `8`.
+
+## Offsets 6–8 – LED Color
+
+These three bytes define the LED color using the standard **RGB color model**.
+
+Each component is represented by an unsigned 8-bit value ranging from `0` to `255`.
+
+| Offset | Example | Component |
+|--------|---------|-----------|
+| 6      | `0x00`  | Red       |
+| 7      | `0xFF`  | Green     |
+| 8      | `0x00`  | Blue      |
+
+For example, the sequence `00 FF 00` represents green (`#00FF00`).
+
+The actual displayed color may depend on the selected lighting mode. Some effects use predefined colors or cycle through
+multiple colors automatically.
+
+## Offset 9 – Sleep Timer
+
+This byte determines the inactivity duration before the mouse enters its regular Sleep mode.
+
+The supported range is **0.5 to 30 minutes**, in increments of **0.5 minutes**.
+
+The protocol uses an index-based encoding corresponding to entries in a lookup table (LUT), rather than storing the
+duration directly.
+
+| Duration    | Encoded Value |
+|-------------|---------------|
+| 0.5 minutes | `0x01`        |
+| 1 minute    | `0x02`        |
+| 1.5 minutes | `0x03`        |
+| 2 minutes   | `0x04`        |
+| 2.5 minutes | `0x05`        |
+| 5 minutes   | `0x0A`        |
+| 10 minutes  | `0x14`        |
+| 15 minutes  | `0x1E`        |
+| 20 minutes  | `0x28`        |
+| 25 minutes  | `0x32`        |
+| 30 minutes  | `0x3C`        |
+
+Since the observed mapping follows a linear progression, the index can be calculated directly:
+
+```text
+Encoded Value  = Duration (minutes) × 2
+Duration (min) = Encoded Value / 2
+```
+
+For example, `0x14` (20 decimal) corresponds to 10 minutes.
+
+## Offset 10 – Key Response Time
+
+This byte configures the **Key Response Time**, control the delay associated with mouse button input processing.
+
+The documented range is **4 ms to 50 ms**, in increments of **2 ms**.
+
+| Response Time | Encoded Value |
+|---------------|---------------|
+| 4 ms          | `0x02`        |
+| 6 ms          | `0x03`        |
+| 8 ms          | `0x04`        |
+| 10 ms         | `0x05`        |
+| 12 ms         | `0x06`        |
+| 20 ms         | `0x0A`        |
+| 30 ms         | `0x0F`        |
+| 40 ms         | `0x14`        |
+| 50 ms         | `0x19`        |
+
+The encoding uses half of the desired response time:
+
+```text
+Encoded Value     = Response Time (ms) / 2
+Response Time (ms) = Encoded Value × 2
+```
+
+> [!NOTE]
+> Some mouse models appear to support a response time of 0 ms. However, no verified samples are currently available to
+confirm this behavior or its exact encoding.
+>
+> Based on the documented calculation, `0x00` would represent 0 ms, while `0x01` would represent 2 ms. Neither value
+should be assumed to be supported without device-specific verification.
+
+## Offsets 11–12 – Checksum
+
+These bytes contain a **16-bit additive checksum**, calculated by summing the configuration bytes from offsets `3`
+through `10`, inclusive.
+
+The result is stored in big-endian byte order:
+
+- **Offset 11:** Most significant byte (Checksum High).
+- **Offset 12:** Least significant byte (Checksum Low).
+
+The calculation is:
+
+```text
+Checksum = Sum(Byte[3] ... Byte[10]) & 0xFFFF
+
+Byte[11] = (Checksum >> 8) & 0xFF
+Byte[12] = Checksum & 0xFF
+```
+
+For example, given the following configuration bytes:
+
+```hex
+00 03 A8 00 FF 00 01 04
+```
+
+Their sum is:
+
+```text
+0x00 + 0x03 + 0xA8 + 0x00 +
+0xFF + 0x00 + 0x01 + 0x04 = 0x01AF
+```
+
+Therefore, the checksum bytes are:
+
+```hex
+01 AF
+```

@@ -320,8 +320,16 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 	}
 
 	getSleep(): SleepTime {
-		const sleepTime = this.view.getUint8(9);
-		return sleepTimeLut[sleepTime - 1] ?? this.sleepTime;
+		const sleepTimeByte = this.view.getUint8(9);
+		const sleepTime = sleepTimeLut[sleepTimeByte - 1];
+
+		if (!sleepTime) {
+			throw new ParamsError('sleepTime', 'Invalid value');
+		}
+
+		this.sleepTime = sleepTime;
+
+		return this.sleepTime;
 	}
 
 	/**
@@ -340,6 +348,14 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
+	getKeyResponse(): KeyResponse {
+		const keyResponse = this.view.getUint8(10);
+
+		this.keyResponse = (keyResponse * 2) as KeyResponse;
+
+		return this.keyResponse;
+	}
+
 	calculateChecksum(): this {
 		let checksum = 0;
 
@@ -351,7 +367,7 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
-	build(mode: ConnectionMode): Buffer {
+	build(mode: ConnectionMode): Uint8Array {
 		this.calculateChecksum();
 		if (mode === ConnectionMode.Wired) return this.buffer.subarray(0, 13);
 		else return this.buffer;

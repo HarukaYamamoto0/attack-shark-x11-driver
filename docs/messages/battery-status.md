@@ -1,5 +1,6 @@
 # Battery Status
 
+> [!TIP]
 > To better understand this document, read the `README.md` located in the root of this directory first.
 
 Although this event is primarily used to report battery status, reverse engineering revealed that its original name is

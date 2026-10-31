@@ -1,6 +1,7 @@
 # Vibration Mode Change Notification
 
-> To better understand this document, first read the `README.md` file located in the root of this directory.
+> [!TIP]
+> To better understand this documentand this document, first read the `README.md` file located in the root of this directory.
 >
 > This document remains incomplete due to limited information about this functionality. I currently do not own a mouse
 > equipped with a vibration motor, so I have been unable to verify the behavior experimentally.

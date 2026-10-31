@@ -1,6 +1,7 @@
 # Launch Program
 
-> To better understand this document, read the `README.md` located in the root of this directory first.
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
 
 This event is sent whenever a button assigned to the firmware action `0x13` (`LAUNCH_PROGRAM`) is pressed or released.
 

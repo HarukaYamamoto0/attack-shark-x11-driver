@@ -1,6 +1,7 @@
 # Unknown Events
 
-> To better understand this document, read the `README.md` located in the root of this directory first.
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
 
 The packets below represent messaging events whose meaning has not yet been identified.
 

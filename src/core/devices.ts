@@ -47,5 +47,6 @@ export enum DeviceId {
 	DVSE4 = 0x6d,
 	MV6 = 0x14,
 	M740 = 0x87,
+	ATTACK_SHARK_X11_PRO_V2 = 0xa9,
 	// UNKNOWN = 102,
 }
