@@ -1,4 +1,5 @@
 test*.ts
+.env*
 
 /tmp
 /out-tsc
