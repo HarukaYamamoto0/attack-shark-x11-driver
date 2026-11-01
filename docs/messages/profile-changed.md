@@ -1,6 +1,7 @@
 # Profile Changed
 
-> To better understand this document, read the `README.md` located in the root of this directory first.
+> [!TIP]
+> To better understand this documentand this document, read the `README.md` located in the root of this directory first.
 
 This event is emitted whenever the active profile is changed.
 
@@ -9,15 +10,15 @@ is not triggered.
 
 ## Structure
 
-| event code | params1 | params2      |
+| Event Code | Param 1 | Param 2      |
 |------------|---------|--------------|
 | 0x80       | 0x01    | 0x00 (fixed) |
 
-### event code
+### Event Code
 
 Fixed value `0x80`.
 
-### params1
+### Param 1
 
 Indicates the active profile.
 
@@ -32,7 +33,7 @@ Indicates the active profile.
 As mentioned in the other profile-related documents, the maximum known safe number of profiles is 5. Using profile
 values beyond this range may result in undefined or otherwise unpredictable device behavior.
 
-### params2
+### Param 2
 
 Fixed value `0x00`. No dump was found that could provide any meaningful interpretation of this value.
 
@@ -40,10 +41,9 @@ Fixed value `0x00`. No dump was found that could provide any meaningful interpre
 
 ```text
 03 55 80 02 00
-
-03    Event Message opcode
-55    Device ID (Attack Shark X11)
-80    Profile Changed Message
-02    Profile = 3
-00    Fixed
+│  │  │  │  └── Fixed
+│  │  │  └───── Profile = 3
+│  │  └──────── Event Code: 0x80
+│  └─────────── Device ID
+└────────────── Report ID
 ```

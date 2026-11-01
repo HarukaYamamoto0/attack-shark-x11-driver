@@ -94,7 +94,7 @@ function assertValidAction(action: unknown): asserts action is (index: number, t
  *
  * 4. **Control Flow Semantics (`return`, `break`, `continue`, `await`)**:
  *    - **Return**: Calling `return` inside the `action` callback immediately terminates the *current*
- *      iteration and proceeds to the next iteration — acting exactly like `continue` in a `for` loop.
+ *      iteration and proceeds to the next iteration - acting exactly like `continue` in a `for` loop.
  *      It does not exit the outer enclosing function.
  *    - **Break**: `repeat` runs all iterations to completion and does not support the `break` statement.
  *      If early exit is required, use a standard `for` loop or throw an exception.

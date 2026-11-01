@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Profile Management Protocol (`ProfileSettingsBuilder`)**:
   - Implemented `ProfileSettingsBuilder` (`src/protocols/ProfileSettingsBuilder.ts`) replacing the experimental `ChangeProfileBuilder` to manage active profile selection and maximum profile count (`ReportId.PROFILE_SETTING` / `0x0c`).
-  - Added automatic inverted checksum calculations (`~currentProfile & 0xff`, `~maxProfileCount & 0xff`) and support for wired mode payload truncation (6 bytes vs 10 bytes).
+  - Added automatic inverted checksum calculations (`~currentProfile & 0xff`, `~maxProfileCount & 0xff`) and support for wired mode payload truncation (6 bytes vs. 10 bytes).
   - Added `ChangeProfileBuilderOptions` interface for configuring profile parameters.
 - **Core Driver Methods (`AttackSharkX11`)**:
   - Added `getProfileSettings(): Promise<ProfileSettingsBuilder>` to read active profile configuration via HID feature reports.
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Utilities**:
   - Added `repeat(times, action)` (`src/utils/repeat.ts`) providing declarative, fail-fast loop execution with type and range assertions and isolated iteration scoping.
 - **Documentation & Assets**:
-  - Added `docs/protocols/profile-settings.md` detailing report structure, byte offsets, checksums, wired vs wireless handling, and macro profile-cycling caveats.
+  - Added `docs/protocols/profile-settings.md` detailing report structure, byte offsets, checksums, wired vs. wireless handling, and macro profile-cycling caveats.
   - Added `docs/messages/profile-changed.md` explaining event code `0x80` payload layout.
   - Added `.github/assets/profile_changer.gif` showcasing mouse LED blink feedback during hardware profile switching.
 
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Response Handler Updates**:
   - Updated `handleResponseButtonMapping` to instantiate `SlotButton` and invoke `updateChecksum()`.
 - **Documentation Reorganization**:
-  - Reorganized all protocol specifications into `docs/protocols/` (`button-mapping.md`, `custom-macro-protocol.md`, `dpi-protocol.md`, `polling-rate-protocol.md`, `report-id-reading.md`, `user-preferences-protocol.md`).
+  - Reorganized all protocol specifications into `docs/protocols/` (`button-mapping.md`, `custom-macro-protocol.md`, `dpi-protocol.md`, `polling-rate.md`, `report-id-reading.md`, `user-preferences-protocol.md`).
   - Updated `README.md` status list to mark `Profile Settings` and `Reading Settings` as supported.
 
 ### Deprecated

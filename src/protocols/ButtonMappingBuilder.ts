@@ -1,6 +1,7 @@
 import type { BaseProtocolBuilder } from '../core/BaseProtocolBuilder.js';
 import { ParamsError } from '../errors.js';
-import { type ConnectionMode, type ProfileId, ReportId, ReportPacketLength } from '../types.js';
+import type { Profile } from '../types.js';
+import { type ConnectionMode, ReportId, ReportPacketLength } from '../types.js';
 import { FirmwareAction, keyboardKeypadPage, type KeyboardUsage, type Modifiers } from '../core/keyboard-keypad-page';
 import { repeat } from '../utils/repeat';
 import { SlotButton } from '../structures/SlotButton';
@@ -72,7 +73,7 @@ export const defaultSlots: [
 	new SlotButton(FirmwareAction.MIDDLE_CLICK, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
-	new SlotButton(FirmwareAction.GLOBAL_DPI_CYCLE, 0x00, 0x00),
+	new SlotButton(FirmwareAction.DPI_CYCLE, 0x00, 0x00),
 	new SlotButton(FirmwareAction.FORWARD, 0x00, 0x00),
 	new SlotButton(FirmwareAction.BACKWARD, 0x00, 0x00),
 	new SlotButton(FirmwareAction.DISABLE_BUTTON, 0x00, 0x00),
@@ -91,7 +92,7 @@ export const defaultSlots: [
  * @see ./docs/protocols/button-mapping.md
  */
 export interface ButtonMappingBuilderOptions {
-	profileId: ProfileId;
+	profileId?: Profile;
 	slot1?: SlotButton;
 	slot2?: SlotButton;
 	slot3?: SlotButton;
@@ -123,7 +124,7 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 	private _buffer = new Uint8Array(ReportPacketLength.BUTTON_MAPPING).fill(0x00);
 	private _view = new DataView(this._buffer.buffer, this._buffer.byteOffset, this._buffer.byteLength);
 
-	private _profileId: ProfileId = 0x01;
+	private _profileId: Profile = 0x01;
 	private _slots = defaultSlots;
 
 	constructor(options?: ButtonMappingBuilderOptions) {
@@ -153,14 +154,14 @@ export class ButtonMappingBuilder implements BaseProtocolBuilder {
 		this.setButton(ButtonMapping.Slot18, options?.slot18 ?? this._slots[17]);
 	}
 
-	public setProfileId(id: ProfileId): this {
+	public setProfileId(id: Profile): this {
 		this._profileId = id;
 		this._view.setInt8(2, id);
 
 		return this;
 	}
 
-	public getProfileId(): ProfileId {
+	public getProfileId(): Profile {
 		this._profileId = this._view.getInt8(2);
 
 		return this._profileId;

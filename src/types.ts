@@ -1,4 +1,4 @@
-import type { CommandConfirmation } from './handles/messages/handleCommandConfirmation';
+import type { CommandConfirmation } from './handles';
 
 /**
  * Connection modes supported by the driver.
@@ -96,7 +96,7 @@ export enum ReportId {
 	BUTTON_MAPPING = 0x08,
 	MACRO = 0x09,
 	DEVICE_VERSION = 0x0b,
-	READ_REPORT_ID = 0xa0,
+	PERMISSION_COMMAND = 0xa0,
 	WAKE_UP_MODE = 0x07,
 	PROFILE = 0x0a,
 	PROFILE_SETTING = 0x0c,
@@ -195,6 +195,7 @@ export enum MessageTypes {
  * Expected byte length for device event notification packets (5 bytes).
  */
 export const MessageTypesLength = 5;
+export const ConsumerControlEventLength = 3;
 
 /**
  * Represents the charging and power states reported by the device connection message.

@@ -1,45 +1,49 @@
 // noinspection JSUnusedGlobalSymbols
 
-import { EventEmitter } from 'node:events';
+import { BatteryStatus, type Logger, MessageTypesLength, type Profile } from '../types';
 import {
-	CommandInProgressError,
-	ControlTransferError,
-	DriverError,
-	SendCommandError,
-	TimeoutError,
-} from '../errors.js';
-import { DpiBuilder, type DpiBuilderOptions } from '../protocols/DpiBuilder.js';
-import { type ChangeProfileBuilderOptions, ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
-import { ButtonMappingBuilder, type ButtonMappingBuilderOptions } from '../protocols/ButtonMappingBuilder';
-import { PollingRateBuilder, type PollingRateBuilderOptions, type Rate } from '../protocols/PollingRateBuilder.js';
-import { LightingSettingsBuilder, type LightingSettingsBuilderOptions } from '../protocols/LightingSettingsBuilder';
-import type { Profile } from '../types.js';
-import {
-	BatteryStatus,
 	ConnectionMode,
-	type Logger,
+	ConsumerControlEventLength,
 	MessageTypes,
-	MessageTypesLength,
 	type PendingCommand,
 	type ProfileId,
 	ReportId,
 	ReportReadLength,
-} from '../types.js';
-import { delay } from '../utils/delay.js';
-import { handleResponsePollingRate } from '../handles/handleResponsePollingRate';
-import { handleResponseLightingSettings } from '../handles/handleResponseLightingSettings';
-import { handleResponseDpi } from '../handles/handleResponseDpi';
-import { handleResponseButtonMapping } from '../handles/handleResponseButtonMapping';
-import { handleMacroResponse } from '../handles/hadleMacroResponse';
-import { MacroBuilder, type MacroBuilderOptions } from '../protocols/MacroBuilder';
-import { handleBatteryMessage } from '../handles/messages/handleBatteryMessage';
-import { CommandConfirmation, handleCommandConfirmation } from '../handles/messages/handleCommandConfirmation';
-import { type MouseTransport } from './transport';
-import { VID } from '../index';
-import { HidTransport } from './transport/HidTransport';
+} from '../types';
+import EventEmitter from 'node:events';
+import { HidTransport, type MouseTransport } from './transport';
+import type { Rate } from '../index';
+import {
+	ButtonMappingBuilder,
+	type ButtonMappingBuilderOptions,
+	CommandConfirmation,
+	CommandInProgressError,
+	ControlTransferError,
+	delay,
+	DpiBuilder,
+	type DpiBuilderOptions,
+	DriverError,
+	handleBatteryMessage,
+	handleCommandConfirmation,
+	handleMacroResponse,
+	handleProfileChanged,
+	handleProfileSettings,
+	handleResponseButtonMapping,
+	handleResponseDpi,
+	handleResponseLightingSettings,
+	handleResponsePollingRate,
+	LightingSettingsBuilder,
+	type LightingSettingsBuilderOptions,
+	PollingRateBuilder,
+	type PollingRateBuilderOptions,
+	SendCommandError,
+	TimeoutError,
+	VID,
+} from '../index';
 import { hex } from '../logger/hex';
-import { handleProfileSettings } from '../handles/handleProfileSettings';
-import { handleProfileChanged } from '../handles/messages/handleProfileChanged';
+import { type ChangeProfileBuilderOptions, ProfileSettingsBuilder } from '../protocols/ProfileSettingsBuilder';
+import { MacroBuilder, type MacroBuilderOptions } from '../protocols/MacroBuilder';
+import { ConsumerUsage } from './keyboard-keypad-page';
 
 /**
  * The only reports the driver is allowed to write. Any write to report 0x10, whatever the payload, restarts the
@@ -67,6 +71,8 @@ export interface AttackSharkX11Events {
 	profileChanged: [response: Profile];
 	/** Emitted when a data monitoring error occurs */
 	error: [error: Error];
+	/** Emitted when a consumer control event is received */
+	consumerUsage: [consumerUsage: ConsumerUsage];
 }
 
 /**
@@ -139,24 +145,21 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	}
 
 	/**
-	 * Processes incoming binary data and handles various message types based on their
-	 * structure and content. The function parses the provided Uint8Array, extracts
-	 * relevant information via a DataView, and performs operations such as updating
-	 * battery status, confirming commands, or ignoring unhandled message types.
+	 * Handles incoming data messages and processes them based on their defined message types or event lengths.
 	 *
-	 * @param {Uint8Array} data - The binary data buffer received for processing, which
-	 *                            contains the message type and associated parameters.
+	 * The function analyzes the provided `Uint8Array` data, interprets specific message structures,
+	 * and triggers corresponding events or actions based on the message type.
 	 *
-	 * The `handleData` method is structured to:
-	 * - Parse the incoming binary data using DataView for extracting specific byte information.
-	 * - Identify the type of message based on its byte contents.
-	 * - Handle battery status updates by extracting parameters and emitting a `batteryChange` event.
-	 * - Process command confirmations by updating internal states, emitting a `commandConfirmation`
-	 *   event, and resolving any pending command promises if applicable.
-	 * - Log appropriate messages or errors when processing message types.
+	 * Supported message types include:
+	 * - Battery status updates
+	 * - Command confirmations
+	 * - Profile changes
+	 * - Consumer control events
 	 *
-	 * This method is specifically designed to cater to message types in the MessageTypes enumeration.
-	 * Unhandled or unknown message types are ignored and logged for debugging purposes.
+	 * Unrecognized message types or lengths are logged for debugging purposes.
+	 *
+	 * @param {Uint8Array} data - The incoming data buffer containing message information.
+	 * @throws {Error} Propagates any errors that occur during the handling of specific message types.
 	 */
 	private handleData = (data: Uint8Array): void => {
 		const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
@@ -230,14 +233,26 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 						this.logger?.debug(
 							`In the messaging event, an event was ignored because it lacked proper handling;` +
 								` event code: ${hex(msgType)}, params1: ${hex(view.getUint8(3))}, params2: ${hex(view.getUint8(4))}`,
-							'AttackSharkX11-handleData-messages',
+							'AttackSharkX11-handleData',
 						);
 					}
 				}
 				break;
 			}
+			case ConsumerControlEventLength: {
+				// const reportId = view.getUint8(0);
+				const usage = view.getUint16(1, true);
+				const name = ConsumerUsage[usage] ?? 'Unknown';
+
+				this.logger?.info(`received a consumer control: ${name} (${hex(usage, 4)})`);
+				this.emit('consumerUsage', usage as ConsumerUsage);
+				break;
+			}
 			default: {
-				// TODO: add more handlers
+				this.logger?.debug(
+					`In the messaging event, an event was ignored because it lacked proper handling; raw: ${data.toHex()}`,
+					'AttackSharkX11-handleData',
+				);
 			}
 		}
 	};
@@ -363,7 +378,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 			throw new DriverError('You have to open the device first');
 		}
 
-		const PERMISSION_COMMAND = 0xa0;
+		const PERMISSION_COMMAND = ReportId.PERMISSION_COMMAND;
 		const RESPONSE_LENGTH = 8;
 		const PERMISSION_GRANTED_STATUS = 0x01;
 		const READ_PERMISSION_DELAY_MS = 250;
@@ -479,6 +494,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		try {
 			const builder = options instanceof LightingSettingsBuilder ? options : new LightingSettingsBuilder(options);
+			console.log(builder.build(this.connectionMode).toHex());
 			return this.sendCommand(ReportId.LIGHTING_SETTINGS, builder.build(this.connectionMode), timeoutMs);
 		} catch (err) {
 			throw new SendCommandError(`failed to set lighting settings`, { cause: err });
@@ -533,7 +549,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleProfileSettings(response);
 	}
 
-	async getButtonMapping(profileId: ProfileId = 0x01): Promise<ButtonMappingBuilder> {
+	async getButtonMapping(profileId: Profile = 0x01): Promise<ButtonMappingBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(
 			ReportId.BUTTON_MAPPING,
