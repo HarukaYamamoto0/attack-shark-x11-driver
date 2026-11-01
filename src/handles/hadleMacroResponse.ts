@@ -11,6 +11,7 @@ import { hex } from '../logger/hex';
 export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 	if (buffer.length !== ReportReadLength.MACRO)
 		throw new ParamsError(
+			'buffer',
 			`Invalid macro buffer size; expected ${ReportReadLength.MACRO} but received ${buffer.length}`,
 		);
 
@@ -24,6 +25,7 @@ export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 
 	if (checksum !== checksumByte)
 		throw new ParamsError(
+			'buffer',
 			`Invalid macro response checksum; expected: ${hex(checksumByte)}, ` + `but calculated: ${hex(checksum)}`,
 		);
 
@@ -39,18 +41,20 @@ export function handleMacroResponse(buffer: Uint8Array): MacroBuilder {
 	};
 	const loopTimes = view.getUint8(7);
 	const macroName = buffer.subarray(8, 28);
-	// const macroCount = view.getUint8(29); // not used
+	// const macroCount = view.getUint8(28); // not used
 
 	// starting to read the actions
 	const actionsBuffer = buffer.subarray(29, 129);
 	const actionsBufferView = new DataView(actionsBuffer.buffer, actionsBuffer.byteOffset, actionsBuffer.byteLength);
 	const actions: MacroAction[] = [];
 
-	for (let i = 0; i < actionsBuffer.length; i) {
+	// a macro that fills all 100 bytes has no 00 00 end marker, so never read past the end
+	for (let i = 0; i + 1 < actionsBuffer.length; i) {
 		const delayAndAction: number = actionsBufferView.getUint8(i);
 		const keyCode: number | MacroActionMouseCode = actionsBufferView.getUint8(i + 1);
-		const extendedDelay = actionsBufferView.getUint8(i + 2);
-		const extendedFlag = actionsBufferView.getUint8(i + 3);
+		const hasExtendedBytes = i + 3 < actionsBuffer.length;
+		const extendedDelay = hasExtendedBytes ? actionsBufferView.getUint8(i + 2) : 0x00;
+		const extendedFlag = hasExtendedBytes ? actionsBufferView.getUint8(i + 3) : 0x00;
 
 		if (delayAndAction === 0x00 && keyCode === 0x00) break; // end of macro
 
