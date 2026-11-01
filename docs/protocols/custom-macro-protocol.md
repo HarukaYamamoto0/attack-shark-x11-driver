@@ -1,5 +1,8 @@
 # Custom Macro Communication Protocol (Report 0x09 / 0x08)
 
+> [!TIP]
+> To better understand this document, read the `README.md` located in the root of this directory first.
+
 This document describes the USB HID communication protocol used to configure, write, and read custom macros for the
 Attack Shark X11 mouse, as implemented in `MacroBuilder`, `MacroAction`, and `handleMacroResponse`.
 

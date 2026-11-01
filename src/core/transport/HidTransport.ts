@@ -10,6 +10,7 @@ import { findX11Devices, type MouseTransport, type TransportOptions } from './in
 export class HidTransport implements MouseTransport {
 	private command?: HIDAsync | undefined;
 	private events?: HIDAsync | undefined;
+	private consumerControl?: HIDAsync | undefined;
 
 	constructor(private readonly options: TransportOptions) {}
 
@@ -18,19 +19,28 @@ export class HidTransport implements MouseTransport {
 
 		if (!device.command.path) throw new TransportError('the path to the command interface was not found');
 		if (!device.events.path) throw new TransportError('the path to the events interface was not found');
+		if (!device.consumerControl.path)
+			throw new TransportError('the path to the consumer control interface was not found');
 
 		this.command = await HIDAsync.open(device.command.path);
 
 		this.events =
 			device.command.path === device.events.path ? this.command : await HIDAsync.open(device.events.path);
+
+		this.consumerControl =
+			device.command.path === device.consumerControl.path
+				? this.command
+				: await HIDAsync.open(device.consumerControl.path);
 	}
 
 	async close(): Promise<void> {
 		await this.command?.close();
 		await this.events?.close();
+		await this.consumerControl?.close();
 
 		this.command = undefined;
 		this.events = undefined;
+		this.consumerControl = undefined;
 	}
 
 	sendFeatureReport(data: Uint8Array): Promise<number> {
@@ -53,26 +63,35 @@ export class HidTransport implements MouseTransport {
 		this.events.on('data', (data: Buffer) => {
 			listener(Uint8Array.from(data));
 		});
+
+		if (!this.consumerControl) throw new TransportError('Transport is not open');
+
+		this.consumerControl.on('data', (data: Buffer) => {
+			listener(Uint8Array.from(data));
+		});
 	}
 
 	onError(listener: (error: Error) => void): void {
 		this.events?.on('error', listener);
 		this.command?.on('error', listener);
+		this.consumerControl?.on('error', listener);
 	}
 
-	private async resolveDevice(): Promise<{ command: Device; events: Device }> {
+	private async resolveDevice(): Promise<{ command: Device; events: Device; consumerControl: Device }> {
 		const devices = await findX11Devices(this.options);
 
-		const command = devices.find((d) => d.interface === 0x02 && d.usagePage === 0x0b);
-
 		const events = devices.find((d) => d.interface === 0x02 && d.usagePage === 0x0a);
+		const command = devices.find((d) => d.interface === 0x02 && d.usagePage === 0x0b);
+		const consumerControl = devices.find((d) => d.interface === 0x02 && d.usage === 0x01 && d.usagePage === 0x0c);
 
 		if (!command?.path) throw new TransportError('Command HID collection not found');
 		if (!events?.path) throw new TransportError('Event HID collection not found');
+		if (!consumerControl?.path) throw new TransportError('Consumer Control HID collection not found');
 
 		return {
 			command,
 			events,
+			consumerControl,
 		};
 	}
 }

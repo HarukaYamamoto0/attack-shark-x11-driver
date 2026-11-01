@@ -26,6 +26,13 @@ export enum LightMode {
 	ColorBreathing = 0x4,
 	StaticDpi = 0x5,
 	BreathingDpi = 0x6,
+
+	// These values have no effect on the Attack Shark X11
+	// RainbowWave = 0x7,
+	// Lightning = 0x8,
+	// StaticMixedColor = 0x9,
+	// Marquee = 0x10,
+	// Marquee2 = 0x11,
 }
 
 /**
@@ -225,6 +232,12 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return lightMode >> 4;
 	}
 
+	/**
+	 * Sets the brightness level for the device.
+	 *
+	 * @param {BrightnessLevel} brightnessLevel - The desired brightness level to be set.
+	 * @return {this} The current instance of the class for method chaining.
+	 */
 	setBrightnessLevel(brightnessLevel: BrightnessLevel): this {
 		this.brightnessLevel = brightnessLevel;
 
@@ -307,8 +320,16 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 	}
 
 	getSleep(): SleepTime {
-		const sleepTime = this.view.getUint8(9);
-		return sleepTimeLut[sleepTime - 1] ?? this.sleepTime;
+		const sleepTimeByte = this.view.getUint8(9);
+		const sleepTime = sleepTimeLut[sleepTimeByte - 1];
+
+		if (!sleepTime) {
+			throw new ParamsError('sleepTime', 'Invalid value');
+		}
+
+		this.sleepTime = sleepTime;
+
+		return this.sleepTime;
 	}
 
 	/**
@@ -327,6 +348,14 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
+	getKeyResponse(): KeyResponse {
+		const keyResponse = this.view.getUint8(10);
+
+		this.keyResponse = (keyResponse * 2) as KeyResponse;
+
+		return this.keyResponse;
+	}
+
 	calculateChecksum(): this {
 		let checksum = 0;
 
@@ -338,10 +367,8 @@ export class LightingSettingsBuilder implements BaseProtocolBuilder {
 		return this;
 	}
 
-	build(mode: ConnectionMode): Buffer {
-		// the setters change bytes 3-10, so the sum has to be redone here or the mouse rejects the packet
+	build(mode: ConnectionMode): Uint8Array {
 		this.calculateChecksum();
-
 		if (mode === ConnectionMode.Wired) return this.buffer.subarray(0, 13);
 		else return this.buffer;
 	}

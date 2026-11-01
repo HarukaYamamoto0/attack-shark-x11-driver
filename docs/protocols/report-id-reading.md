@@ -1,51 +1,146 @@
 # Reading Report IDs
 
-> For simplicity, I will refer to Report IDs as *commands* throughout this document.
+> [!TIP]
+> To better understand this document, read the `README.md` located in the root of this directory first.
 
-Reading a command is straightforward, but it requires two steps. First, you must “request permission” to read. Only then can you read the command itself. If you attempt to read it without requesting permission, you will receive bytes that appear to be random.
+> [!NOTE]
+> This protocol is not yet fully understood. Although the current findings are enough to perform reliable
+> read operations, some fields and internal behaviors still require further investigation.
 
-To request permission, send a Feature `SET_REPORT` using command `0xA0` with the following bytes:
+> [!CAUTION]
+> Do not attempt to read Report ID `0x10`. Doing so may cause the mouse to enter **bootloader mode**.
 
-```typescript
-import AttackSharkX11 from './AttackSharkX11';
+This protocol allows the host to retrieve device settings through HID Feature Reports. However, reading a report
+requires a preliminary handshake before the actual `GET_REPORT` request can be performed.
 
-const driver = new AttackSharkX11();
-await driver.open();
+The mouse implements what appears to be a **single-use read authorization mechanism**. Before reading a report, the host
+must request read access through Report ID `0xA0`.
 
-const buffer = new Uint8Array(8);
+Once the request is accepted, the host is allowed to perform a single read operation. Any subsequent read requires a new
+authorization request.
 
-buffer[0] = 0xA0;
-buffer[1] = 0x04; // Report ID
-buffer[2] = 0x38; // Response length
-buffer[3] = 0x00; // Unknown
-buffer[4] = 0x01; // Parameter
-buffer[5] = 0x00; // Unknown
-buffer[6] = 0x00; // Unknown
-buffer[7] = 0x00; // Unknown
+Attempting to read a report without completing this procedure typically returns seemingly arbitrary or invalid data
+rather than the expected configuration.
 
-await driver.transport?.sendFeatureReport(buffer);
+Based on the observed behavior, the read sequence consists of three steps:
+
+1. **Request read access:** Send a `SET_REPORT` request to Report ID `0xA0`.
+2. **Check read access:** Send a `GET_REPORT` request to Report ID `0xA0` to verify that the request was accepted.
+3. **Read the target report:** Send a `GET_REPORT` request using the desired Report ID.
+
+## Requesting Read Access
+
+To request read access, send a HID Feature Report using `SET_REPORT` with Report ID `0xA0`.
+
+The request uses the following structure:
+
+| Offset | Example | Description              |
+|--------|---------|--------------------------|
+| 0      | `0xA0`  | Report ID                |
+| 1      | `0x04`  | Target Report ID         |
+| 2      | `0x38`  | Expected Response Length |
+| 3      | `0x00`  | Unknown                  |
+| 4      | `0x01`  | Parameter                |
+| 5      | `0x00`  | Unknown                  |
+| 6      | `0x00`  | Unknown                  |
+
+Example request:
+
+```hex
+A0 04 38 00 01 00 00
 ```
 
-Byte **2** specifies the length of the response you expect to receive. The length for each command is defined in the `ReportReadLength` enum in [types.ts](../../src/types.ts). If you provide a value other than the expected length, the device rejects the request.
+### Offset 1 – Target Report ID
 
-Byte **4** is a parameter. In most cases, it is the profile ID, which lets you request data for a specific profile. For a macro command, however, this parameter is the ID of the macro you want to read.
+Specifies the Report ID that the host intends to read.
 
-After you send this command successfully, you have permission to read **one command only**. To perform another read, you must send the permission request again.
+Interestingly, observations suggest that the resulting read access is not restricted to the Report ID specified in this
+field. Once granted, it appears possible to read a different Report ID instead.
 
-There is another detail about this request: the Report ID you put in byte 1 does not determine which command you can read afterward, as long as that Report ID is valid. Once permission has been granted, you can read a different command.
+However, this field must still contain a valid Report ID for the request to be accepted.
 
-After sending the request, you can check whether you have permission to read by issuing a Feature `GET_REPORT` for command `0xA0`.
+### Offset 2 – Expected Response Length
 
-If permission is available, the response is:
+Specifies the expected length of the target report's response.
 
-```text
-a0 01 00 00 00 00 00 00
+Each supported Report ID has an associated response length, which must be provided when requesting read access.
+
+The expected lengths are documented in their respective protocol documentation and are represented in the source code by
+the `ReportReadLength` enum.
+
+Providing an incorrect response length causes the mouse to reject the request.
+
+### Offset 4 – Parameter
+
+This field provides an additional parameter associated with the requested report.
+
+Its exact semantics have not yet been fully determined, but its meaning appears to depend on the target Report ID.
+
+For example:
+
+- **Profile-specific settings:** When reading settings such as polling rate, this parameter identifies the profile whose
+  configuration should be retrieved.
+- **Macros:** When reading a macro, this parameter identifies the macro to retrieve.
+
+Therefore, this field should not be interpreted exclusively as a Profile ID. It is better understood as a
+**report-specific parameter**, whose meaning depends on the operation being performed.
+
+## Checking Read Access
+
+After requesting read access, the host can verify whether the request was accepted by sending a `GET_REPORT` request to
+Report ID `0xA0`.
+
+The documented response fields are:
+
+| Offset | Example | Description        |
+|--------|---------|--------------------|
+| 0      | `0xA0`  | Report ID          |
+| 1      | `0x01`  | Read Access Status |
+| 2      | `0x00`  | Unknown            |
+| 3      | `0x00`  | Unknown            |
+| 4      | `0x00`  | Unknown            |
+| 5      | `0x00`  | Unknown            |
+| 6      | `0x00`  | Unknown            |
+
+Example response:
+
+```hex
+A0 01 00 00 00 00 00
 ```
 
-Otherwise, the response is:
+The byte at offset `1` indicates whether read access is available.
 
-```text
-a0 00 00 00 00 00 00 00
-```
+| Value  | Description                   |
+|--------|-------------------------------|
+| `0x00` | Read access is not available. |
+| `0x01` | Read access is available.     |
 
-Only after permission is available can you read a command correctly.
+**Note:** Earlier observations describe an 8-byte response, although only seven bytes (offsets `0–6`) have been
+documented here. The remaining byte and exact response framing still require verification.
+
+## Reading the Target Report
+
+Once read access has been confirmed, the host can retrieve the requested configuration by sending a `GET_REPORT` request
+using the target Report ID.
+
+For example, if read access was requested for Report ID `0x04`, the host can subsequently retrieve its contents through
+a `GET_REPORT` request targeting `0x04`.
+
+The returned data should then contain the configuration associated with that report, following the structure documented
+in its respective protocol specification.
+
+**Important:** Read access is consumed after a successful read operation. To read the same report again or to retrieve
+another report, the host must repeat the authorization procedure.
+
+Since the mechanism appears to maintain a shared, single-use read state, implementations should serialize read
+operations to prevent concurrent requests from interfering with one another.
+
+### Known Limitations
+
+The following aspects of the protocol remain under investigation:
+
+- The exact purpose of the unknown bytes in the authorization request and response.
+- Why the Target Report ID field does not appear to restrict which report can subsequently be read.
+- Whether read access expires after a timeout or only after a read operation.
+- Whether invalid or failed, read attempts to consume the available read access.
+- The internal mechanism responsible for returning invalid data when read access has not been requested.
