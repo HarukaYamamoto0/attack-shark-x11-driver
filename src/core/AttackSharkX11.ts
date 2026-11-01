@@ -59,7 +59,7 @@ const WRITABLE_REPORTS: ReadonlySet<number> = new Set([
 	ReportId.PROFILE,
 	ReportId.DEVICE_VERSION,
 	ReportId.PROFILE_SETTING,
-	ReportId.READ_REPORT_ID,
+	ReportId.PERMISSION_COMMAND,
 ]);
 
 /** Events emitted by the AttackSharkX11 class */
