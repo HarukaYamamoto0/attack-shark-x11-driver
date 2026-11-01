@@ -520,7 +520,7 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		return handleProfileSettings(response);
 	}
 
-	async getButtonMapping(profileId: ProfileId = 0x01): Promise<ButtonMappingBuilder> {
+	async getButtonMapping(profileId: Profile = 0x01): Promise<ButtonMappingBuilder> {
 		if (!this.transport) throw new DriverError('You have to open the device first');
 		const response = await this.getFeatureReport(
 			ReportId.BUTTON_MAPPING,

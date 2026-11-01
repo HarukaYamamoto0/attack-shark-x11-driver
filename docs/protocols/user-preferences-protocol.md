@@ -43,13 +43,9 @@ Both variants share the same configuration fields. The wireless variant includes
 | 13     | `0x00`  | Padding (Wireless)          |
 | 14     | `0x00`  | Padding (Wireless)          |
 
-> [!NOTE]
-> The example uses `0x0F` as the Report Length field. Whether this value must change to `0x0D` for the 13-byte wired
-variant has not yet been verified.
-
 ## Offset 3 – Lighting Mode
 
-This byte uses **bit packing**, with the lighting mode stored in the upper nibble (bits `7–4`). The lower nibble
+This byte uses **nibble packing**, with the lighting mode stored in the upper nibble (bits `7–4`). The lower nibble
 (bits `3–0`) is currently unused.
 
 To encode a lighting mode, shift its value left by four bits:
