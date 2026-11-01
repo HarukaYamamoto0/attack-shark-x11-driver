@@ -107,3 +107,17 @@ export class CommandInProgressError extends DriverError {
 		super('another command is already pending', options);
 	}
 }
+
+/**
+ * Represents an error that is thrown when an operation is attempted on a closed driver.
+ * Extends the `DriverError` to provide a specific error type for closed driver scenarios.
+ *
+ * This error is typically used to indicate that the driver is no longer operational
+ * and any further interactions with it are not allowed.
+ */
+export class DriverClosedError extends DriverError {
+	constructor() {
+		super('The driver has been closed.');
+		this.name = 'DriverClosedError';
+	}
+}

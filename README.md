@@ -35,9 +35,9 @@ Example: change the polling rate and read it back.
 ```typescript
 import { AttackSharkX11, Rate, CommandConfirmation } from 'attack-shark-x11-driver';
 
-const driver = new AttackSharkX11();
-
 try {
+	// the class also implements the AsyncDisposable interface.
+	await using driver = new AttackSharkX11();
 	await driver.open();
 
 	const status = await driver.setPollingRate({ rate: Rate.Office });
@@ -47,8 +47,9 @@ try {
 } catch (error) {
 	console.error('Mouse communication failed:', error);
 } finally {
-	await driver.close();
+	console.log('\nDriver closed.');
 }
+
 ```
 
 ### Linux permissions

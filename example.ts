@@ -1,8 +1,8 @@
 import { AttackSharkX11, Rate, CommandConfirmation } from './src';
 
-const driver = new AttackSharkX11();
-
 try {
+	// the class also implements the AsyncDisposable interface
+	await using driver = new AttackSharkX11();
 	await driver.open();
 
 	const status = await driver.setPollingRate({ rate: Rate.Office });
@@ -12,5 +12,5 @@ try {
 } catch (error) {
 	console.error('Mouse communication failed:', error);
 } finally {
-	await driver.close();
+	console.log('\nDriver closed.');
 }

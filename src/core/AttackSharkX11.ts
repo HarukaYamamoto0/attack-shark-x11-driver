@@ -6,13 +6,12 @@ import {
 	ConsumerControlEventLength,
 	MessageTypes,
 	type PendingCommand,
-	type ProfileId,
 	ReportId,
 	ReportReadLength,
 } from '../types';
 import EventEmitter from 'node:events';
 import { HidTransport, type MouseTransport } from './transport';
-import type { Rate } from '../index';
+import { DriverClosedError, type Rate } from '../index';
 import {
 	ButtonMappingBuilder,
 	type ButtonMappingBuilderOptions,
@@ -76,10 +75,12 @@ export interface AttackSharkX11Events {
 }
 
 /**
- * Represents the AttackSharkX11 driver, designed for managing the communication and control of the Attack Shark X11 device.
- * It facilitates device connection, monitors battery status, handles command confirmation, and manages data exchange.
+ * AttackSharkX11 class provides an interface for interacting with a mouse-like device.
+ * It extends the EventEmitter and implements AsyncDisposable to manage event-driven communication
+ * and asynchronous disposal of resources. This class handles device communication through a transport
+ * layer, processes incoming data formats, and emits corresponding events.
  */
-export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
+export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> implements AsyncDisposable {
 	private logger: Logger | null;
 	public productId: number | undefined;
 	public transport?: MouseTransport | undefined;
@@ -273,19 +274,28 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	};
 
 	/**
-	 * Closes the connection to the device, stops polling, and releases the interfaces.
-	 * It is important to call this method when finishing use to avoid resource leaks.
+	 * Closes the transport connection and cleans up any associated resources.
+	 *
+	 * This method ensures that any pending commands are rejected, all event listeners
+	 * are removed, and the transport is properly closed. If an error occurs during
+	 * the closing process, it throws a `DriverError`.
+	 *
+	 * @return {Promise<void>} A promise that resolves once the transport connection
+	 * is successfully closed or rejects with an error if the closing process fails.
 	 */
 	async close(): Promise<void> {
 		if (!this.transport) return;
 
-		this.rejectPendingCommand(new DriverError('the device was closed before the command was confirmed'));
+		this.rejectPendingCommand(new DriverClosedError());
 		this.removeAllListeners();
+		this.hasReadPermission = false;
 
 		try {
 			await this.transport.close();
+			this.transport = undefined;
 		} catch (e: unknown) {
-			new DriverError('an error occurred while attempting to close the transport', { cause: e });
+			this.logger?.error(`an error occurred while attempting to close the transport: ${e}`);
+			throw new DriverError('an error occurred while attempting to close the transport', { cause: e });
 		}
 	}
 
@@ -586,14 +596,14 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 	 * Initializes the user profile with specified configuration settings.
 	 *
 	 * @param {Object} config - Configuration settings for initializing the profile.
-	 * @param {ProfileId} config.profileId - Identifier of the profile to initialize.
+	 * @param {Profile} config.profileId - Identifier of the profile to initialize.
 	 * @param {number} config.currentProfileId - Identifier of the currently active profile.
 	 * @param {number} config.maxProfileCount - Maximum number of profiles allowed.
 	 * @param {number} config.timeoutMs - Timeout duration in milliseconds for each configuration operation.
 	 * @return {Promise<void>} A promise that resolves when the profile initialization is complete.
 	 */
 	async initializeProfile(config: {
-		profileId: ProfileId;
+		profileId: Profile;
 		currentProfileId: number;
 		maxProfileCount: number;
 		timeoutMs: number;
@@ -619,6 +629,10 @@ export class AttackSharkX11 extends EventEmitter<AttackSharkX11Events> {
 		check('lighting settings', await this.setLightingSettings({ profileId: config.profileId }, config.timeoutMs));
 		check('polling rate', await this.setPollingRate({ profileId: config.profileId }, config.timeoutMs));
 		check('button mapping', await this.setButtonMapping({ profileId: config.profileId }, config.timeoutMs));
+	}
+
+	[Symbol.asyncDispose](): Promise<void> {
+		return this.close();
 	}
 }
 
