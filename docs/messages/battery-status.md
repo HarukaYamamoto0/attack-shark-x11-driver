@@ -83,3 +83,10 @@ The overall packet structure remains the same.
 - The X6 reports a device ID of `0x10`, which is the same device ID used by the Attack Shark R1.
 - Battery status updates are received approximately every 2 seconds. The battery level is reported on a scale of 1–10
   rather than as a percentage, with hexadecimal values ranging from `0x01` to `0x0A`.
+
+### X11 PRO V2 (`0xA9`)
+
+- `params2` continues to update while the device is charging. However, the reported battery percentage is inaccurate,
+  reaching 100% well before the `0x02` status report is received.
+- When the device is on the charging dock and the battery reaches 100%, `params1` alternates between `0x01` and `0x03`
+  as charging stops and restarts.
