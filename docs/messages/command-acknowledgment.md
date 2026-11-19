@@ -88,3 +88,13 @@ There are still some unexplained events documented in [`unknown-events.md`](./un
 
 From the observed behavior of the official software, it appears to wait specifically for this acknowledgment after
 sending a command. If the expected acknowledgment is not received, the software simply retries the command.
+
+## Other Models
+
+### X6 (`0x10`)
+
+> The following information is based
+> on [this GitHub issue](https://github.com/Abosmra/rust-shark/issues/1#issuecomment-6808446226).
+
+- In the read response, the reported packet length includes an additional 2 bytes. For example, Report ID `0x04` has a
+length of `0x38`, and the read response reports `0x3A`.
