@@ -2,9 +2,9 @@ export enum DeviceId {
 	// None = 0x00,
 	X3 = 0x4d,
 	X3Max = 0x4e,
-	X11 = 0x55,
-	R1 = 0x10,
-	X6 = 0x85,
+	X11 = 0x55, // confirmed
+	R1 = 0x10, // confirmed
+	X6 = 0x85, // confirmed https://github.com/Abosmra/rust-shark/issues/1
 	M90Pro = 0x30,
 	G15 = 0x43,
 	M900Mini = 0x3d,

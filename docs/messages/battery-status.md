@@ -70,3 +70,16 @@ battery.
 
    This indicates that the battery is fully charged (`Param 1 = 0x02`) and reports a battery level of 100%
    (`Param 2 = 0x64`).
+
+## Other Models
+
+### X6 (`0x10`)
+
+> The following information is based
+> on [this GitHub issue](https://github.com/Abosmra/rust-shark/issues/1#issuecomment-6808446226).
+
+The overall packet structure remains the same.
+
+- The X6 reports a device ID of `0x10`, which is the same device ID used by the Attack Shark R1.
+- Battery status updates are received approximately every 2 seconds. The battery level is reported on a scale of 1–10
+  rather than as a percentage, with hexadecimal values ranging from `0x01` to `0x0A`.
